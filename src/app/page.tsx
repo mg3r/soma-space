@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { nextEvent } from "@/config/event";
 
 type Phase = "boot" | "await_password" | "checking" | "unlocked";
@@ -10,8 +10,7 @@ function rand_ms(min = 1000, max = 3000) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-export default function page() {
-  const eventName = process.env.NEXT_PUBLIC_EVENT_NAME ?? "soma space";
+export default function Page() {
   const stripeUrl = process.env.NEXT_PUBLIC_STRIPE_BASE_URL || "";
 
   const [phase, setPhase] = useState<Phase>("boot");
@@ -31,13 +30,14 @@ export default function page() {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const lastErrorIndexRef = useRef<number | null>(null);
+  const isTypingRef = useRef(false);
 
   const errorMessages = [
-    "hmm, that didn't quite work. feel free to try again.",
-    "not quite. you're welcome to try again.",
-    "that doesn't seem to be it. take another try.",
+    "hmm, that didn&apos;t quite work. feel free to try again.",
+    "not quite. you&apos;re welcome to try again.",
+    "that doesn&apos;t seem to be it. take another try.",
     "almost — give it another go.",
-    "that wasn't it. try again.",
+    "that wasn&apos;t it. try again.",
   ];
 
   const getRandomErrorMessage = () => {
@@ -63,11 +63,9 @@ export default function page() {
       return prev;
     });
 
-    let isTyping = false;
-
-    async function botSay(item: (typeof lines)[number]) {
-      if (isTyping) return;
-      isTyping = true;
+    const botSay = useCallback(async (item: (typeof lines)[number]) => {
+      if (isTypingRef.current) return;
+      isTypingRef.current = true;
     
       push({ type: "typing" });
       await new Promise((r) => setTimeout(r, rand_ms(1000, 3000)));
@@ -75,8 +73,8 @@ export default function page() {
       popTypingIfPresent();
       push(item);
     
-      isTyping = false;
-    }
+      isTypingRef.current = false;
+    }, [push, popTypingIfPresent]);
 
   useEffect(() => {
     (async () => {
@@ -100,7 +98,7 @@ export default function page() {
 
       setPhase("await_password");
     })();
-  }, []);
+  }, [botSay]);
 
   useEffect(() => {
     if (chatScrollRef.current && bottomRef.current) {
@@ -219,7 +217,7 @@ export default function page() {
                     return (
                       <div key={idx} className="flex">
                         <p className="text-white/80 max-w-[85%]">
-                          if you'd like to learn more, you can read the full{" "}
+                          if you&apos;d like to learn more, you can read the full{" "}
                           <Link
                             className="text-[#05fd00] hover:text-[#05fd00]/80"
                             href="/manifesto"

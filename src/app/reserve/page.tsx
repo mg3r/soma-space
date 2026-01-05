@@ -18,14 +18,14 @@ function generateSpiralPath(turns = 4, maxRadius = 120) {
   return points.join(' ');
 }
 
-export default function page() {
+export default function Page() {
   const spiralPath = generateSpiralPath(4, 120);
   return (
     <main className="relative h-screen overflow-hidden bg-[#111111] text-white">
       <div className="relative mx-auto flex h-screen max-w-2xl flex-col px-6 pt-20 pb-10">
         <div className="flex flex-1 items-center justify-between">
           <div>
-            <h1 className="text-sm">you're in.</h1>
+            <h1 className="text-sm">you&apos;re in.</h1>
 
             <p className="mt-6 text-sm text-white/70">
               thank you for reserving your spot.
