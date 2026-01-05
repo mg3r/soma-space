@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { nextEvent } from "@/config/event";
 
 type Phase = "boot" | "await_password" | "checking" | "unlocked";
@@ -55,28 +55,31 @@ export default function Page() {
   const push = (item: (typeof lines)[number]) =>
     setLines((prev) => [...prev, item]);
 
-  const popTypingIfPresent = () =>
+  const botSay = async (item: (typeof lines)[number]) => {
+    if (isTypingRef.current) return;
+    isTypingRef.current = true;
+  
+    setLines((prev) => [...prev, { type: "typing" }]);
+    await new Promise((r) => setTimeout(r, rand_ms(1000, 3000)));
+  
     setLines((prev) => {
       if (prev.length === 0) return prev;
       const last = prev[prev.length - 1];
-      if (last.type === "typing") return prev.slice(0, -1);
-      return prev;
+      if (last.type === "typing") {
+        return [...prev.slice(0, -1), item];
+      }
+      return [...prev, item];
     });
+  
+    isTypingRef.current = false;
+  };
 
-    const botSay = useCallback(async (item: (typeof lines)[number]) => {
-      if (isTypingRef.current) return;
-      isTypingRef.current = true;
-    
-      push({ type: "typing" });
-      await new Promise((r) => setTimeout(r, rand_ms(1000, 3000)));
-    
-      popTypingIfPresent();
-      push(item);
-    
-      isTypingRef.current = false;
-    }, [push, popTypingIfPresent]);
+  const hasInitializedRef = useRef(false);
 
   useEffect(() => {
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+
     (async () => {
       await new Promise((r) => setTimeout(r, 1100));
       setShowNav(true);
@@ -98,7 +101,8 @@ export default function Page() {
 
       setPhase("await_password");
     })();
-  }, [botSay]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (chatScrollRef.current && bottomRef.current) {
