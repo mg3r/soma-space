@@ -1,0 +1,297 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { nextEvent } from "@/config/event";
+
+type Phase = "boot" | "await_password" | "checking" | "unlocked";
+
+function rand_ms(min = 1000, max = 3000) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+export default function page() {
+  const eventName = process.env.NEXT_PUBLIC_EVENT_NAME ?? "soma space";
+  const stripeUrl = process.env.NEXT_PUBLIC_STRIPE_BASE_URL || "";
+
+  const [phase, setPhase] = useState<Phase>("boot");
+  const [showNav, setShowNav] = useState(false);
+
+  const [lines, setLines] = useState<
+    Array<
+      | { type: "bot"; text: string }
+      | { type: "typing" }
+      | { type: "bot_manifesto_link" }
+      | { type: "bot_reserve_link" }
+      | { type: "user"; text: string }
+    >
+  >([]);
+
+  const [input, setInput] = useState("");
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const lastErrorIndexRef = useRef<number | null>(null);
+
+  const errorMessages = [
+    "hmm, that didn't quite work. feel free to try again.",
+    "not quite. you're welcome to try again.",
+    "that doesn't seem to be it. take another try.",
+    "almost — give it another go.",
+    "that wasn't it. try again.",
+  ];
+
+  const getRandomErrorMessage = () => {
+    let randomIndex;
+    do {
+      randomIndex = Math.floor(Math.random() * errorMessages.length);
+    } while (
+      errorMessages.length > 1 &&
+      randomIndex === lastErrorIndexRef.current
+    );
+    lastErrorIndexRef.current = randomIndex;
+    return errorMessages[randomIndex];
+  };
+
+  const push = (item: (typeof lines)[number]) =>
+    setLines((prev) => [...prev, item]);
+
+  const popTypingIfPresent = () =>
+    setLines((prev) => {
+      if (prev.length === 0) return prev;
+      const last = prev[prev.length - 1];
+      if (last.type === "typing") return prev.slice(0, -1);
+      return prev;
+    });
+
+    let isTyping = false;
+
+    async function botSay(item: (typeof lines)[number]) {
+      if (isTyping) return;
+      isTyping = true;
+    
+      push({ type: "typing" });
+      await new Promise((r) => setTimeout(r, rand_ms(1000, 3000)));
+    
+      popTypingIfPresent();
+      push(item);
+    
+      isTyping = false;
+    }
+
+  useEffect(() => {
+    (async () => {
+      await new Promise((r) => setTimeout(r, 1100));
+      setShowNav(true);
+
+      await botSay({ type: "bot", text: "hey :) welcome to soma space" });
+
+      await botSay({
+        type: "bot",
+        text:
+          "this is a movement gathering rooted in presence and free expression, with gentle guidance throughout. no experience required — just come as you are",
+      });
+
+      await botSay({ type: "bot_manifesto_link" });
+
+      await botSay({
+        type: "bot",
+        text: "to see details of our next gathering and reserve your spot, type the password",
+      });
+
+      setPhase("await_password");
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (chatScrollRef.current && bottomRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [lines.length]);
+
+  async function submit() {
+    const trimmed = input.trim();
+    if (!trimmed) return;
+
+    // Show user input (actual text)
+    push({ type: "user", text: trimmed });
+
+    setInput("");
+
+    if (phase !== "await_password") return;
+
+    setPhase("checking");
+
+    const res = await fetch("/api/unlock", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: trimmed }),
+    });
+
+    if (!res.ok) {
+      await botSay({ type: "bot", text: getRandomErrorMessage() });
+      setPhase("await_password");
+      return;
+    }
+
+    setPhase("unlocked");
+
+    // Show typing indicator, then access granted
+    await botSay({ type: "bot", text: "access granted" });
+
+    // Show typing indicator, then renewal message
+    await botSay({ type: "bot", text: "join us for RENEWAL" });
+
+    // Show typing indicator, then event details
+    await botSay({
+      type: "bot",
+      text: `${nextEvent.date} • ${nextEvent.time}`,
+    });
+
+    await botSay({
+      type: "bot",
+      text: nextEvent.place,
+    });
+
+    await botSay({
+      type: "bot",
+      text: nextEvent.address,
+    });
+
+    // Show reserve link
+    await botSay({ type: "bot_reserve_link" });
+  }
+
+  return (
+    <main className="relative h-screen overflow-hidden bg-[#111111] text-white">
+      {/* aura */}
+      <div className="pointer-events-none absolute inset-0">
+        {/* Main central glow */}
+        <div className="absolute top-1/2 left-1/2 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/6 blur-3xl" 
+             style={{ animation: 'pulse 8s ease-in-out infinite' }} />
+        {/* Secondary organic glows */}
+        <div className="absolute top-1/2 left-1/2 h-[450px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/4 blur-2xl" 
+             style={{ animation: 'pulse 9s ease-in-out infinite', animationDelay: '1s' }} />
+        <div className="absolute top-1/2 left-1/2 h-[550px] w-[480px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/3 blur-3xl"
+             style={{ animation: 'pulse 10s ease-in-out infinite', animationDelay: '2s' }} />
+        {/* Subtle organic variations */}
+        <div className="absolute top-[45%] left-[48%] h-[300px] w-[350px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/2.5 blur-2xl"
+             style={{ animation: 'pulse 11s ease-in-out infinite', animationDelay: '2.5s' }} />
+        <div className="absolute top-[55%] left-[52%] h-[320px] w-[280px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/2 blur-2xl"
+             style={{ animation: 'pulse 12s ease-in-out infinite', animationDelay: '3s' }} />
+      </div>
+
+      <div className="relative mx-auto flex h-screen max-w-2xl flex-col px-6 pt-20 pb-10">
+        {/* subtle nav */}
+        <header
+          className={[
+            "mb-8 flex items-center justify-end transition-opacity duration-1000",
+            showNav ? "opacity-100" : "opacity-0",
+          ].join(" ")}
+        >
+          <nav className="flex gap-4 text-xs text-white/50">
+            <Link className="hover:text-white/80" href="/manifesto">
+              manifesto
+            </Link>
+          </nav>
+        </header>
+
+        {/* chat */}
+        <section
+          className={[
+            "flex flex-col transition-opacity duration-1000",
+            showNav ? "opacity-100" : "opacity-0",
+          ].join(" ")}
+        >
+          <div className="flex h-[calc(100vh-16rem)] flex-col overflow-hidden rounded-2xl bg-white/5 backdrop-blur">
+            <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-3 text-sm leading-relaxed text-white/90">
+                {lines.map((l, idx) => {
+                  if (l.type === "typing") {
+                    return (
+                      <div key={idx} className="flex">
+                        <p className="text-white/45 max-w-[85%]">
+                          ...
+                        </p>
+                      </div>
+                    );
+                  }
+                  if (l.type === "bot_manifesto_link") {
+                    return (
+                      <div key={idx} className="flex">
+                        <p className="text-white/80 max-w-[85%]">
+                          if you'd like to learn more, you can read the full{" "}
+                          <Link
+                            className="text-[#05fd00] hover:text-[#05fd00]/80"
+                            href="/manifesto"
+                          >
+                            manifesto
+                          </Link>{" "}
+                          here
+                        </p>
+                      </div>
+                    );
+                  }
+                  if (l.type === "bot_reserve_link") {
+                    return (
+                      <div key={idx} className="flex">
+                        <p className="text-white/80 max-w-[85%]">
+                          <a
+                            href={stripeUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[#05fd00] hover:text-[#05fd00]/80"
+                          >
+                            reserve your spot →
+                          </a>
+                        </p>
+                      </div>
+                    );
+                  }
+                  if (l.type === "user") {
+                    return (
+                      <div key={idx} className="flex justify-end">
+                        <p className="text-white/70 max-w-[85%] text-right">
+                          {l.text}
+                        </p>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={idx} className="flex">
+                      <p className="max-w-[85%]">{l.text}</p>
+                    </div>
+                  );
+                })}
+                <div ref={bottomRef} />
+              </div>
+            </div>
+
+            <div className="border-t border-white/10 p-4">
+              <div className="flex items-center gap-3">
+                <input
+                  className="w-full bg-transparent px-0 py-2 text-sm text-white/90 placeholder:text-white/30 outline-none"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && submit()}
+                  placeholder={phase === "await_password" ? "password" : ""}
+                  disabled={phase !== "await_password"}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                />
+                <button
+                  className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm hover:bg-white/15 disabled:opacity-40"
+                  onClick={submit}
+                  disabled={phase !== "await_password"}
+                >
+                  send
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  );
+}
