@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-export async function POST() {
+export async function POST(req: Request) {
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
   if (!stripeSecretKey) {
@@ -17,25 +17,33 @@ export async function POST() {
   });
 
   try {
-    const stripePriceId = process.env.STRIPE_PRICE_ID;
-
-    if (!stripePriceId) {
-      console.error("STRIPE_PRICE_ID is not configured");
+    // Get the amount from the request body
+    const { amount } = await req.json();
+    
+    // Validate amount is between $22 and $44
+    const amountInCents = Math.round(parseFloat(amount) * 100);
+    if (isNaN(amountInCents) || amountInCents < 2200 || amountInCents > 4400) {
       return NextResponse.json(
-        { error: "Stripe price ID not configured" },
-        { status: 500 }
+        { error: "Amount must be between $22 and $44" },
+        { status: 400 }
       );
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
 
-    // Create Checkout Session
+    // Create Checkout Session with dynamic price
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
-          price: stripePriceId,
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: 'Soma Space - Sliding Scale Contribution',
+            },
+            unit_amount: amountInCents,
+          },
           quantity: 1,
         },
       ],

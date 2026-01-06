@@ -14,6 +14,7 @@ export default function Page() {
   const [phase, setPhase] = useState<Phase>("boot");
   const [showNav, setShowNav] = useState(false);
   const [isCreatingCheckout, setIsCreatingCheckout] = useState(false);
+  const [contributionAmount, setContributionAmount] = useState("33");
 
   const [lines, setLines] = useState<
     Array<
@@ -112,16 +113,24 @@ export default function Page() {
   async function createCheckoutSession() {
     if (isCreatingCheckout) return;
     
+    const amount = parseFloat(contributionAmount);
+    if (isNaN(amount) || amount < 22 || amount > 44) {
+      alert("Please enter an amount between $22 and $44");
+      return;
+    }
+    
     setIsCreatingCheckout(true);
     try {
       const res = await fetch("/api/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: contributionAmount }),
       });
 
       if (!res.ok) {
-        console.error("Failed to create checkout session");
-        alert("Failed to create checkout session. Please try again.");
+        const errorData = await res.json().catch(() => ({}));
+        console.error("Failed to create checkout session:", errorData);
+        alert(errorData.error || "Failed to create checkout session. Please try again.");
         return;
       }
 
@@ -266,8 +275,22 @@ export default function Page() {
                   }
                   if (l.type === "bot_reserve_link") {
                     return (
-                      <div key={idx} className="flex">
+                      <div key={idx} className="flex flex-col gap-3">
                         <p className="text-white/80 max-w-[85%]">
+                          sliding scale contribution ($22–$44)
+                        </p>
+                        <div className="flex items-center gap-3 max-w-[85%]">
+                          <span className="text-white/60 text-sm">$</span>
+                          <input
+                            type="number"
+                            min="22"
+                            max="44"
+                            step="1"
+                            value={contributionAmount}
+                            onChange={(e) => setContributionAmount(e.target.value)}
+                            className="bg-transparent border-b border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-20 px-2"
+                            placeholder="33"
+                          />
                           <button
                             onClick={createCheckoutSession}
                             disabled={isCreatingCheckout}
@@ -275,7 +298,7 @@ export default function Page() {
                           >
                             {isCreatingCheckout ? "creating checkout..." : "reserve your spot →"}
                           </button>
-                        </p>
+                        </div>
                       </div>
                     );
                   }
