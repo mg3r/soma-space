@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import Stripe from "stripe";
 import { nextEvent } from "@/config/event";
 
 // Generate spiral path points (clockwise from center, starting right)
@@ -22,29 +23,26 @@ function generateSpiralPath(turns = 4, maxRadius = 120) {
 
 async function verifyPayment(sessionId: string): Promise<boolean> {
   try {
-    // Use absolute URL for server-side fetch
-    // In production, use production domain; otherwise use NEXT_PUBLIC_BASE_URL or VERCEL_URL
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
-                   (process.env.NODE_ENV === 'production' ? 'https://entersoma.space' :
-                   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'));
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
     
-    const res = await fetch(
-      `${baseUrl}/api/verify-stripe-session?session_id=${sessionId}`,
-      { 
-        cache: 'no-store',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      }
-    );
-
-    if (!res.ok) {
-      console.error(`Verification failed: ${res.status} ${res.statusText}`);
+    if (!stripeSecretKey) {
+      console.error("STRIPE_SECRET_KEY is not configured");
       return false;
     }
 
-    const data = await res.json();
-    return data.verified === true;
+    const stripe = new Stripe(stripeSecretKey, {
+      apiVersion: "2025-12-15.clover",
+    });
+
+    // Retrieve the checkout session from Stripe directly
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    // Verify the session is paid and completed
+    if (session.payment_status === "paid" && session.status === "complete") {
+      return true;
+    }
+
+    return false;
   } catch (error) {
     console.error("Payment verification error:", error);
     return false;
