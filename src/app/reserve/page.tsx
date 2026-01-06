@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { nextEvent } from "@/config/event";
 
 // Generate spiral path points (clockwise from center, starting right)
@@ -55,28 +56,50 @@ export default async function Page({
 }) {
   const params = await searchParams;
   const sessionId = params.session_id;
+  const cookieStore = await cookies();
+  const paidCookie = cookieStore.get('payment_verified');
 
   // Debug: Log what we received
   console.log('Reserve page accessed with params:', params);
-  console.log('Session ID:', sessionId);
+  console.log('Session ID from URL:', sessionId);
+  console.log('Payment cookie:', paidCookie?.value);
 
-  // If no session_id, redirect to home
-  if (!sessionId || typeof sessionId !== 'string') {
-    console.log('No valid session_id found, redirecting to home');
+  // Check if we have a valid session_id in URL
+  if (sessionId && typeof sessionId === 'string') {
+    // Verify the payment with Stripe
+    console.log('Verifying payment for session:', sessionId);
+    const isVerified = await verifyPayment(sessionId);
+
+    if (isVerified) {
+      console.log('Payment verified successfully via session_id');
+      // Set a cookie to remember this payment (valid for 30 days)
+      cookieStore.set('payment_verified', sessionId, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+      });
+      // Continue to show the page
+    } else {
+      console.log('Payment verification failed, redirecting to home');
+      redirect('/');
+    }
+  } 
+  // If no session_id but we have a valid cookie, allow access
+  else if (paidCookie?.value) {
+    console.log('Using payment cookie for verification');
+    const isVerified = await verifyPayment(paidCookie.value);
+    if (!isVerified) {
+      // Cookie is invalid, clear it and redirect
+      cookieStore.delete('payment_verified');
+      redirect('/');
+    }
+  } 
+  // No session_id and no valid cookie - redirect to home
+  else {
+    console.log('No valid session_id or cookie found, redirecting to home');
     redirect('/');
   }
-
-  // Verify the payment with Stripe
-  console.log('Verifying payment for session:', sessionId);
-  const isVerified = await verifyPayment(sessionId);
-
-  // If payment not verified, redirect to home
-  if (!isVerified) {
-    console.log('Payment verification failed, redirecting to home');
-    redirect('/');
-  }
-
-  console.log('Payment verified successfully');
 
   const spiralPath = generateSpiralPath(4, 120);
   return (
