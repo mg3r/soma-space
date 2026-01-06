@@ -186,17 +186,22 @@ export default function Page() {
     // Show typing indicator, then event details
     await botSay({
       type: "bot",
+      text: "mountain views, earth-sheltered structure, cacao, live dj set",
+    });
+
+    await botSay({
+      type: "bot",
       text: `${nextEvent.date} • ${nextEvent.time}`,
     });
 
     await botSay({
       type: "bot",
-      text: nextEvent.place,
+      text: "location shared after reserving (~25 minutes west of downtown mall)",
     });
 
     await botSay({
       type: "bot",
-      text: nextEvent.address,
+      text: "sliding scale contribution ($22–$44, your choice)",
     });
 
     // Show reserve link
