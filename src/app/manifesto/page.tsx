@@ -13,6 +13,10 @@ export default function page() {
         <h1 className="text-2xl tracking-tight">manifesto</h1>
 
         <div className="mt-8 space-y-6 text-sm text-white/80 leading-relaxed">
+          <p>
+            soma space is a guided movement gathering where people explore free movement, music, and embodied presence together.
+          </p>
+
           <p className="text-[#05fd00]">connect. accept. discover.</p>
 
           <p>
