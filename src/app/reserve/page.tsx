@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import Stripe from "stripe";
+import { getStripeClient } from "@/lib/stripe";
 import { nextEvent } from "@/config/event";
 
 // Force dynamic rendering
@@ -26,16 +26,7 @@ function generateSpiralPath(turns = 4, maxRadius = 120) {
 
 async function verifyPayment(sessionId: string): Promise<boolean> {
   try {
-    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-    
-    if (!stripeSecretKey) {
-      console.error("STRIPE_SECRET_KEY is not configured");
-      return false;
-    }
-
-    const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2025-12-15.clover",
-    });
+    const stripe = getStripeClient();
 
     // Retrieve the checkout session from Stripe directly
     const session = await stripe.checkout.sessions.retrieve(sessionId);

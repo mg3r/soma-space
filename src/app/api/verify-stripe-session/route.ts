@@ -1,36 +1,24 @@
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
+import { getStripeClient } from "@/lib/stripe";
 
 export async function GET(req: Request) {
-  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-
-  if (!stripeSecretKey) {
-    console.error("STRIPE_SECRET_KEY is not configured");
-    return NextResponse.json(
-      { error: "Stripe not configured" },
-      { status: 500 }
-    );
-  }
-
-  const stripe = new Stripe(stripeSecretKey, {
-    apiVersion: "2025-12-15.clover",
-  });
-
-  const { searchParams } = new URL(req.url);
-  const sessionId = searchParams.get("session_id");
-
-  console.log("Verification request received. Session ID:", sessionId);
-  console.log("All search params:", Object.fromEntries(searchParams.entries()));
-
-  if (!sessionId) {
-    console.error("No session ID provided in request");
-    return NextResponse.json(
-      { error: "No session ID provided" },
-      { status: 400 }
-    );
-  }
-
   try {
+    const stripe = getStripeClient();
+
+    const { searchParams } = new URL(req.url);
+    const sessionId = searchParams.get("session_id");
+
+    console.log("Verification request received. Session ID:", sessionId);
+    console.log("All search params:", Object.fromEntries(searchParams.entries()));
+
+    if (!sessionId) {
+      console.error("No session ID provided in request");
+      return NextResponse.json(
+        { error: "No session ID provided" },
+        { status: 400 }
+      );
+    }
+
     // Retrieve the checkout session from Stripe
     console.log("Retrieving session from Stripe:", sessionId);
     const session = await stripe.checkout.sessions.retrieve(sessionId);
@@ -62,6 +50,19 @@ export async function GET(req: Request) {
   } catch (error) {
     console.error("Stripe verification error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    
+    // Handle configuration errors
+    if (errorMessage.includes("not configured")) {
+      return NextResponse.json(
+        { 
+          error: "Stripe not configured", 
+          details: errorMessage,
+          hint: "Make sure STRIPE_MODE is set to 'test' or 'live' and the corresponding key is configured"
+        },
+        { status: 500 }
+      );
+    }
+    
     const errorDetails = error instanceof Error ? {
       message: error.message,
       name: error.name,
@@ -73,4 +74,3 @@ export async function GET(req: Request) {
     );
   }
 }
-

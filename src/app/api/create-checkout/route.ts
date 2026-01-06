@@ -1,22 +1,18 @@
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
+import { getStripeClient, isTestMode } from "@/lib/stripe";
 
 export async function POST(req: Request) {
-  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-
-  if (!stripeSecretKey) {
-    console.error("STRIPE_SECRET_KEY is not configured");
-    return NextResponse.json(
-      { error: "Stripe not configured" },
-      { status: 500 }
-    );
-  }
-
-  const stripe = new Stripe(stripeSecretKey, {
-    apiVersion: "2025-12-15.clover",
-  });
-
   try {
+    const stripe = getStripeClient();
+    const testMode = isTestMode();
+    
+    if (testMode) {
+      console.log("🔧 Running in TEST mode - no real charges will be made");
+    } else {
+      console.log("💰 Running in LIVE mode - real charges will be made");
+    }
+
+    // Get the amount from the request body
     // Get the amount from the request body
     const { amount } = await req.json();
     
@@ -63,6 +59,19 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("Error creating checkout session:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    
+    // If it's a Stripe configuration error, provide helpful message
+    if (errorMessage.includes("not configured")) {
+      return NextResponse.json(
+        { 
+          error: "Stripe not configured", 
+          details: errorMessage,
+          hint: "Make sure STRIPE_MODE is set to 'test' or 'live' and the corresponding key is configured"
+        },
+        { status: 500 }
+      );
+    }
+    
     return NextResponse.json(
       { error: "Failed to create checkout session", details: errorMessage },
       { status: 500 }
