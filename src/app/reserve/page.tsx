@@ -21,15 +21,22 @@ function generateSpiralPath(turns = 4, maxRadius = 120) {
 
 async function verifyPayment(sessionId: string): Promise<boolean> {
   try {
+    // Use absolute URL for server-side fetch
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
     
     const res = await fetch(
       `${baseUrl}/api/verify-stripe-session?session_id=${sessionId}`,
-      { cache: 'no-store' }
+      { 
+        cache: 'no-store',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
     );
 
     if (!res.ok) {
+      console.error(`Verification failed: ${res.status} ${res.statusText}`);
       return false;
     }
 
@@ -44,23 +51,32 @@ async function verifyPayment(sessionId: string): Promise<boolean> {
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ session_id?: string }>;
+  searchParams: Promise<{ session_id?: string; [key: string]: string | string[] | undefined }>;
 }) {
   const params = await searchParams;
   const sessionId = params.session_id;
 
+  // Debug: Log what we received
+  console.log('Reserve page accessed with params:', params);
+  console.log('Session ID:', sessionId);
+
   // If no session_id, redirect to home
-  if (!sessionId) {
+  if (!sessionId || typeof sessionId !== 'string') {
+    console.log('No valid session_id found, redirecting to home');
     redirect('/');
   }
 
   // Verify the payment with Stripe
+  console.log('Verifying payment for session:', sessionId);
   const isVerified = await verifyPayment(sessionId);
 
   // If payment not verified, redirect to home
   if (!isVerified) {
+    console.log('Payment verification failed, redirecting to home');
     redirect('/');
   }
+
+  console.log('Payment verified successfully');
 
   const spiralPath = generateSpiralPath(4, 120);
   return (
