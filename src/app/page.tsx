@@ -281,9 +281,6 @@ export default function Page() {
                   if (l.type === "bot_reserve_link") {
                     return (
                       <div key={idx} className="flex flex-col gap-3">
-                        <p className="text-white/80 max-w-[85%]">
-                          sliding scale contribution ($22–$44)
-                        </p>
                         <div className="flex items-center gap-3 max-w-[85%]">
                           <span className="text-white/60 text-sm">$</span>
                           <input
