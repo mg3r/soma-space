@@ -23,8 +23,10 @@ function generateSpiralPath(turns = 4, maxRadius = 120) {
 async function verifyPayment(sessionId: string): Promise<boolean> {
   try {
     // Use absolute URL for server-side fetch
+    // In production, use production domain; otherwise use NEXT_PUBLIC_BASE_URL or VERCEL_URL
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
-                   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+                   (process.env.NODE_ENV === 'production' ? 'https://entersoma.space' :
+                   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'));
     
     const res = await fetch(
       `${baseUrl}/api/verify-stripe-session?session_id=${sessionId}`,

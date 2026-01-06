@@ -29,8 +29,11 @@ export async function POST(req: Request) {
       );
     }
 
+    // Use production domain for success URL, or fallback to NEXT_PUBLIC_BASE_URL
+    // In production, always use the production domain to ensure proper redirects
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
-                   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+                   (process.env.NODE_ENV === 'production' ? 'https://entersoma.space' : 
+                   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'));
 
     // Create Checkout Session with dynamic price
     const session = await stripe.checkout.sessions.create({
