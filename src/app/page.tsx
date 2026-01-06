@@ -186,7 +186,7 @@ export default function Page() {
     // Show typing indicator, then event details
     await botSay({
       type: "bot",
-      text: "mountain views, earth-sheltered structure, cacao, live dj set",
+      text: "mountain views, earth home, farm setting, cacao, live dj set",
     });
 
     await botSay({
