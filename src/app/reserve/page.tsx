@@ -4,6 +4,9 @@ import { cookies } from "next/headers";
 import Stripe from "stripe";
 import { nextEvent } from "@/config/event";
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 // Generate spiral path points (clockwise from center, starting right)
 function generateSpiralPath(turns = 4, maxRadius = 120) {
   const points = [];
@@ -37,14 +40,28 @@ async function verifyPayment(sessionId: string): Promise<boolean> {
     // Retrieve the checkout session from Stripe directly
     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
+    console.log("Session details:", {
+      id: session.id,
+      payment_status: session.payment_status,
+      status: session.status,
+    });
+
     // Verify the session is paid and completed
     if (session.payment_status === "paid" && session.status === "complete") {
       return true;
     }
 
+    console.log("Session not verified:", {
+      payment_status: session.payment_status,
+      status: session.status,
+    });
     return false;
   } catch (error) {
-    console.error("Payment verification error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Payment verification error:", errorMessage);
+    if (error instanceof Error) {
+      console.error("Error stack:", error.stack);
+    }
     return false;
   }
 }
@@ -54,50 +71,47 @@ export default async function Page({
 }: {
   searchParams: Promise<{ session_id?: string; [key: string]: string | string[] | undefined }>;
 }) {
-  const params = await searchParams;
-  const sessionId = params.session_id;
-  const cookieStore = await cookies();
-  const paidCookie = cookieStore.get('payment_verified');
+  try {
+    const params = await searchParams;
+    const sessionId = params.session_id;
 
-  // Debug: Log what we received
-  console.log('Reserve page accessed with params:', params);
-  console.log('Session ID from URL:', sessionId);
-  console.log('Payment cookie:', paidCookie?.value);
+    // Debug: Log what we received
+    console.log('Reserve page accessed with params:', params);
+    console.log('Session ID from URL:', sessionId);
 
-  // Check if we have a valid session_id in URL
-  if (sessionId && typeof sessionId === 'string') {
+    // If no session_id, redirect to home
+    if (!sessionId || typeof sessionId !== 'string') {
+      console.log('No valid session_id found, redirecting to home');
+      redirect('/');
+    }
+
     // Verify the payment with Stripe
     console.log('Verifying payment for session:', sessionId);
     const isVerified = await verifyPayment(sessionId);
 
-    if (isVerified) {
-      console.log('Payment verified successfully via session_id');
-      // Set a cookie to remember this payment (valid for 30 days)
-      cookieStore.set('payment_verified', sessionId, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30, // 30 days
-      });
-      // Continue to show the page
-    } else {
+    if (!isVerified) {
       console.log('Payment verification failed, redirecting to home');
       redirect('/');
     }
-  } 
-  // If no session_id but we have a valid cookie, allow access
-  else if (paidCookie?.value) {
-    console.log('Using payment cookie for verification');
-    const isVerified = await verifyPayment(paidCookie.value);
-    if (!isVerified) {
-      // Cookie is invalid, clear it and redirect
-      cookieStore.delete('payment_verified');
-      redirect('/');
+
+    console.log('Payment verified successfully');
+    
+    // Try to set cookie, but don't fail if it doesn't work
+    try {
+      const cookieStore = await cookies();
+      cookieStore.set('payment_verified', sessionId, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+      });
+    } catch (cookieError) {
+      console.warn('Failed to set cookie (non-critical):', cookieError);
+      // Continue anyway - cookie is just for convenience
     }
-  } 
-  // No session_id and no valid cookie - redirect to home
-  else {
-    console.log('No valid session_id or cookie found, redirecting to home');
+  } catch (error) {
+    console.error('Error in reserve page:', error);
+    // On any error, redirect to home for safety
     redirect('/');
   }
 
