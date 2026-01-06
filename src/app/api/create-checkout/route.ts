@@ -39,7 +39,11 @@ export async function POST(req: Request) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: 'Soma Space - Sliding Scale Contribution',
+              name: 'soma space',
+              description: 'soma space is a guided movement gathering rooted in presence, free expression, and connection. participants are invited to move with music and explore embodied awareness. no prior movement or dance experience is required.\n\nno one is ever turned away for not having enough. if you need financial support, please reach out to us directly.',
+              images: [
+                `${baseUrl}/renewal-checkout.jpg`,
+              ],
             },
             unit_amount: amountInCents,
           },
