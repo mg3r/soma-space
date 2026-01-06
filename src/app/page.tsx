@@ -11,10 +11,9 @@ function rand_ms(min = 1000, max = 3000) {
 }
 
 export default function Page() {
-  const stripeUrl = process.env.NEXT_PUBLIC_STRIPE_BASE_URL || "";
-
   const [phase, setPhase] = useState<Phase>("boot");
   const [showNav, setShowNav] = useState(false);
+  const [isCreatingCheckout, setIsCreatingCheckout] = useState(false);
 
   const [lines, setLines] = useState<
     Array<
@@ -109,6 +108,38 @@ export default function Page() {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
   }, [lines.length]);
+
+  async function createCheckoutSession() {
+    if (isCreatingCheckout) return;
+    
+    setIsCreatingCheckout(true);
+    try {
+      const res = await fetch("/api/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!res.ok) {
+        console.error("Failed to create checkout session");
+        alert("Failed to create checkout session. Please try again.");
+        return;
+      }
+
+      const data = await res.json();
+      if (data.url) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
+      } else {
+        console.error("No checkout URL returned");
+        alert("Failed to create checkout session. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error creating checkout session:", error);
+      alert("An error occurred. Please try again.");
+    } finally {
+      setIsCreatingCheckout(false);
+    }
+  }
 
   async function submit() {
     const trimmed = input.trim();
@@ -237,14 +268,13 @@ export default function Page() {
                     return (
                       <div key={idx} className="flex">
                         <p className="text-white/80 max-w-[85%]">
-                          <a
-                            href={stripeUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[#05fd00] hover:text-[#05fd00]/80"
+                          <button
+                            onClick={createCheckoutSession}
+                            disabled={isCreatingCheckout}
+                            className="text-[#05fd00] hover:text-[#05fd00]/80 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            reserve your spot →
-                          </a>
+                            {isCreatingCheckout ? "creating checkout..." : "reserve your spot →"}
+                          </button>
                         </p>
                       </div>
                     );
