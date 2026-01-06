@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { nextEvent } from "@/config/event";
 
 // Generate spiral path points (clockwise from center, starting right)
@@ -18,7 +19,49 @@ function generateSpiralPath(turns = 4, maxRadius = 120) {
   return points.join(' ');
 }
 
-export default function Page() {
+async function verifyPayment(sessionId: string): Promise<boolean> {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+                   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+    
+    const res = await fetch(
+      `${baseUrl}/api/verify-stripe-session?session_id=${sessionId}`,
+      { cache: 'no-store' }
+    );
+
+    if (!res.ok) {
+      return false;
+    }
+
+    const data = await res.json();
+    return data.verified === true;
+  } catch (error) {
+    console.error("Payment verification error:", error);
+    return false;
+  }
+}
+
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ session_id?: string }>;
+}) {
+  const params = await searchParams;
+  const sessionId = params.session_id;
+
+  // If no session_id, redirect to home
+  if (!sessionId) {
+    redirect('/');
+  }
+
+  // Verify the payment with Stripe
+  const isVerified = await verifyPayment(sessionId);
+
+  // If payment not verified, redirect to home
+  if (!isVerified) {
+    redirect('/');
+  }
+
   const spiralPath = generateSpiralPath(4, 120);
   return (
     <main className="relative h-screen overflow-hidden bg-[#111111] text-white">
