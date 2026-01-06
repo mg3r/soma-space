@@ -48,9 +48,7 @@ export default function page() {
             <div className="space-y-0">
               <p>connect.</p>
               <p>
-                let yourself be seen in motion by others as you are guided in
-                connection with your feelings, thoughts, and emotions — all
-                through non verbal expressions of your body.
+                let yourself be seen in motion by others as you are guided in connection with your feelings, thoughts, and emotions — all through the non verbal expressions of your body.
               </p>
             </div>
 
