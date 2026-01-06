@@ -1,11 +1,9 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
-import { getStripeClient } from "@/lib/stripe";
-import { nextEvent } from "@/config/event";
+"use client";
 
-// Force dynamic rendering
-export const dynamic = 'force-dynamic';
+import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { nextEvent } from "@/config/event";
 
 // Generate spiral path points (clockwise from center, starting right)
 function generateSpiralPath(turns = 4, maxRadius = 120) {
@@ -24,94 +22,84 @@ function generateSpiralPath(turns = 4, maxRadius = 120) {
   return points.join(' ');
 }
 
-async function verifyPayment(sessionId: string): Promise<boolean> {
-  try {
-    const stripe = getStripeClient();
+function ReserveContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const sessionId = searchParams.get("session_id");
+  const [isVerified, setIsVerified] = useState<boolean | null>(null);
+  const [showContent, setShowContent] = useState(false);
 
-    // Retrieve the checkout session from Stripe directly
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
-
-    console.log("Session details:", {
-      id: session.id,
-      payment_status: session.payment_status,
-      status: session.status,
-    });
-
-    // Verify the session is paid and completed
-    if (session.payment_status === "paid" && session.status === "complete") {
-      return true;
+  useEffect(() => {
+    if (!sessionId) {
+      router.push('/');
+      return;
     }
 
-    console.log("Session not verified:", {
-      payment_status: session.payment_status,
-      status: session.status,
-    });
-    return false;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Payment verification error:", errorMessage);
-    if (error instanceof Error) {
-      console.error("Error stack:", error.stack);
-    }
-    return false;
+    // Verify payment
+    const verifyPayment = async () => {
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+                       (typeof window !== 'undefined' ? window.location.origin : 'https://entersoma.space');
+        
+        const res = await fetch(
+          `${baseUrl}/api/verify-stripe-session?session_id=${sessionId}`,
+          { cache: 'no-store' }
+        );
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.verified) {
+            setIsVerified(true);
+            // Fade in content after a short delay
+            setTimeout(() => setShowContent(true), 100);
+          } else {
+            router.push('/');
+          }
+        } else {
+          router.push('/');
+        }
+      } catch (error) {
+        console.error("Payment verification error:", error);
+        router.push('/');
+      }
+    };
+
+    verifyPayment();
+  }, [sessionId, router]);
+
+  // Show loading state while verifying
+  if (isVerified === null) {
+    return (
+      <main className="relative h-screen overflow-hidden bg-[#111111] text-white">
+        <div className="relative mx-auto flex h-screen max-w-2xl flex-col px-6 pt-20 pb-10">
+          <div className="flex flex-1 items-center justify-between">
+            <div className="opacity-0">
+              {/* Placeholder to maintain layout */}
+              <h1 className="text-sm">you&apos;re in.</h1>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
   }
-}
 
-export default async function Page({
-  searchParams,
-}: {
-  searchParams: Promise<{ session_id?: string; [key: string]: string | string[] | undefined }>;
-}) {
-  try {
-    const params = await searchParams;
-    const sessionId = params.session_id;
-
-    // Debug: Log what we received
-    console.log('Reserve page accessed with params:', params);
-    console.log('Session ID from URL:', sessionId);
-
-    // If no session_id, redirect to home
-    if (!sessionId || typeof sessionId !== 'string') {
-      console.log('No valid session_id found, redirecting to home');
-      redirect('/');
-    }
-
-    // Verify the payment with Stripe
-    console.log('Verifying payment for session:', sessionId);
-    const isVerified = await verifyPayment(sessionId);
-
-    if (!isVerified) {
-      console.log('Payment verification failed, redirecting to home');
-      redirect('/');
-    }
-
-    console.log('Payment verified successfully');
-    
-    // Try to set cookie, but don't fail if it doesn't work
-    try {
-      const cookieStore = await cookies();
-      cookieStore.set('payment_verified', sessionId, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30, // 30 days
-      });
-    } catch (cookieError) {
-      console.warn('Failed to set cookie (non-critical):', cookieError);
-      // Continue anyway - cookie is just for convenience
-    }
-  } catch (error) {
-    console.error('Error in reserve page:', error);
-    // On any error, redirect to home for safety
-    redirect('/');
+  // If not verified, this won't render (redirect happens)
+  if (!isVerified) {
+    return null;
   }
 
   const spiralPath = generateSpiralPath(4, 120);
+  
   return (
     <main className="relative h-screen overflow-hidden bg-[#111111] text-white">
       <div className="relative mx-auto flex h-screen max-w-2xl flex-col px-6 pt-20 pb-10">
         <div className="flex flex-1 items-center justify-between">
-          <div>
+          <div
+            className={[
+              "transition-opacity duration-1000",
+              showContent ? "opacity-100" : "opacity-0",
+            ].join(" ")}
+          >
             <h1 className="text-sm">you&apos;re in.</h1>
 
             <p className="mt-6 text-sm text-white/70">
@@ -178,5 +166,23 @@ export default async function Page({
         </div>
       </div>
     </main>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={
+      <main className="relative h-screen overflow-hidden bg-[#111111] text-white">
+        <div className="relative mx-auto flex h-screen max-w-2xl flex-col px-6 pt-20 pb-10">
+          <div className="flex flex-1 items-center justify-between">
+            <div className="opacity-0">
+              <h1 className="text-sm">you&apos;re in.</h1>
+            </div>
+          </div>
+        </div>
+      </main>
+    }>
+      <ReserveContent />
+    </Suspense>
   );
 }
