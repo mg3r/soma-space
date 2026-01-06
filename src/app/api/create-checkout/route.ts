@@ -31,6 +31,11 @@ export async function POST(req: Request) {
                    (process.env.NODE_ENV === 'production' ? 'https://entersoma.space' : 
                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'));
 
+    // For images, always use production domain since Stripe requires publicly accessible HTTPS URLs
+    // Even in test mode, the image must be accessible via HTTPS
+    const imageUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://entersoma.space';
+    console.log('Using image URL:', `${imageUrl}/renewal-checkout.jpg`);
+
     // Create Checkout Session with dynamic price
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -42,7 +47,7 @@ export async function POST(req: Request) {
               name: 'soma space',
               description: 'soma space is a guided movement gathering rooted in presence, free expression, and connection. participants are invited to move with music and explore embodied awareness. no prior movement or dance experience is required.\n\nno one is ever turned away for not having enough. if you need financial support, please reach out to us directly.',
               images: [
-                `${baseUrl}/renewal-checkout.jpg`,
+                `${imageUrl}/renewal-checkout.jpg`,
               ],
             },
             unit_amount: amountInCents,
