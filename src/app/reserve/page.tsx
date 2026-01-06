@@ -31,6 +31,7 @@ function ReserveContent() {
 
   useEffect(() => {
     if (!sessionId) {
+      console.log('No session_id in URL, redirecting to home');
       router.push('/');
       return;
     }
@@ -38,24 +39,40 @@ function ReserveContent() {
     // Verify payment
     const verifyPayment = async () => {
       try {
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
-                       (typeof window !== 'undefined' ? window.location.origin : 'https://entersoma.space');
+        // Use window.location.origin for client-side fetch
+        const baseUrl = typeof window !== 'undefined' 
+          ? window.location.origin 
+          : 'https://entersoma.space';
+        
+        console.log('Verifying payment with session_id:', sessionId);
+        console.log('Using baseUrl:', baseUrl);
         
         const res = await fetch(
-          `${baseUrl}/api/verify-stripe-session?session_id=${sessionId}`,
-          { cache: 'no-store' }
+          `/api/verify-stripe-session?session_id=${sessionId}`,
+          { 
+            cache: 'no-store',
+            method: 'GET',
+          }
         );
+
+        console.log('Verification response status:', res.status);
 
         if (res.ok) {
           const data = await res.json();
+          console.log('Verification response data:', data);
+          
           if (data.verified) {
+            console.log('Payment verified successfully');
             setIsVerified(true);
             // Fade in content after a short delay
             setTimeout(() => setShowContent(true), 100);
           } else {
+            console.log('Payment not verified, redirecting to home');
             router.push('/');
           }
         } else {
+          const errorData = await res.json().catch(() => ({}));
+          console.error('Verification failed:', res.status, errorData);
           router.push('/');
         }
       } catch (error) {
