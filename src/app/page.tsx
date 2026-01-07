@@ -313,7 +313,11 @@ export default function Page() {
     if (isFull) {
       await botSay({ 
         type: "bot", 
-        text: "we checked, and this gathering is currently full. if you'd like, you can join the waitlist and we'll reach out if a spot opens. we'll also let you know about future gatherings." 
+        text: "we checked, and this gathering is currently full" 
+      });
+      await botSay({ 
+        type: "bot", 
+        text: "if you'd like, you can join the waitlist and we'll reach out if a spot opens. we'll also let you know about future gatherings." 
       });
       await botSay({ type: "bot_waitlist_link" });
     } else {
