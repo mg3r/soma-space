@@ -120,7 +120,11 @@ function ReserveContent() {
             <h1 className="text-sm">you&apos;re in.</h1>
 
             <p className="mt-6 text-sm text-white/70">
-              thank you for reserving your spot.
+              thank you for reserving your spot at RENEWAL.
+            </p>
+
+            <p className="mt-6 text-sm text-white/70 leading-relaxed">
+              an evening of guided movement, music, and embodied presence. come to move freely, unwind, and connect as you are.
             </p>
 
             <div className="mt-8 space-y-1">
@@ -130,6 +134,10 @@ function ReserveContent() {
               <p className="text-sm text-white/90">{nextEvent.place}</p>
               <p className="text-sm text-white/90">{nextEvent.address}</p>
             </div>
+
+            <p className="mt-8 text-sm text-white/70 leading-relaxed">
+              soma space is held as a respectful, non violent, and consensual container where all bodies are welcome.
+            </p>
 
             <div className="mt-8">
               <Link
