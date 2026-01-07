@@ -279,9 +279,7 @@ export default function AdminPage() {
             </button>
           </div>
           <p className="mt-4 text-xs text-white/50">
-            {capacity === parseInt(newCapacity) 
-              ? "capacity is stored in Supabase and updates immediately"
-              : "if Supabase is not configured, update EVENT_CAPACITY_" + selectedEvent + " or EVENT_CAPACITY in Vercel environment variables"}
+            capacity is stored in Supabase and updates immediately
           </p>
         </div>
 
