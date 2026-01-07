@@ -45,6 +45,41 @@ CREATE TABLE IF NOT EXISTS waitlist (
 -- Create indexes for waitlist
 CREATE INDEX IF NOT EXISTS idx_waitlist_event_id ON waitlist(event_id);
 CREATE INDEX IF NOT EXISTS idx_waitlist_created_at ON waitlist(created_at);
+
+-- Create registrations table (synced from Stripe)
+CREATE TABLE IF NOT EXISTS registrations (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  session_id TEXT UNIQUE NOT NULL,
+  event_id TEXT NOT NULL,
+  customer_name TEXT NOT NULL,
+  customer_email TEXT NOT NULL,
+  customer_phone TEXT,
+  amount_paid DECIMAL(10, 2) NOT NULL,
+  payment_date TIMESTAMP WITH TIME ZONE NOT NULL,
+  stripe_customer_id TEXT,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create indexes for registrations
+CREATE INDEX IF NOT EXISTS idx_registrations_event_id ON registrations(event_id);
+CREATE INDEX IF NOT EXISTS idx_registrations_email ON registrations(customer_email);
+CREATE INDEX IF NOT EXISTS idx_registrations_session_id ON registrations(session_id);
+CREATE INDEX IF NOT EXISTS idx_registrations_payment_date ON registrations(payment_date);
+
+-- Create excluded_registrations table (for duplicate/refunded registrations)
+CREATE TABLE IF NOT EXISTS excluded_registrations (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  session_id TEXT UNIQUE NOT NULL,
+  event_id TEXT NOT NULL,
+  reason TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create indexes for excluded_registrations
+CREATE INDEX IF NOT EXISTS idx_excluded_registrations_session_id ON excluded_registrations(session_id);
+CREATE INDEX IF NOT EXISTS idx_excluded_registrations_event_id ON excluded_registrations(event_id);
 ```
 
 ### 3. Set Up Row Level Security (RLS)
@@ -57,6 +92,12 @@ ALTER TABLE event_capacities ENABLE ROW LEVEL SECURITY;
 
 -- Enable RLS for waitlist
 ALTER TABLE waitlist ENABLE ROW LEVEL SECURITY;
+
+-- Enable RLS for registrations
+ALTER TABLE registrations ENABLE ROW LEVEL SECURITY;
+
+-- Enable RLS for excluded_registrations
+ALTER TABLE excluded_registrations ENABLE ROW LEVEL SECURITY;
 
 -- Allow service role to read/write (this is handled by service role key)
 -- The service role key bypasses RLS, so no policy is needed

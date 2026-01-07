@@ -12,6 +12,8 @@ type Registration = {
   amountPaid: number;
   paymentDate: string;
   eventId: string;
+  notes?: string;
+  isExcluded?: boolean;
 };
 
 type Stats = {
@@ -44,6 +46,9 @@ export default function AdminPage() {
   const [newCapacity, setNewCapacity] = useState("");
   const [isUpdatingCapacity, setIsUpdatingCapacity] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [excludingSessionId, setExcludingSessionId] = useState<string | null>(
+    null
+  );
 
   const errorMessages = [
     "hmm, that didn't quite work. feel free to try again.",
@@ -318,16 +323,26 @@ export default function AdminPage() {
                     <th className="px-4 py-3 text-left text-xs text-white/50">
                       date
                     </th>
+                    <th className="px-4 py-3 text-left text-xs text-white/50">
+                      actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {registrations.map((reg) => (
                     <tr
                       key={reg.sessionId}
-                      className="border-b border-white/5 hover:bg-white/5"
+                      className={`border-b border-white/5 hover:bg-white/5 ${
+                        reg.isExcluded ? "opacity-50" : ""
+                      }`}
                     >
                       <td className="px-4 py-3 text-sm text-white/80">
                         {reg.customerName}
+                        {reg.isExcluded && (
+                          <span className="ml-2 text-xs text-yellow-500">
+                            (excluded)
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm text-white/80">
                         {reg.customerEmail}
@@ -340,6 +355,80 @@ export default function AdminPage() {
                       </td>
                       <td className="px-4 py-3 text-sm text-white/80">
                         {new Date(reg.paymentDate).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        {reg.isExcluded ? (
+                          <button
+                            onClick={async () => {
+                              if (
+                                !confirm(
+                                  "Un-exclude this registration from capacity counts?"
+                                )
+                              )
+                                return;
+                              setExcludingSessionId(reg.sessionId);
+                              try {
+                                const res = await fetch(
+                                  `/api/admin/exclude?sessionId=${reg.sessionId}`,
+                                  { method: "DELETE" }
+                                );
+                                if (res.ok) {
+                                  await loadData();
+                                } else {
+                                  alert("Failed to un-exclude registration");
+                                }
+                              } catch (error) {
+                                alert("An error occurred");
+                              } finally {
+                                setExcludingSessionId(null);
+                              }
+                            }}
+                            disabled={excludingSessionId === reg.sessionId}
+                            className="text-xs text-yellow-500 hover:text-yellow-400 disabled:opacity-50"
+                          >
+                            {excludingSessionId === reg.sessionId
+                              ? "un-excluding..."
+                              : "un-exclude"}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={async () => {
+                              const reason = prompt(
+                                "Reason for exclusion (optional):"
+                              );
+                              if (reason === null) return; // User cancelled
+                              setExcludingSessionId(reg.sessionId);
+                              try {
+                                const res = await fetch("/api/admin/exclude", {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({
+                                    sessionId: reg.sessionId,
+                                    eventId: selectedEvent,
+                                    reason: reason || undefined,
+                                  }),
+                                });
+                                if (res.ok) {
+                                  await loadData();
+                                } else {
+                                  alert("Failed to exclude registration");
+                                }
+                              } catch (error) {
+                                alert("An error occurred");
+                              } finally {
+                                setExcludingSessionId(null);
+                              }
+                            }}
+                            disabled={excludingSessionId === reg.sessionId}
+                            className="text-xs text-red-500 hover:text-red-400 disabled:opacity-50"
+                          >
+                            {excludingSessionId === reg.sessionId
+                              ? "excluding..."
+                              : "exclude"}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
