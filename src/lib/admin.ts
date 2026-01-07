@@ -120,7 +120,17 @@ export async function getEventRegistrations(eventId: string) {
   const stripe = getStripeClient();
   
   try {
-    const allEventSessions: any[] = [];
+    type RegistrationData = {
+      sessionId: string;
+      customerName: string;
+      customerEmail: string;
+      customerPhone: string;
+      amountPaid: number;
+      paymentDate: string;
+      eventId: string;
+    };
+    
+    const allEventSessions: RegistrationData[] = [];
     let hasMore = true;
     let startingAfter: string | undefined = undefined;
     

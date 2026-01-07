@@ -8,7 +8,6 @@ export default function Page() {
   const [isCreatingCheckout, setIsCreatingCheckout] = useState(false);
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isChecking, setIsChecking] = useState(false);
   const [error, setError] = useState("");
 
   const errorMessages = [
@@ -27,7 +26,6 @@ export default function Page() {
     const trimmed = password.trim();
     if (!trimmed) return;
 
-    setIsChecking(true);
     setError("");
 
     try {
@@ -43,10 +41,8 @@ export default function Page() {
         setError(getRandomErrorMessage());
         setPassword("");
       }
-    } catch (error) {
+    } catch {
       setError("An error occurred. Please try again.");
-    } finally {
-      setIsChecking(false);
     }
   }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { nextEvent } from "@/config/event";
 import Link from "next/link";
 
@@ -26,7 +26,6 @@ type Stats = {
 export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isChecking, setIsChecking] = useState(false);
   const [error, setError] = useState("");
   const [selectedEvent, setSelectedEvent] = useState(nextEvent.id);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
@@ -50,7 +49,6 @@ export default function AdminPage() {
     const trimmed = password.trim();
     if (!trimmed) return;
 
-    setIsChecking(true);
     setError("");
 
     try {
@@ -66,14 +64,12 @@ export default function AdminPage() {
         setError(getRandomErrorMessage());
         setPassword("");
       }
-    } catch (error) {
+    } catch {
       setError("An error occurred. Please try again.");
-    } finally {
-      setIsChecking(false);
     }
   }
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
       // Load registrations
@@ -99,12 +95,12 @@ export default function AdminPage() {
         setCapacity(currentCapacity);
         setNewCapacity(currentCapacity.toString());
       }
-    } catch (error) {
-      console.error("Error loading data:", error);
+    } catch {
+      console.error("Error loading data");
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [selectedEvent]);
 
   async function updateCapacity() {
     if (!newCapacity || isNaN(parseInt(newCapacity)) || parseInt(newCapacity) < 0) {
@@ -131,7 +127,7 @@ export default function AdminPage() {
         const errorData = await res.json().catch(() => ({}));
         alert(errorData.error || "Failed to update capacity");
       }
-    } catch (error) {
+    } catch {
       alert("An error occurred. Please try again.");
     } finally {
       setIsUpdatingCapacity(false);
@@ -142,7 +138,7 @@ export default function AdminPage() {
     if (isAuthenticated) {
       loadData();
     }
-  }, [isAuthenticated, selectedEvent]);
+  }, [isAuthenticated, loadData]);
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
