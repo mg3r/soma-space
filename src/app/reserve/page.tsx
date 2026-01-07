@@ -226,8 +226,8 @@ export default function Page() {
               .
             </p>
 
-            {/* Remaining spots indicator */}
-            {remainingSpots !== null && (
+            {/* Remaining spots indicator - only show when 10 or fewer spots remain */}
+            {remainingSpots !== null && remainingSpots <= 10 && (
               <div className="mt-8">
                 <p className="text-sm text-white/70">
                   {remainingSpots > 0 ? (
