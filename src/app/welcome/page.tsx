@@ -88,7 +88,7 @@ function ReserveContent() {
   if (isVerified === null) {
     return (
       <main className="relative h-screen overflow-hidden bg-[#111111] text-white">
-        <div className="relative mx-auto flex h-screen max-w-2xl flex-col px-6 pt-20 pb-10">
+        <div className="relative mx-auto flex h-screen max-w-full md:max-w-2xl flex-col px-6 pt-20 pb-10">
           <div className="flex flex-1 items-center justify-between">
             <div className="opacity-0">
               {/* Placeholder to maintain layout */}
@@ -109,11 +109,11 @@ function ReserveContent() {
   
   return (
     <main className="relative h-screen overflow-hidden bg-[#111111] text-white">
-      <div className="relative mx-auto flex h-screen max-w-2xl flex-col px-6 pt-20 pb-10">
-        <div className="flex flex-1 items-center justify-between">
+      <div className="relative mx-auto flex h-screen max-w-full md:max-w-2xl flex-col px-6 pt-20 pb-10">
+        <div className="flex flex-1 items-center justify-between gap-4 md:gap-0">
           <div
             className={[
-              "transition-opacity duration-1000",
+              "transition-opacity duration-1000 flex-1",
               showContent ? "opacity-100" : "opacity-0",
             ].join(" ")}
           >
@@ -148,10 +148,10 @@ function ReserveContent() {
           {/* Spiral */}
           <div className="pointer-events-none flex-shrink-0">
             <svg
-              width="300"
-              height="300"
+              width="200"
+              height="200"
               viewBox="0 0 300 300"
-              className="text-white/15"
+              className="text-white/15 md:w-[300px] md:h-[300px]"
             >
               <defs>
                 <style>{`
@@ -190,7 +190,7 @@ export default function Page() {
   return (
     <Suspense fallback={
       <main className="relative h-screen overflow-hidden bg-[#111111] text-white">
-        <div className="relative mx-auto flex h-screen max-w-2xl flex-col px-6 pt-20 pb-10">
+        <div className="relative mx-auto flex h-screen max-w-full md:max-w-2xl flex-col px-6 pt-20 pb-10">
           <div className="flex flex-1 items-center justify-between">
             <div className="opacity-0">
               <h1 className="text-sm">you&apos;re in.</h1>
