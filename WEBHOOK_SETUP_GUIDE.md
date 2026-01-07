@@ -61,7 +61,8 @@ ALTER TABLE excluded_registrations ENABLE ROW LEVEL SECURITY;
 3. Click **Developers** (left sidebar) → **Webhooks**
 4. Click **Add endpoint** (top right)
 5. Fill in:
-   - **Endpoint URL**: `https://entersoma.space/api/webhooks/stripe`
+   - **Endpoint URL**: `https://www.entersoma.space/api/webhooks/stripe`
+     - ⚠️ **Important**: Use the `www` version to avoid redirect issues
      - (If testing locally, use a tool like [ngrok](https://ngrok.com) to expose localhost)
    - **Description**: "Soma Space Registration Sync"
 6. Under **Events to send**, click **Select events**
