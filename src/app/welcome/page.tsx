@@ -124,7 +124,7 @@ function ReserveContent() {
             </p>
 
             <p className="mt-6 text-sm text-white/70 leading-relaxed">
-              an evening of guided movement, music, and embodied presence. come as you are.
+              an evening of movement, music, connection, gentle guidance, and embodied presence.
             </p>
 
             <div className="mt-8 space-y-1">
@@ -134,10 +134,6 @@ function ReserveContent() {
               <p className="text-sm text-white/90">{nextEvent.place}</p>
               <p className="text-sm text-white/90">{nextEvent.address}</p>
             </div>
-
-            <p className="mt-8 text-sm text-white/70 leading-relaxed">
-              soma space is held as a respectful, non violent, and consensual container where all bodies are welcome.
-            </p>
 
             <div className="mt-8">
               <Link
