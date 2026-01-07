@@ -10,10 +10,25 @@ import Stripe from "stripe";
  */
 export async function POST(req: Request) {
   try {
+    // Add CORS headers
+    const headers = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    };
+
+    // Handle preflight
+    if (req.method === "OPTIONS") {
+      return new NextResponse(null, { status: 200, headers });
+    }
+
     // Simple auth check - you might want to add proper admin auth
     const authHeader = req.headers.get("authorization");
     if (authHeader !== `Bearer ${process.env.ADMIN_PASSWORD}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers }
+      );
     }
 
     if (!supabase) {
@@ -114,13 +129,16 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      migrated,
-      skipped,
-      errors,
-      message: `Migration complete: ${migrated} migrated, ${skipped} skipped, ${errors} errors`,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        migrated,
+        skipped,
+        errors,
+        message: `Migration complete: ${migrated} migrated, ${skipped} skipped, ${errors} errors`,
+      },
+      { headers }
+    );
   } catch (error) {
     console.error("Migration error:", error);
     return NextResponse.json(
@@ -128,8 +146,26 @@ export async function POST(req: Request) {
         error: "Migration failed",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        },
+      }
     );
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
 }
 
