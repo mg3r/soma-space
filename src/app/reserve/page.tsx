@@ -216,7 +216,7 @@ export default function Page() {
             </p>
 
             <p className="mt-6 text-sm text-white/70 leading-relaxed">
-              no one is ever turned away for not having enough. if you need financial support, please reach out to us directly. soma space is held as a respectful, non violent, and consensual container where all bodies are welcome.{" "}
+              soma space is held as a respectful, non violent, and consensual container where all bodies are welcome.{" "}
               <Link
                 href="/manifesto"
                 className="text-[#05fd00] hover:text-[#05fd00]/80"
@@ -291,6 +291,9 @@ export default function Page() {
               <div className="mt-8 space-y-4">
                 <p className="text-sm text-white/80">
                   sliding scale contribution ($22–$44, your choice).
+                </p>
+                <p className="text-sm text-white/70">
+                  no one is ever turned away for not having enough. if you need financial support, please reach out to us directly.
                 </p>
                 
                 <div className="flex items-center gap-3">
