@@ -129,19 +129,39 @@ export default function Page() {
       <div className="relative mx-auto flex h-screen max-w-4xl flex-col px-6 pt-20 pb-10">
         <div className="flex flex-1 items-center">
           <div className="flex-1">
-            <h1 className="text-sm">reserve your spot</h1>
+            <h1 className="text-sm">join us for RENEWAL</h1>
 
             <p className="mt-6 text-sm text-white/70 leading-relaxed">
-              soma space is a guided movement gathering rooted in presence, free expression, and connection. participants are invited to move with music and explore embodied awareness. no prior movement or dance experience is required.
+              an evening of guided movement, music, and embodied presence — held in a quiet farm setting with mountain views. come to move freely, unwind, and connect as you are.
             </p>
 
-            <p className="mt-4 text-sm text-white/70 leading-relaxed">
-              no one is ever turned away for not having enough. if you need financial support, please reach out to us directly.
+            <div className="mt-8 space-y-1">
+              <p className="text-sm text-white/90">
+                friday, 1/23 • 7:00–9:30 pm
+              </p>
+              <p className="text-sm text-white/90">
+                mountain views, earth home, farm setting, cacao, live dj set
+              </p>
+            </div>
+
+            <p className="mt-6 text-sm text-white/70">
+              location shared after reserving (~25 minutes west of downtown mall)
+            </p>
+
+            <p className="mt-6 text-sm text-white/70 leading-relaxed">
+              no one is ever turned away for not having enough. if you need financial support, please reach out to us directly. soma space is held as a respectful, non violent, and consensual container where all bodies are welcome.{" "}
+              <Link
+                href="/manifesto"
+                className="text-[#05fd00] hover:text-[#05fd00]/80"
+              >
+                read our full manifesto here
+              </Link>
+              .
             </p>
 
             <div className="mt-8 space-y-4">
               <p className="text-sm text-white/80">
-                sliding scale contribution ($22–$44, your choice)
+                sliding scale contribution ($22–$44, your choice).
               </p>
               
               <div className="flex items-center gap-3">
@@ -161,18 +181,9 @@ export default function Page() {
                   disabled={isCreatingCheckout}
                   className="text-sm text-[#05fd00] hover:text-[#05fd00]/80 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isCreatingCheckout ? "creating checkout..." : "continue to payment →"}
+                  {isCreatingCheckout ? "creating checkout..." : "reserve your spot →"}
                 </button>
               </div>
-            </div>
-
-            <div className="mt-8">
-              <Link
-                href="/manifesto"
-                className="text-sm text-[#05fd00] hover:text-[#05fd00]/80"
-              >
-                read the manifesto →
-              </Link>
             </div>
           </div>
         </div>
