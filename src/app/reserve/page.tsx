@@ -1,98 +1,121 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useState, Suspense } from "react";
-import { nextEvent } from "@/config/event";
+import { useState } from "react";
 
-// Generate spiral path points (clockwise from center, starting right)
-function generateSpiralPath(turns = 4, maxRadius = 120) {
-  const points = [];
-  const steps = 200;
-  
-  for (let i = 0; i <= steps; i++) {
-    // Start at angle 0 (pointing right), go counter-clockwise (negative angles)
-    const t = -(i / steps) * turns * Math.PI * 2;
-    const radius = (i / steps) * maxRadius;
-    const x = radius * Math.cos(t);
-    const y = -radius * Math.sin(t); // Flip on horizontal axis (negate y)
-    points.push(`${i === 0 ? 'M' : 'L'} ${x} ${y}`);
+export default function Page() {
+  const [contributionAmount, setContributionAmount] = useState("33");
+  const [isCreatingCheckout, setIsCreatingCheckout] = useState(false);
+  const [password, setPassword] = useState("");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
+  const [error, setError] = useState("");
+
+  const errorMessages = [
+    "hmm, that didn&apos;t quite work. feel free to try again.",
+    "not quite. you&apos;re welcome to try again.",
+    "that doesn&apos;t seem to be it. take another try.",
+    "almost — give it another go.",
+    "that wasn&apos;t it. try again.",
+  ];
+
+  const getRandomErrorMessage = () => {
+    return errorMessages[Math.floor(Math.random() * errorMessages.length)];
+  };
+
+  async function checkPassword() {
+    const trimmed = password.trim();
+    if (!trimmed) return;
+
+    setIsChecking(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/unlock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: trimmed }),
+      });
+
+      if (res.ok) {
+        setIsAuthenticated(true);
+      } else {
+        setError(getRandomErrorMessage());
+        setPassword("");
+      }
+    } catch (error) {
+      setError("An error occurred. Please try again.");
+    } finally {
+      setIsChecking(false);
+    }
   }
-  
-  return points.join(' ');
-}
 
-function ReserveContent() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const sessionId = searchParams.get("session_id");
-  const [isVerified, setIsVerified] = useState<boolean | null>(null);
-  const [showContent, setShowContent] = useState(false);
-
-  useEffect(() => {
-    if (!sessionId) {
-      console.log('No session_id in URL, redirecting to home');
-      router.push('/');
+  async function createCheckoutSession() {
+    if (isCreatingCheckout) return;
+    
+    const amount = parseFloat(contributionAmount);
+    if (isNaN(amount) || amount < 22 || amount > 44) {
+      alert("Please enter an amount between $22 and $44");
       return;
     }
+    
+    setIsCreatingCheckout(true);
+    try {
+      const res = await fetch("/api/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: contributionAmount }),
+      });
 
-    // Verify payment
-    const verifyPayment = async () => {
-      try {
-        // Use window.location.origin for client-side fetch
-        const baseUrl = typeof window !== 'undefined' 
-          ? window.location.origin 
-          : 'https://entersoma.space';
-        
-        console.log('Verifying payment with session_id:', sessionId);
-        console.log('Using baseUrl:', baseUrl);
-        
-        const res = await fetch(
-          `/api/verify-stripe-session?session_id=${sessionId}`,
-          { 
-            cache: 'no-store',
-            method: 'GET',
-          }
-        );
-
-        console.log('Verification response status:', res.status);
-
-        if (res.ok) {
-          const data = await res.json();
-          console.log('Verification response data:', data);
-          
-          if (data.verified) {
-            console.log('Payment verified successfully');
-            setIsVerified(true);
-            // Fade in content after a short delay
-            setTimeout(() => setShowContent(true), 100);
-          } else {
-            console.log('Payment not verified, redirecting to home');
-            router.push('/');
-          }
-        } else {
-          const errorData = await res.json().catch(() => ({}));
-          console.error('Verification failed:', res.status, errorData);
-          router.push('/');
-        }
-      } catch (error) {
-        console.error("Payment verification error:", error);
-        router.push('/');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        alert(errorData.error || "Failed to create checkout session. Please try again.");
+        return;
       }
-    };
 
-    verifyPayment();
-  }, [sessionId, router]);
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      console.error("Error creating checkout session:", error);
+      alert("An error occurred. Please try again.");
+    } finally {
+      setIsCreatingCheckout(false);
+    }
+  }
 
-  // Show loading state while verifying
-  if (isVerified === null) {
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    checkPassword();
+  };
+
+  // Show password form if not authenticated
+  if (!isAuthenticated) {
     return (
       <main className="relative h-screen overflow-hidden bg-[#111111] text-white">
-        <div className="relative mx-auto flex h-screen max-w-2xl flex-col px-6 pt-20 pb-10">
-          <div className="flex flex-1 items-center justify-between">
-            <div className="opacity-0">
-              {/* Placeholder to maintain layout */}
-              <h1 className="text-sm">you&apos;re in.</h1>
+        <div className="relative mx-auto flex h-screen max-w-4xl flex-col px-6 pt-20 pb-10">
+          <div className="flex flex-1 items-center">
+            <div className="flex-1">
+              <h1 className="text-sm">reserve your spot</h1>
+
+              <p className="mt-6 text-sm text-white/70">
+                enter the password to continue
+              </p>
+
+              <form onSubmit={handlePasswordSubmit} className="mt-8">
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="bg-white/5 border-b border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-2 py-1"
+                  placeholder="password"
+                  autoFocus
+                />
+                {error && (
+                  <p className="mt-4 text-sm text-white/60">{error}</p>
+                )}
+              </form>
             </div>
           </div>
         </div>
@@ -100,35 +123,47 @@ function ReserveContent() {
     );
   }
 
-  // If not verified, this won't render (redirect happens)
-  if (!isVerified) {
-    return null;
-  }
-
-  const spiralPath = generateSpiralPath(4, 120);
-  
+  // Show booking form after authentication
   return (
     <main className="relative h-screen overflow-hidden bg-[#111111] text-white">
-      <div className="relative mx-auto flex h-screen max-w-2xl flex-col px-6 pt-20 pb-10">
-        <div className="flex flex-1 items-center justify-between">
-          <div
-            className={[
-              "transition-opacity duration-1000",
-              showContent ? "opacity-100" : "opacity-0",
-            ].join(" ")}
-          >
-            <h1 className="text-sm">you&apos;re in.</h1>
+      <div className="relative mx-auto flex h-screen max-w-4xl flex-col px-6 pt-20 pb-10">
+        <div className="flex flex-1 items-center">
+          <div className="flex-1">
+            <h1 className="text-sm">reserve your spot</h1>
 
-            <p className="mt-6 text-sm text-white/70">
-              thank you for reserving your spot.
+            <p className="mt-6 text-sm text-white/70 leading-relaxed">
+              soma space is a guided movement gathering rooted in presence, free expression, and connection. participants are invited to move with music and explore embodied awareness. no prior movement or dance experience is required.
             </p>
 
-            <div className="mt-8 space-y-1">
-              <p className="text-sm text-white/90">
-                {nextEvent.date} • {nextEvent.time}
+            <p className="mt-4 text-sm text-white/70 leading-relaxed">
+              no one is ever turned away for not having enough. if you need financial support, please reach out to us directly.
+            </p>
+
+            <div className="mt-8 space-y-4">
+              <p className="text-sm text-white/80">
+                sliding scale contribution ($22–$44, your choice)
               </p>
-              <p className="text-sm text-white/90">{nextEvent.place}</p>
-              <p className="text-sm text-white/90">{nextEvent.address}</p>
+              
+              <div className="flex items-center gap-3">
+                <span className="text-white/60 text-sm">$</span>
+                <input
+                  type="number"
+                  min="22"
+                  max="44"
+                  step="1"
+                  value={contributionAmount}
+                  onChange={(e) => setContributionAmount(e.target.value)}
+                  className="bg-transparent border-b border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-20 px-2"
+                  placeholder="33"
+                />
+                <button
+                  onClick={createCheckoutSession}
+                  disabled={isCreatingCheckout}
+                  className="text-sm text-[#05fd00] hover:text-[#05fd00]/80 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isCreatingCheckout ? "creating checkout..." : "continue to payment →"}
+                </button>
+              </div>
             </div>
 
             <div className="mt-8">
@@ -139,67 +174,9 @@ function ReserveContent() {
                 read the manifesto →
               </Link>
             </div>
-
-            <p className="mt-8 text-sm text-white/50">
-              see you there.
-            </p>
-          </div>
-
-          {/* Spiral */}
-          <div className="pointer-events-none flex-shrink-0">
-            <svg
-              width="300"
-              height="300"
-              viewBox="0 0 300 300"
-              className="text-white/15"
-            >
-              <defs>
-                <style>{`
-                  .spiral-path {
-                    fill: none;
-                    stroke: currentColor;
-                    stroke-width: 1.2;
-                    stroke-linecap: round;
-                    stroke-linejoin: round;
-                    stroke-dasharray: 3000;
-                    stroke-dashoffset: 3000;
-                    animation: drawSpiral 18s ease-in-out forwards;
-                  }
-                  @keyframes drawSpiral {
-                    to {
-                      stroke-dashoffset: 0;
-                    }
-                  }
-                `}</style>
-              </defs>
-              <g transform="translate(150, 150)">
-                <path
-                  className="spiral-path"
-                  d={spiralPath}
-                />
-              </g>
-            </svg>
           </div>
         </div>
       </div>
     </main>
-  );
-}
-
-export default function Page() {
-  return (
-    <Suspense fallback={
-      <main className="relative h-screen overflow-hidden bg-[#111111] text-white">
-        <div className="relative mx-auto flex h-screen max-w-2xl flex-col px-6 pt-20 pb-10">
-          <div className="flex flex-1 items-center justify-between">
-            <div className="opacity-0">
-              <h1 className="text-sm">you&apos;re in.</h1>
-            </div>
-          </div>
-        </div>
-      </main>
-    }>
-      <ReserveContent />
-    </Suspense>
   );
 }

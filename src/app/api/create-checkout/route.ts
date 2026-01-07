@@ -56,7 +56,7 @@ export async function POST(req: Request) {
         },
       ],
       mode: 'payment',
-      success_url: `${baseUrl}/reserve?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${baseUrl}/welcome?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}`,
       allow_promotion_codes: true,
     });
