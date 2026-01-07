@@ -37,6 +37,7 @@ type WaitlistEntry = {
 export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [error, setError] = useState("");
   const [selectedEvent, setSelectedEvent] = useState(nextEvent.id);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
@@ -58,6 +59,26 @@ export default function AdminPage() {
   const getRandomErrorMessage = () => {
     return errorMessages[Math.floor(Math.random() * errorMessages.length)];
   };
+
+  // Check if already authenticated on mount
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        const res = await fetch("/api/admin/auth");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.authenticated) {
+            setIsAuthenticated(true);
+          }
+        }
+      } catch (error) {
+        console.error("Error checking auth:", error);
+      } finally {
+        setIsCheckingAuth(false);
+      }
+    }
+    checkAuth();
+  }, []);
 
   async function checkPassword() {
     const trimmed = password.trim();
@@ -157,6 +178,22 @@ export default function AdminPage() {
     checkPassword();
   };
 
+  // Show loading while checking auth
+  if (isCheckingAuth) {
+    return (
+      <main className="relative min-h-screen overflow-hidden bg-[#111111] text-white">
+        <div className="relative mx-auto flex min-h-screen max-w-2xl flex-col px-6 pt-20 pb-10">
+          <div className="flex flex-1 items-center">
+            <div className="flex-1">
+              <h1 className="text-sm">admin dashboard</h1>
+              <p className="mt-6 text-sm text-white/70">checking authentication...</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   // Show password form if not authenticated
   if (!isAuthenticated) {
     return (
@@ -205,7 +242,18 @@ export default function AdminPage() {
             </Link>
           </div>
           <button
-            onClick={() => setIsAuthenticated(false)}
+            onClick={async () => {
+              try {
+                await fetch("/api/admin/auth", { method: "DELETE" });
+                setIsAuthenticated(false);
+                setPassword("");
+              } catch (error) {
+                console.error("Error logging out:", error);
+                // Still log out locally even if API call fails
+                setIsAuthenticated(false);
+                setPassword("");
+              }
+            }}
             className="text-xs text-white/50 hover:text-white/80"
           >
             sign out

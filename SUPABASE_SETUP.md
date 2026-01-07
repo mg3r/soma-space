@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS registrations (
   payment_date TIMESTAMP WITH TIME ZONE NOT NULL,
   stripe_customer_id TEXT,
   notes TEXT,
+  is_excluded BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -73,6 +74,9 @@ CREATE TABLE IF NOT EXISTS excluded_registrations (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   session_id TEXT UNIQUE NOT NULL,
   event_id TEXT NOT NULL,
+  customer_name TEXT,
+  customer_email TEXT,
+  customer_phone TEXT,
   reason TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

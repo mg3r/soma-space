@@ -241,7 +241,8 @@ export async function getEventRegistrations(
           paymentDate: row.payment_date,
           eventId: row.event_id,
           notes: row.notes || undefined,
-          isExcluded: excludedIds.has(row.session_id),
+          // Check both the is_excluded flag and the excluded_registrations table
+          isExcluded: row.is_excluded || excludedIds.has(row.session_id),
         }));
       }
     } catch (error) {
@@ -412,6 +413,7 @@ export async function checkAndNotifyCapacityReached(
 
 /**
  * Exclude a registration from capacity counts
+ * Fetches customer info from registrations table and stores in excluded_registrations
  */
 export async function excludeRegistration(
   sessionId: string,
@@ -425,19 +427,48 @@ export async function excludeRegistration(
   }
 
   try {
-    const { error } = await supabase.from("excluded_registrations").upsert(
-      {
-        session_id: sessionId,
-        event_id: eventId,
-        reason: reason || null,
-      },
-      {
-        onConflict: "session_id",
-      }
-    );
+    // First, get customer info from registrations table
+    const { data: registration, error: regError } = await supabase
+      .from("registrations")
+      .select("customer_name, customer_email, customer_phone")
+      .eq("session_id", sessionId)
+      .single();
 
-    if (error) {
-      throw error;
+    if (regError && regError.code !== "PGRST116") {
+      // PGRST116 is "not found" - that's okay, we'll just not have customer info
+      console.warn("Could not fetch registration for customer info:", regError);
+    }
+
+    // Add to excluded_registrations with customer info
+    const { error: excludeError } = await supabase
+      .from("excluded_registrations")
+      .upsert(
+        {
+          session_id: sessionId,
+          event_id: eventId,
+          customer_name: registration?.customer_name || null,
+          customer_email: registration?.customer_email || null,
+          customer_phone: registration?.customer_phone || null,
+          reason: reason || null,
+        },
+        {
+          onConflict: "session_id",
+        }
+      );
+
+    if (excludeError) {
+      throw excludeError;
+    }
+
+    // Update registrations table to mark as excluded
+    const { error: updateError } = await supabase
+      .from("registrations")
+      .update({ is_excluded: true, updated_at: new Date().toISOString() })
+      .eq("session_id", sessionId);
+
+    if (updateError) {
+      console.warn("Could not update registrations.is_excluded:", updateError);
+      // Don't throw - exclusion was successful, just the flag update failed
     }
   } catch (error) {
     console.error("Error excluding registration:", error);
@@ -456,13 +487,25 @@ export async function unexcludeRegistration(sessionId: string): Promise<void> {
   }
 
   try {
-    const { error } = await supabase
+    // Remove from excluded_registrations
+    const { error: deleteError } = await supabase
       .from("excluded_registrations")
       .delete()
       .eq("session_id", sessionId);
 
-    if (error) {
-      throw error;
+    if (deleteError) {
+      throw deleteError;
+    }
+
+    // Update registrations table to mark as not excluded
+    const { error: updateError } = await supabase
+      .from("registrations")
+      .update({ is_excluded: false, updated_at: new Date().toISOString() })
+      .eq("session_id", sessionId);
+
+    if (updateError) {
+      console.warn("Could not update registrations.is_excluded:", updateError);
+      // Don't throw - un-exclusion was successful, just the flag update failed
     }
   } catch (error) {
     console.error("Error un-excluding registration:", error);

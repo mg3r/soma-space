@@ -57,6 +57,16 @@ export async function POST(req: Request) {
       }
     }
 
+    // Handle charge.refunded event - auto-exclude refunded registrations
+    if (event.type === "charge.refunded") {
+      const charge = event.data.object as Stripe.Charge;
+      const sessionId = charge.metadata?.checkout_session_id;
+
+      if (sessionId) {
+        await autoExcludeRefundedRegistration(sessionId, charge);
+      }
+    }
+
     return NextResponse.json({ received: true });
   } catch (error) {
     console.error("Webhook error:", error);
@@ -93,6 +103,7 @@ async function syncRegistrationToSupabase(
         amount_paid: amountPaid,
         payment_date: paymentDate,
         stripe_customer_id: session.customer || null,
+        is_excluded: false,
         updated_at: new Date().toISOString(),
       },
       {
@@ -107,6 +118,62 @@ async function syncRegistrationToSupabase(
     }
   } catch (error) {
     console.error("Error in syncRegistrationToSupabase:", error);
+  }
+}
+
+async function autoExcludeRefundedRegistration(
+  sessionId: string,
+  charge: Stripe.Charge
+) {
+  if (!supabase) {
+    console.warn("Supabase not configured, skipping auto-exclude");
+    return;
+  }
+
+  try {
+    // Get registration details
+    const { data: registration, error: regError } = await supabase
+      .from("registrations")
+      .select("event_id, customer_name, customer_email, customer_phone")
+      .eq("session_id", sessionId)
+      .single();
+
+    if (regError || !registration) {
+      console.log(`Registration ${sessionId} not found in Supabase, skipping auto-exclude`);
+      return;
+    }
+
+    // Add to excluded_registrations
+    const { error: excludeError } = await supabase
+      .from("excluded_registrations")
+      .upsert(
+        {
+          session_id: sessionId,
+          event_id: registration.event_id,
+          customer_name: registration.customer_name,
+          customer_email: registration.customer_email,
+          customer_phone: registration.customer_phone,
+          reason: "Auto-excluded: Payment refunded in Stripe",
+        },
+        {
+          onConflict: "session_id",
+        }
+      );
+
+    if (excludeError) {
+      console.error("Error auto-excluding refunded registration:", excludeError);
+      return;
+    }
+
+    // Update registrations table
+    await supabase
+      .from("registrations")
+      .update({ is_excluded: true, updated_at: new Date().toISOString() })
+      .eq("session_id", sessionId);
+
+    console.log(`✅ Auto-excluded refunded registration ${sessionId}`);
+  } catch (error) {
+    console.error("Error in autoExcludeRefundedRegistration:", error);
   }
 }
 
