@@ -326,7 +326,7 @@ export default function Page() {
             <div className="border-t border-white/10 p-4">
               <div className="flex items-center gap-3">
                 <input
-                  className="w-full bg-transparent px-0 py-2 text-sm text-white/90 placeholder:text-white/30 outline-none"
+                  className="w-full bg-transparent px-0 py-2 text-base text-white/90 placeholder:text-white/30 outline-none"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && submit()}

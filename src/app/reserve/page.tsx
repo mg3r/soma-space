@@ -108,7 +108,7 @@ export default function Page() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="bg-white/5 border-b border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-2 py-1"
+                  className="bg-white/5 border-b border-white/20 text-white/80 text-base focus:outline-none focus:border-[#05fd00] w-full px-2 py-1"
                   placeholder="password"
                   autoFocus
                 />
@@ -153,7 +153,7 @@ export default function Page() {
                   step="1"
                   value={contributionAmount}
                   onChange={(e) => setContributionAmount(e.target.value)}
-                  className="bg-transparent border-b border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-20 px-2"
+                  className="bg-transparent border-b border-white/20 text-white/80 text-base focus:outline-none focus:border-[#05fd00] w-20 px-2"
                   placeholder="33"
                 />
                 <button
