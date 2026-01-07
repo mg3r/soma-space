@@ -12,7 +12,7 @@ Supabase is used to store event capacity limits dynamically, allowing you to upd
 2. Create a new project
 3. Note your project URL and API keys
 
-### 2. Create the Database Table
+### 2. Create the Database Tables
 
 Run this SQL in the Supabase SQL Editor:
 
@@ -31,6 +31,20 @@ CREATE INDEX IF NOT EXISTS idx_event_capacities_event_id ON event_capacities(eve
 INSERT INTO event_capacities (event_id, capacity)
 VALUES ('RENEWAL', 22)
 ON CONFLICT (event_id) DO NOTHING;
+
+-- Create waitlist table
+CREATE TABLE IF NOT EXISTS waitlist (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  event_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  phone TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create indexes for waitlist
+CREATE INDEX IF NOT EXISTS idx_waitlist_event_id ON waitlist(event_id);
+CREATE INDEX IF NOT EXISTS idx_waitlist_created_at ON waitlist(created_at);
 ```
 
 ### 3. Set Up Row Level Security (RLS)
@@ -38,8 +52,11 @@ ON CONFLICT (event_id) DO NOTHING;
 For security, enable RLS but allow service role to bypass:
 
 ```sql
--- Enable RLS
+-- Enable RLS for event_capacities
 ALTER TABLE event_capacities ENABLE ROW LEVEL SECURITY;
+
+-- Enable RLS for waitlist
+ALTER TABLE waitlist ENABLE ROW LEVEL SECURITY;
 
 -- Allow service role to read/write (this is handled by service role key)
 -- The service role key bypasses RLS, so no policy is needed

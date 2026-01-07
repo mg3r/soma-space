@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStripeClient, isTestMode } from "@/lib/stripe";
 import { nextEvent } from "@/config/event";
-import { getEventCapacity, countEventRegistrations } from "@/lib/admin";
+import { getEventCapacity, countEventRegistrations, checkAndNotifyCapacityReached } from "@/lib/admin";
 
 export async function POST(req: Request) {
   try {
@@ -32,11 +32,15 @@ export async function POST(req: Request) {
     const capacity = await getEventCapacity(eventId);
     const currentRegistrations = await countEventRegistrations(eventId);
     
+    // Check if we just reached capacity (for notification)
+    await checkAndNotifyCapacityReached(eventId, capacity, currentRegistrations);
+    
     if (currentRegistrations >= capacity) {
       return NextResponse.json(
         { 
           error: "This event is full",
-          message: `All ${capacity} spots have been reserved. Please reach out if you'd like to be added to the waitlist.`
+          message: `All ${capacity} spots have been reserved.`,
+          isFull: true
         },
         { status: 400 }
       );

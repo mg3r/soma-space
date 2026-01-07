@@ -23,12 +23,22 @@ type Stats = {
   averageContribution: number;
 };
 
+type WaitlistEntry = {
+  id: string;
+  event_id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  created_at: string;
+};
+
 export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState("");
   const [selectedEvent, setSelectedEvent] = useState(nextEvent.id);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [capacity, setCapacity] = useState(22);
   const [newCapacity, setNewCapacity] = useState("");
@@ -77,6 +87,13 @@ export default function AdminPage() {
       if (regRes.ok) {
         const regData = await regRes.json();
         setRegistrations(regData.registrations || []);
+      }
+
+      // Load waitlist
+      const waitlistRes = await fetch(`/api/admin/waitlist?eventId=${selectedEvent}`);
+      if (waitlistRes.ok) {
+        const waitlistData = await waitlistRes.json();
+        setWaitlist(waitlistData.waitlist || []);
       }
 
       // Load stats
@@ -325,6 +342,66 @@ export default function AdminPage() {
                       </td>
                       <td className="px-4 py-3 text-sm text-white/80">
                         {new Date(reg.paymentDate).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Waitlist Table */}
+        <div className="mt-8 bg-white/5 border border-white/10">
+          <div className="border-b border-white/10 p-4">
+            <h2 className="text-sm text-[#05fd00]">
+              waitlist ({waitlist.length})
+            </h2>
+          </div>
+          {isLoading ? (
+            <div className="p-8 text-center text-sm text-white/50">
+              loading...
+            </div>
+          ) : waitlist.length === 0 ? (
+            <div className="p-8 text-center text-sm text-white/50">
+              no waitlist entries yet
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="px-4 py-3 text-left text-xs text-white/50">
+                      name
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs text-white/50">
+                      email
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs text-white/50">
+                      phone
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs text-white/50">
+                      joined
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {waitlist.map((entry) => (
+                    <tr
+                      key={entry.id}
+                      className="border-b border-white/5 hover:bg-white/5"
+                    >
+                      <td className="px-4 py-3 text-sm text-white/80">
+                        {entry.name}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-white/80">
+                        {entry.email}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-white/80">
+                        {entry.phone || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-white/80">
+                        {new Date(entry.created_at).toLocaleDateString()}
                       </td>
                     </tr>
                   ))}

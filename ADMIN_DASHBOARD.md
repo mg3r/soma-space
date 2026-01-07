@@ -17,7 +17,7 @@ Add these to your Vercel environment variables:
 
 ```bash
 # Admin password (required)
-ADMIN_PASSWORD=your_secure_password_here
+ADMIN_PASSWORD=nfuwehiu8236!JNBjX*noob
 
 # Event capacity (optional - defaults to 22 if not set)
 EVENT_CAPACITY_RENEWAL=22

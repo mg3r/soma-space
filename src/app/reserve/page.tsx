@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { nextEvent } from "@/config/event";
 
 export default function Page() {
   const [contributionAmount, setContributionAmount] = useState("33");
@@ -9,6 +10,14 @@ export default function Page() {
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState("");
+  const [remainingSpots, setRemainingSpots] = useState<number | null>(null);
+  const [isFull, setIsFull] = useState(false);
+  const [showWaitlist, setShowWaitlist] = useState(false);
+  const [waitlistName, setWaitlistName] = useState("");
+  const [waitlistEmail, setWaitlistEmail] = useState("");
+  const [waitlistPhone, setWaitlistPhone] = useState("");
+  const [isSubmittingWaitlist, setIsSubmittingWaitlist] = useState(false);
+  const [waitlistSuccess, setWaitlistSuccess] = useState(false);
 
   const errorMessages = [
     "hmm, that didn&apos;t quite work. feel free to try again.",
@@ -46,6 +55,26 @@ export default function Page() {
     }
   }
 
+  const loadEventStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/event-status?eventId=${nextEvent.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        const stats = data.stats;
+        setRemainingSpots(stats.remainingSpots);
+        setIsFull(stats.remainingSpots === 0);
+      }
+    } catch {
+      console.error("Error loading event status");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadEventStatus();
+    }
+  }, [isAuthenticated, loadEventStatus]);
+
   async function createCheckoutSession() {
     if (isCreatingCheckout) return;
     
@@ -65,7 +94,12 @@ export default function Page() {
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        alert(errorData.message || errorData.error || "Failed to create checkout session. Please try again.");
+        if (errorData.isFull) {
+          // Event is full, show waitlist form
+          setShowWaitlist(true);
+        } else {
+          alert(errorData.message || errorData.error || "Failed to create checkout session. Please try again.");
+        }
         return;
       }
 
@@ -78,6 +112,43 @@ export default function Page() {
       alert("An error occurred. Please try again.");
     } finally {
       setIsCreatingCheckout(false);
+    }
+  }
+
+  async function submitWaitlist(e: React.FormEvent) {
+    e.preventDefault();
+    if (!waitlistName || !waitlistEmail) {
+      alert("Please enter your name and email");
+      return;
+    }
+
+    setIsSubmittingWaitlist(true);
+    try {
+      const res = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: waitlistName,
+          email: waitlistEmail,
+          phone: waitlistPhone,
+          eventId: nextEvent.id,
+        }),
+      });
+
+      if (res.ok) {
+        setWaitlistSuccess(true);
+        setWaitlistName("");
+        setWaitlistEmail("");
+        setWaitlistPhone("");
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(errorData.message || "Failed to add to waitlist. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error submitting waitlist:", error);
+      alert("An error occurred. Please try again.");
+    } finally {
+      setIsSubmittingWaitlist(false);
     }
   }
 
@@ -155,32 +226,113 @@ export default function Page() {
               .
             </p>
 
-            <div className="mt-8 space-y-4">
-              <p className="text-sm text-white/80">
-                sliding scale contribution ($22–$44, your choice).
-              </p>
-              
-              <div className="flex items-center gap-3">
-                <span className="text-white/60 text-sm">$</span>
-                <input
-                  type="number"
-                  min="22"
-                  max="44"
-                  step="1"
-                  value={contributionAmount}
-                  onChange={(e) => setContributionAmount(e.target.value)}
-                  className="bg-transparent border-b border-white/20 text-white/80 text-base focus:outline-none focus:border-[#05fd00] w-20 px-2"
-                  placeholder="33"
-                />
+            {/* Remaining spots indicator */}
+            {remainingSpots !== null && (
+              <div className="mt-8">
+                <p className="text-sm text-white/70">
+                  {remainingSpots > 0 ? (
+                    <>
+                      <span className="text-[#05fd00]">{remainingSpots}</span> spot{remainingSpots !== 1 ? "s" : ""} remaining
+                    </>
+                  ) : (
+                    <span className="text-white/50">this event is full</span>
+                  )}
+                </p>
+              </div>
+            )}
+
+            {/* Waitlist form (shown when full or after failed booking) */}
+            {showWaitlist && (
+              <div className="mt-8 space-y-4 bg-white/5 border border-white/10 p-6">
+                <h2 className="text-sm text-[#05fd00]">join the waitlist</h2>
+                {waitlistSuccess ? (
+                  <p className="text-sm text-white/70">
+                    you&apos;ve been added to the waitlist. we&apos;ll reach out if a spot becomes available.
+                  </p>
+                ) : (
+                  <form onSubmit={submitWaitlist} className="space-y-4">
+                    <div>
+                      <input
+                        type="text"
+                        value={waitlistName}
+                        onChange={(e) => setWaitlistName(e.target.value)}
+                        className="bg-white/5 border-b border-white/20 text-white/80 text-base focus:outline-none focus:border-[#05fd00] w-full px-2 py-1"
+                        placeholder="name"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="email"
+                        value={waitlistEmail}
+                        onChange={(e) => setWaitlistEmail(e.target.value)}
+                        className="bg-white/5 border-b border-white/20 text-white/80 text-base focus:outline-none focus:border-[#05fd00] w-full px-2 py-1"
+                        placeholder="email"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="tel"
+                        value={waitlistPhone}
+                        onChange={(e) => setWaitlistPhone(e.target.value)}
+                        className="bg-white/5 border-b border-white/20 text-white/80 text-base focus:outline-none focus:border-[#05fd00] w-full px-2 py-1"
+                        placeholder="phone (optional)"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isSubmittingWaitlist}
+                      className="text-sm text-[#05fd00] hover:text-[#05fd00]/80 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSubmittingWaitlist ? "adding..." : "join waitlist →"}
+                    </button>
+                  </form>
+                )}
+              </div>
+            )}
+
+            {/* Booking form (shown when not full) */}
+            {!isFull && !showWaitlist && (
+              <div className="mt-8 space-y-4">
+                <p className="text-sm text-white/80">
+                  sliding scale contribution ($22–$44, your choice).
+                </p>
+                
+                <div className="flex items-center gap-3">
+                  <span className="text-white/60 text-sm">$</span>
+                  <input
+                    type="number"
+                    min="22"
+                    max="44"
+                    step="1"
+                    value={contributionAmount}
+                    onChange={(e) => setContributionAmount(e.target.value)}
+                    className="bg-transparent border-b border-white/20 text-white/80 text-base focus:outline-none focus:border-[#05fd00] w-20 px-2"
+                    placeholder="33"
+                  />
+                  <button
+                    onClick={createCheckoutSession}
+                    disabled={isCreatingCheckout}
+                    className="text-sm text-[#05fd00] hover:text-[#05fd00]/80 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isCreatingCheckout ? "creating checkout..." : "reserve your spot →"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Show waitlist option if full but form not shown yet */}
+            {isFull && !showWaitlist && (
+              <div className="mt-8">
                 <button
-                  onClick={createCheckoutSession}
-                  disabled={isCreatingCheckout}
-                  className="text-sm text-[#05fd00] hover:text-[#05fd00]/80 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setShowWaitlist(true)}
+                  className="text-sm text-[#05fd00] hover:text-[#05fd00]/80"
                 >
-                  {isCreatingCheckout ? "creating checkout..." : "reserve your spot →"}
+                  join the waitlist →
                 </button>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

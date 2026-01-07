@@ -1,5 +1,6 @@
 import { getStripeClient } from "./stripe";
 import { supabase } from "./supabase";
+import { sendCapacityReachedNotification } from "./email";
 import Stripe from "stripe";
 
 /**
@@ -201,5 +202,84 @@ export async function getEventStats(eventId: string) {
     totalRevenue,
     averageContribution: count > 0 ? totalRevenue / count : 0,
   };
+}
+
+/**
+ * Add someone to the waitlist
+ */
+export async function addToWaitlist(
+  eventId: string,
+  name: string,
+  email: string,
+  phone?: string
+): Promise<void> {
+  if (!supabase) {
+    throw new Error("Supabase is not configured. Cannot add to waitlist.");
+  }
+
+  try {
+    const { error } = await supabase.from("waitlist").insert({
+      event_id: eventId,
+      name: name,
+      email: email,
+      phone: phone || null,
+      created_at: new Date().toISOString(),
+    });
+
+    if (error) {
+      console.error("Error adding to waitlist:", error);
+      throw error;
+    }
+  } catch (error) {
+    console.error("Error adding to waitlist:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get waitlist entries for an event
+ */
+export async function getWaitlistEntries(eventId: string) {
+  if (!supabase) {
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("waitlist")
+      .select("*")
+      .eq("event_id", eventId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching waitlist:", error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching waitlist:", error);
+    return [];
+  }
+}
+
+/**
+ * Check if event just reached capacity and send notification
+ */
+export async function checkAndNotifyCapacityReached(
+  eventId: string,
+  capacity: number,
+  currentCount: number
+): Promise<void> {
+  // Only notify if we just hit exactly the capacity (not over)
+  if (currentCount === capacity) {
+    console.log(`🎯 Event ${eventId} has reached capacity (${capacity} spots filled)`);
+    
+    // Get event name for notification
+    const eventName = eventId === "RENEWAL" ? "RENEWAL" : eventId;
+    
+    // Send email notification
+    await sendCapacityReachedNotification(eventId, eventName, capacity);
+  }
 }
 
