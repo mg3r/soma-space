@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStripeClient, isTestMode } from "@/lib/stripe";
+import { nextEvent } from "@/config/event";
+import { getEventCapacity, countEventRegistrations } from "@/lib/admin";
 
 export async function POST(req: Request) {
   try {
@@ -21,6 +23,21 @@ export async function POST(req: Request) {
     if (isNaN(amountInCents) || amountInCents < 2200 || amountInCents > 4400) {
       return NextResponse.json(
         { error: "Amount must be between $22 and $44" },
+        { status: 400 }
+      );
+    }
+
+    // Check capacity before creating checkout session
+    const eventId = nextEvent.id;
+    const capacity = getEventCapacity(eventId);
+    const currentRegistrations = await countEventRegistrations(eventId);
+    
+    if (currentRegistrations >= capacity) {
+      return NextResponse.json(
+        { 
+          error: "This event is full",
+          message: `All ${capacity} spots have been reserved. Please reach out if you'd like to be added to the waitlist.`
+        },
         { status: 400 }
       );
     }
@@ -62,6 +79,12 @@ export async function POST(req: Request) {
       // Collect phone number (email is collected by default)
       phone_number_collection: {
         enabled: true,
+      },
+      // Add metadata to identify the event
+      metadata: {
+        event_id: eventId,
+        event_name: nextEvent.name,
+        event_date: nextEvent.date,
       },
     });
 

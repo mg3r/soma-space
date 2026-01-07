@@ -130,7 +130,7 @@ export default function Page() {
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         console.error("Failed to create checkout session:", errorData);
-        alert(errorData.error || "Failed to create checkout session. Please try again.");
+        alert(errorData.message || errorData.error || "Failed to create checkout session. Please try again.");
         return;
       }
 
