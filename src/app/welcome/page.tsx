@@ -124,7 +124,7 @@ function ReserveContent() {
             </p>
 
             <p className="mt-6 text-sm text-white/70 leading-relaxed">
-              an evening of guided movement, music, and embodied presence. come to move freely, unwind, and connect as you are.
+              an evening of guided movement, music, and embodied presence. come as you are.
             </p>
 
             <div className="mt-8 space-y-1">
