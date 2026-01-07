@@ -59,6 +59,10 @@ export async function POST(req: Request) {
       success_url: `${baseUrl}/welcome?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}`,
       allow_promotion_codes: true,
+      // Collect phone number (email is collected by default)
+      phone_number_collection: {
+        enabled: true,
+      },
     });
 
     return NextResponse.json({ 

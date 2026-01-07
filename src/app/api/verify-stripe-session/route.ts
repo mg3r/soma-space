@@ -35,7 +35,8 @@ export async function GET(req: Request) {
       console.log("Session verified successfully");
       return NextResponse.json({ 
         verified: true,
-        customerEmail: session.customer_details?.email 
+        customerEmail: session.customer_details?.email,
+        customerPhone: session.customer_details?.phone 
       });
     }
 
