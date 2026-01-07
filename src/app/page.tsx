@@ -88,26 +88,35 @@ export default function Page() {
     if (hasInitializedRef.current) return;
     hasInitializedRef.current = true;
 
+    // Check if user was previously unlocked
+    const wasUnlocked = typeof window !== "undefined" && localStorage.getItem("soma_space_unlocked") === "true";
+
     (async () => {
       await new Promise((r) => setTimeout(r, 1100));
       setShowNav(true);
 
-      await botSay({ type: "bot", text: "hey :) welcome to soma space" });
+      if (wasUnlocked) {
+        // Restore unlocked state
+        await restoreUnlockedState();
+      } else {
+        // Normal initialization flow
+        await botSay({ type: "bot", text: "hey :) welcome to soma space" });
 
-      await botSay({
-        type: "bot",
-        text:
-          "this is a movement gathering rooted in presence and free expression, with gentle guidance throughout. no experience required — just come as you are",
-      });
+        await botSay({
+          type: "bot",
+          text:
+            "this is a movement gathering rooted in presence and free expression, with gentle guidance throughout. no experience required — just come as you are",
+        });
 
-      await botSay({ type: "bot_manifesto_link" });
+        await botSay({ type: "bot_manifesto_link" });
 
-      await botSay({
-        type: "bot",
-        text: "to see details of our next gathering and reserve your spot, type the password",
-      });
+        await botSay({
+          type: "bot",
+          text: "to see details of our next gathering and reserve your spot, type the password",
+        });
 
-      setPhase("await_password");
+        setPhase("await_password");
+      }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -131,6 +140,65 @@ export default function Page() {
     }
     return false;
   }
+
+  // Function to restore unlocked state from localStorage
+  const restoreUnlockedState = async () => {
+    setShowNav(true);
+    
+    // Restore all the messages that were shown after password entry
+    setLines([
+      { type: "bot", text: "hey :) welcome to soma space" },
+      {
+        type: "bot",
+        text:
+          "this is a movement gathering rooted in presence and free expression, with gentle guidance throughout. no experience required — just come as you are",
+      },
+      { type: "bot_manifesto_link" },
+      {
+        type: "bot",
+        text: "to see details of our next gathering and reserve your spot, type the password",
+      },
+      { type: "bot", text: "access granted" },
+      { type: "bot", text: "join us for RENEWAL" },
+      {
+        type: "bot",
+        text: "mountain views, earth home, farm setting, cacao, live dj set",
+      },
+      {
+        type: "bot",
+        text: `${nextEvent.date} • ${nextEvent.time}`,
+      },
+      {
+        type: "bot",
+        text: "location shared after reserving (~25 minutes west of downtown mall)",
+      },
+      {
+        type: "bot",
+        text: "sliding scale contribution ($22–$44, your choice). reach out if you need support",
+      },
+    ]);
+
+    // Check event status and add appropriate link
+    const isFull = await loadEventStatus();
+    if (isFull) {
+      setLines((prev) => [
+        ...prev,
+        { 
+          type: "bot", 
+          text: "we checked, and this gathering is currently full" 
+        },
+        { 
+          type: "bot", 
+          text: "join the waitlist and we'll reach out if a spot opens. we'll also let you know about future gatherings" 
+        },
+        { type: "bot_waitlist_link" },
+      ]);
+    } else {
+      setLines((prev) => [...prev, { type: "bot_reserve_link" }]);
+    }
+
+    setPhase("unlocked");
+  };
 
   async function createCheckoutSession() {
     if (isCreatingCheckout) return;
@@ -271,6 +339,11 @@ export default function Page() {
       await botSay({ type: "bot", text: getRandomErrorMessage() });
       setPhase("await_password");
       return;
+    }
+
+    // Store unlocked state in localStorage
+    if (typeof window !== "undefined") {
+      localStorage.setItem("soma_space_unlocked", "true");
     }
 
     setPhase("unlocked");
