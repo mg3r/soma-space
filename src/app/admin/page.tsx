@@ -42,7 +42,6 @@ export default function AdminPage() {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
-  const [capacity, setCapacity] = useState(22);
   const [newCapacity, setNewCapacity] = useState("");
   const [isUpdatingCapacity, setIsUpdatingCapacity] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -106,16 +105,7 @@ export default function AdminPage() {
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         setStats(statsData.stats);
-        setCapacity(statsData.stats.capacity);
-      }
-
-      // Load capacity
-      const capRes = await fetch(`/api/admin/capacity?eventId=${selectedEvent}`);
-      if (capRes.ok) {
-        const capData = await capRes.json();
-        const currentCapacity = capData.capacity || 22;
-        setCapacity(currentCapacity);
-        setNewCapacity(currentCapacity.toString());
+        setNewCapacity(statsData.stats.capacity.toString());
       }
     } catch {
       console.error("Error loading data");
@@ -377,7 +367,7 @@ export default function AdminPage() {
                                 } else {
                                   alert("Failed to un-exclude registration");
                                 }
-                              } catch (error) {
+                              } catch {
                                 alert("An error occurred");
                               } finally {
                                 setExcludingSessionId(null);
@@ -415,7 +405,7 @@ export default function AdminPage() {
                                 } else {
                                   alert("Failed to exclude registration");
                                 }
-                              } catch (error) {
+                              } catch {
                                 alert("An error occurred");
                               } finally {
                                 setExcludingSessionId(null);

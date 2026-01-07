@@ -15,7 +15,6 @@ export default function Page() {
   const [showNav, setShowNav] = useState(false);
   const [isCreatingCheckout, setIsCreatingCheckout] = useState(false);
   const [contributionAmount, setContributionAmount] = useState("33");
-  const [eventStatus, setEventStatus] = useState<{ remainingSpots: number; isFull: boolean } | null>(null);
   const [waitlistData, setWaitlistData] = useState({
     firstName: "",
     lastName: "",
@@ -125,10 +124,6 @@ export default function Page() {
       if (res.ok) {
         const data = await res.json();
         const stats = data.stats;
-        setEventStatus({
-          remainingSpots: stats.remainingSpots,
-          isFull: stats.remainingSpots === 0,
-        });
         return stats.remainingSpots === 0;
       }
     } catch (error) {
