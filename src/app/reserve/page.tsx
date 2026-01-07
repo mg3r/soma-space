@@ -226,17 +226,11 @@ export default function Page() {
               .
             </p>
 
-            {/* Remaining spots indicator - only show when 10 or fewer spots remain */}
-            {remainingSpots !== null && remainingSpots <= 10 && (
+            {/* Remaining spots indicator - only show when 10 or fewer spots remain (and not full) */}
+            {remainingSpots !== null && remainingSpots <= 10 && remainingSpots > 0 && (
               <div className="mt-8">
                 <p className="text-sm text-white/70">
-                  {remainingSpots > 0 ? (
-                    <>
-                      <span className="text-[#05fd00]">{remainingSpots}</span> spot{remainingSpots !== 1 ? "s" : ""} remaining
-                    </>
-                  ) : (
-                    <span className="text-white/50">this gathering is currently full. if you&apos;d like, you can join the waitlist and we&apos;ll reach out if a spot opens. we&apos;ll also let you know about future gatherings.</span>
-                  )}
+                  <span className="text-[#05fd00]">{remainingSpots}</span> spot{remainingSpots !== 1 ? "s" : ""} remaining
                 </p>
               </div>
             )}
