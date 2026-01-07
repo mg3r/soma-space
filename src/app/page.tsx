@@ -88,8 +88,34 @@ export default function Page() {
     if (hasInitializedRef.current) return;
     hasInitializedRef.current = true;
 
-    // Check if user was previously unlocked
-    const wasUnlocked = typeof window !== "undefined" && localStorage.getItem("soma_space_unlocked") === "true";
+    // Check if user was previously unlocked for the current event
+    let wasUnlocked = false;
+    if (typeof window !== "undefined") {
+      const storedUnlocked = localStorage.getItem("soma_space_unlocked");
+      const storedEventId = localStorage.getItem("soma_space_event_id");
+      const storedTimestamp = localStorage.getItem("soma_space_unlocked_timestamp");
+      
+      // Check if unlocked state exists and is valid
+      if (storedUnlocked === "true" && storedEventId === nextEvent.id && storedTimestamp) {
+        // Check if less than 1 hour has passed (3600000 ms)
+        const timestamp = parseInt(storedTimestamp, 10);
+        const oneHourAgo = Date.now() - 3600000;
+        
+        if (timestamp > oneHourAgo) {
+          wasUnlocked = true;
+        } else {
+          // Expired - clear old localStorage entries
+          localStorage.removeItem("soma_space_unlocked");
+          localStorage.removeItem("soma_space_event_id");
+          localStorage.removeItem("soma_space_unlocked_timestamp");
+        }
+      } else if (storedUnlocked === "true" && storedEventId !== nextEvent.id) {
+        // Event changed - clear old localStorage entries
+        localStorage.removeItem("soma_space_unlocked");
+        localStorage.removeItem("soma_space_event_id");
+        localStorage.removeItem("soma_space_unlocked_timestamp");
+      }
+    }
 
     (async () => {
       await new Promise((r) => setTimeout(r, 1100));
@@ -145,7 +171,7 @@ export default function Page() {
   const restoreUnlockedState = async () => {
     setShowNav(true);
     
-    // Restore all the messages that were shown after password entry
+    // Restore messages (excluding password prompt and access granted since content is already revealed)
     setLines([
       { type: "bot", text: "hey :) welcome to soma space" },
       {
@@ -154,11 +180,6 @@ export default function Page() {
           "this is a movement gathering rooted in presence and free expression, with gentle guidance throughout. no experience required — just come as you are",
       },
       { type: "bot_manifesto_link" },
-      {
-        type: "bot",
-        text: "to see details of our next gathering and reserve your spot, type the password",
-      },
-      { type: "bot", text: "access granted" },
       { type: "bot", text: "join us for RENEWAL" },
       {
         type: "bot",
@@ -341,9 +362,11 @@ export default function Page() {
       return;
     }
 
-    // Store unlocked state in localStorage
+    // Store unlocked state in localStorage with current event ID and timestamp
     if (typeof window !== "undefined") {
       localStorage.setItem("soma_space_unlocked", "true");
+      localStorage.setItem("soma_space_event_id", nextEvent.id);
+      localStorage.setItem("soma_space_unlocked_timestamp", Date.now().toString());
     }
 
     setPhase("unlocked");
