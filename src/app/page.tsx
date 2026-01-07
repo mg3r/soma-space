@@ -266,7 +266,7 @@ export default function Page() {
                     return (
                       <div key={idx} className="flex">
                         <p className="text-white/80 max-w-[85%]">
-                          if you'd like to learn more, you can read the full{" "}
+                          if you&apos;d like to learn more, you can read the full{" "}
                           <Link
                             className="text-[#05fd00] hover:text-[#05fd00]/80"
                             href="/manifesto"

@@ -247,7 +247,7 @@ export default function Page() {
                 <h2 className="text-sm text-[#05fd00]">join the waitlist</h2>
                 {waitlistSuccess ? (
                   <p className="text-sm text-white/70">
-                    you've been added to the waitlist. we'll reach out if a spot becomes available.
+                    you&apos;ve been added to the waitlist. we&apos;ll reach out if a spot becomes available.
                   </p>
                 ) : (
                   <form onSubmit={submitWaitlist} className="space-y-4">
