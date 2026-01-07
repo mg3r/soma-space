@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 
     // Check capacity before creating checkout session
     const eventId = nextEvent.id;
-    const capacity = getEventCapacity(eventId);
+    const capacity = await getEventCapacity(eventId);
     const currentRegistrations = await countEventRegistrations(eventId);
     
     if (currentRegistrations >= capacity) {

@@ -95,8 +95,9 @@ export default function AdminPage() {
       const capRes = await fetch(`/api/admin/capacity?eventId=${selectedEvent}`);
       if (capRes.ok) {
         const capData = await capRes.json();
-        setCapacity(capData.capacity);
-        setNewCapacity(capData.capacity.toString());
+        const currentCapacity = capData.capacity || 22;
+        setCapacity(currentCapacity);
+        setNewCapacity(currentCapacity.toString());
       }
     } catch (error) {
       console.error("Error loading data:", error);
@@ -265,7 +266,9 @@ export default function AdminPage() {
             </button>
           </div>
           <p className="mt-4 text-xs text-white/50">
-            note: update EVENT_CAPACITY_{selectedEvent} or EVENT_CAPACITY in Vercel environment variables for changes to take effect
+            {capacity === parseInt(newCapacity) 
+              ? "capacity is stored in Supabase and updates immediately"
+              : "if Supabase is not configured, update EVENT_CAPACITY_" + selectedEvent + " or EVENT_CAPACITY in Vercel environment variables"}
           </p>
         </div>
 

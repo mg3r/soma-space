@@ -1,11 +1,29 @@
 import { getStripeClient } from "./stripe";
+import { supabase } from "./supabase";
 import Stripe from "stripe";
 
 /**
- * Get the capacity for a specific event from environment variables
+ * Get the capacity for a specific event from Supabase (with fallback to env vars)
  */
-export function getEventCapacity(eventId: string): number {
-  // Try event-specific capacity first (e.g., EVENT_CAPACITY_RENEWAL)
+export async function getEventCapacity(eventId: string): Promise<number> {
+  // Try to get from Supabase first (if configured)
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("event_capacities")
+        .select("capacity")
+        .eq("event_id", eventId)
+        .single();
+
+      if (!error && data) {
+        return data.capacity;
+      }
+    } catch (error) {
+      console.log("Supabase query failed, falling back to env vars:", error);
+    }
+  }
+
+  // Fallback to environment variables
   const eventSpecificCapacity = process.env[`EVENT_CAPACITY_${eventId}`];
   if (eventSpecificCapacity) {
     return parseInt(eventSpecificCapacity, 10);
@@ -19,6 +37,39 @@ export function getEventCapacity(eventId: string): number {
   
   // Default to 22 if not set
   return 22;
+}
+
+/**
+ * Set the capacity for a specific event in Supabase
+ */
+export async function setEventCapacity(eventId: string, capacity: number): Promise<void> {
+  if (!supabase) {
+    throw new Error("Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.");
+  }
+
+  try {
+    // Upsert (insert or update) the capacity
+    const { error } = await supabase
+      .from("event_capacities")
+      .upsert(
+        {
+          event_id: eventId,
+          capacity: capacity,
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "event_id",
+        }
+      );
+
+    if (error) {
+      console.error("Error setting capacity in Supabase:", error);
+      throw error;
+    }
+  } catch (error) {
+    console.error("Error setting capacity:", error);
+    throw error;
+  }
 }
 
 /**
@@ -127,7 +178,7 @@ export async function getEventRegistrations(eventId: string) {
  */
 export async function getEventStats(eventId: string) {
   const registrations = await getEventRegistrations(eventId);
-  const capacity = getEventCapacity(eventId);
+  const capacity = await getEventCapacity(eventId);
   const count = registrations.length;
   const totalRevenue = registrations.reduce((sum, reg) => sum + reg.amountPaid, 0);
   const remainingSpots = Math.max(0, capacity - count);

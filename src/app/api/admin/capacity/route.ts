@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getEventCapacity } from "@/lib/admin";
+import { getEventCapacity, setEventCapacity } from "@/lib/admin";
 
 export async function GET(req: Request) {
   try {
@@ -13,7 +13,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const capacity = getEventCapacity(eventId);
+    const capacity = await getEventCapacity(eventId);
 
     return NextResponse.json({ eventId, capacity }, { status: 200 });
   } catch (error) {
@@ -43,19 +43,31 @@ export async function PUT(req: Request) {
       );
     }
 
-    // Note: In a production app, you might want to store this in a database
-    // For now, we'll use environment variables which require a redeploy to change
-    // This endpoint will return success but note that env vars need to be updated in Vercel
-    
-    return NextResponse.json(
-      {
-        eventId,
-        capacity,
-        message: "Capacity updated. Note: Environment variables must be updated in Vercel for this to take effect.",
-        note: `Set EVENT_CAPACITY_${eventId}=${capacity} or EVENT_CAPACITY=${capacity} in Vercel environment variables`,
-      },
-      { status: 200 }
-    );
+    try {
+      // Update capacity in Supabase
+      await setEventCapacity(eventId, capacity);
+      
+      return NextResponse.json(
+        {
+          eventId,
+          capacity,
+          message: "Capacity updated successfully",
+        },
+        { status: 200 }
+      );
+    } catch (error) {
+      console.error("Error updating capacity:", error);
+      // Fallback: return success but note that Supabase might not be configured
+      return NextResponse.json(
+        {
+          eventId,
+          capacity,
+          message: "Capacity update noted. If Supabase is not configured, update environment variables in Vercel.",
+          note: `Set EVENT_CAPACITY_${eventId}=${capacity} or EVENT_CAPACITY=${capacity} in Vercel environment variables if Supabase is not set up`,
+        },
+        { status: 200 }
+      );
+    }
   } catch (error) {
     console.error("Error updating capacity:", error);
     return NextResponse.json(
