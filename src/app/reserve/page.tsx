@@ -159,6 +159,22 @@ export default function Page() {
               .
             </p>
 
+            <div className="mt-8">
+              <h2 className="text-sm text-[#05fd00]">contribution.</h2>
+              
+              <p className="mt-4 text-sm text-white/70 leading-relaxed">
+                this gathering is held through shared contribution.
+              </p>
+              
+              <p className="mt-4 text-sm text-white/70 leading-relaxed">
+                we offer a sliding scale and trust each person to give what they are able. no one is ever turned away for lack of funds.
+              </p>
+              
+              <p className="mt-4 text-sm text-white/70 leading-relaxed">
+                if you need support, please reach out.
+              </p>
+            </div>
+
             <div className="mt-8 space-y-4">
               <p className="text-sm text-white/80">
                 sliding scale contribution ($22–$44, your choice).
