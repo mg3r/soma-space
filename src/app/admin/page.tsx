@@ -46,9 +46,9 @@ export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   const errorMessages = [
-    "hmm, that didn&apos;t quite work. feel free to try again.",
-    "not quite. you&apos;re welcome to try again.",
-    "that doesn&apos;t seem to be it. take another try.",
+    "hmm, that didn't quite work. feel free to try again.",
+    "not quite. you're welcome to try again.",
+    "that doesn't seem to be it. take another try.",
   ];
 
   const getRandomErrorMessage = () => {

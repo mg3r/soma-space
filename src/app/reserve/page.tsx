@@ -20,11 +20,11 @@ export default function Page() {
   const [waitlistSuccess, setWaitlistSuccess] = useState(false);
 
   const errorMessages = [
-    "hmm, that didn&apos;t quite work. feel free to try again.",
-    "not quite. you&apos;re welcome to try again.",
-    "that doesn&apos;t seem to be it. take another try.",
+    "hmm, that didn't quite work. feel free to try again.",
+    "not quite. you're welcome to try again.",
+    "that doesn't seem to be it. take another try.",
     "almost — give it another go.",
-    "that wasn&apos;t it. try again.",
+    "that wasn't it. try again.",
   ];
 
   const getRandomErrorMessage = () => {
@@ -247,7 +247,7 @@ export default function Page() {
                 <h2 className="text-sm text-[#05fd00]">join the waitlist</h2>
                 {waitlistSuccess ? (
                   <p className="text-sm text-white/70">
-                    you&apos;ve been added to the waitlist. we&apos;ll reach out if a spot becomes available.
+                    you've been added to the waitlist. we'll reach out if a spot becomes available.
                   </p>
                 ) : (
                   <form onSubmit={submitWaitlist} className="space-y-4">

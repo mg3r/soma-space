@@ -33,11 +33,11 @@ export default function Page() {
   const isTypingRef = useRef(false);
 
   const errorMessages = [
-    "hmm, that didn&apos;t quite work. feel free to try again.",
-    "not quite. you&apos;re welcome to try again.",
-    "that doesn&apos;t seem to be it. take another try.",
+    "hmm, that didn't quite work. feel free to try again.",
+    "not quite. you're welcome to try again.",
+    "that doesn't seem to be it. take another try.",
     "almost — give it another go.",
-    "that wasn&apos;t it. try again.",
+    "that wasn't it. try again.",
   ];
 
   const getRandomErrorMessage = () => {
@@ -266,7 +266,7 @@ export default function Page() {
                     return (
                       <div key={idx} className="flex">
                         <p className="text-white/80 max-w-[85%]">
-                          if you&apos;d like to learn more, you can read the full{" "}
+                          if you'd like to learn more, you can read the full{" "}
                           <Link
                             className="text-[#05fd00] hover:text-[#05fd00]/80"
                             href="/manifesto"
