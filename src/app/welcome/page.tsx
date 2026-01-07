@@ -92,7 +92,7 @@ function ReserveContent() {
           <div className="flex flex-1 items-center justify-between">
             <div className="opacity-0">
               {/* Placeholder to maintain layout */}
-              <h1 className="text-sm">you're in.</h1>
+              <h1 className="text-sm">you&apos;re in.</h1>
             </div>
           </div>
         </div>
@@ -197,7 +197,7 @@ export default function Page() {
         <div className="relative mx-auto flex h-screen max-w-full md:max-w-2xl flex-col px-6 pt-20 pb-10">
           <div className="flex flex-1 items-center justify-between">
             <div className="opacity-0">
-              <h1 className="text-sm">you're in.</h1>
+              <h1 className="text-sm">you&apos;re in.</h1>
             </div>
           </div>
         </div>
