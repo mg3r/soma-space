@@ -126,6 +126,22 @@ export default function page() {
               this is a shared container. we each contribute to its safety, presence, and integrity.
             </p>
           </div>
+
+          <div className="pt-4 space-y-4">
+            <p className="text-[#05fd00]">contribution.</p>
+
+            <p>
+              this gathering is held through shared contribution.
+            </p>
+
+            <p>
+              we offer a sliding scale and trust each person to give what they are able. no one is ever turned away for lack of funds.
+            </p>
+
+            <p>
+              if you need support, please reach out.
+            </p>
+          </div>
         </div>
       </div>
     </main>
