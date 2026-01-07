@@ -201,7 +201,7 @@ export default function Page() {
 
     await botSay({
       type: "bot",
-      text: "sliding scale contribution ($22–$44, your choice)",
+      text: "sliding scale contribution ($22–$44, your choice). reach out if you need support.",
     });
 
     // Show reserve link
