@@ -74,6 +74,42 @@ export async function setEventCapacity(eventId: string, capacity: number): Promi
 }
 
 /**
+ * Check if a Stripe Checkout Session is a soma space registration
+ * This handles both new sessions (with event_id metadata) and legacy sessions (without metadata)
+ */
+function isSomaSpaceRegistration(
+  session: Stripe.Checkout.Session,
+  eventId: string
+): boolean {
+  // Must be paid and complete
+  if (session.payment_status !== "paid" || session.status !== "complete") {
+    return false;
+  }
+
+  // New sessions: has matching event_id metadata
+  if (session.metadata?.event_id === eventId) {
+    return true;
+  }
+
+  // Legacy sessions: check if it's a soma space registration
+  // by verifying amount range and success URL
+  const amountTotal = session.amount_total || 0;
+  const amountInDollars = amountTotal / 100;
+  const successUrl = session.success_url || "";
+
+  // Must be in soma space price range ($22-44)
+  const isInPriceRange = amountInDollars >= 22 && amountInDollars <= 44;
+
+  // Must have soma space success URL (contains /welcome and your domain)
+  const hasSomaSpaceUrl =
+    successUrl.includes("/welcome") &&
+    (successUrl.includes("entersoma.space") ||
+      successUrl.includes("localhost:3000"));
+
+  return isInPriceRange && hasSomaSpaceUrl;
+}
+
+/**
  * Count the number of paid registrations for a specific event
  */
 export async function countEventRegistrations(eventId: string): Promise<number> {
@@ -91,12 +127,9 @@ export async function countEventRegistrations(eventId: string): Promise<number> 
         starting_after: startingAfter,
       });
       
-      // Filter for completed sessions with matching event_id metadata
-      const eventSessions = sessions.data.filter(
-        (session: Stripe.Checkout.Session) =>
-          session.payment_status === "paid" &&
-          session.status === "complete" &&
-          session.metadata?.event_id === eventId
+      // Filter for soma space registrations (with metadata or legacy)
+      const eventSessions = sessions.data.filter((session: Stripe.Checkout.Session) =>
+        isSomaSpaceRegistration(session, eventId)
       );
       
       count += eventSessions.length;
@@ -142,13 +175,10 @@ export async function getEventRegistrations(eventId: string) {
         starting_after: startingAfter,
       });
       
-      // Filter for completed sessions with matching event_id
+      // Filter for soma space registrations (with metadata or legacy)
       const eventSessions = sessions.data
-        .filter(
-          (session: Stripe.Checkout.Session) =>
-            session.payment_status === "paid" &&
-            session.status === "complete" &&
-            session.metadata?.event_id === eventId
+        .filter((session: Stripe.Checkout.Session) =>
+          isSomaSpaceRegistration(session, eventId)
         )
         .map((session: Stripe.Checkout.Session) => {
           // Get the amount paid from line items
