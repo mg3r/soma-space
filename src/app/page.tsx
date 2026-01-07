@@ -311,7 +311,10 @@ export default function Page() {
     const isFull = await loadEventStatus();
     
     if (isFull) {
-      await botSay({ type: "bot", text: "this event is full" });
+      await botSay({ 
+        type: "bot", 
+        text: "we checked, and this gathering is currently full. if you'd like, you can join the waitlist and we'll reach out if a spot opens. we'll also let you know about future gatherings." 
+      });
       await botSay({ type: "bot_waitlist_link" });
     } else {
       // Show reserve link

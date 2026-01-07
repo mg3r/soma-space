@@ -235,7 +235,7 @@ export default function Page() {
                       <span className="text-[#05fd00]">{remainingSpots}</span> spot{remainingSpots !== 1 ? "s" : ""} remaining
                     </>
                   ) : (
-                    <span className="text-white/50">this event is full</span>
+                    <span className="text-white/50">this gathering is currently full. if you&apos;d like, you can join the waitlist and we&apos;ll reach out if a spot opens. we&apos;ll also let you know about future gatherings.</span>
                   )}
                 </p>
               </div>
@@ -324,7 +324,10 @@ export default function Page() {
 
             {/* Show waitlist option if full but form not shown yet */}
             {isFull && !showWaitlist && (
-              <div className="mt-8">
+              <div className="mt-8 space-y-4">
+                <p className="text-sm text-white/70">
+                  this gathering is currently full. if you&apos;d like, you can join the waitlist and we&apos;ll reach out if a spot opens. we&apos;ll also let you know about future gatherings.
+                </p>
                 <button
                   onClick={() => setShowWaitlist(true)}
                   className="text-sm text-[#05fd00] hover:text-[#05fd00]/80"
