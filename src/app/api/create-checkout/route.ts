@@ -92,6 +92,27 @@ export async function POST(req: Request) {
       },
     });
 
+    // Update payment intent metadata with session ID (for refund tracking)
+    // This allows us to find the checkout session when a refund happens
+    if (session.payment_intent) {
+      try {
+        await stripe.paymentIntents.update(
+          typeof session.payment_intent === 'string' 
+            ? session.payment_intent 
+            : session.payment_intent.id,
+          {
+            metadata: {
+              checkout_session_id: session.id,
+              event_id: eventId,
+            },
+          }
+        );
+      } catch (error) {
+        console.warn("Could not update payment intent metadata:", error);
+        // Non-critical, continue anyway
+      }
+    }
+
     return NextResponse.json({ 
       sessionId: session.id, 
       url: session.url 

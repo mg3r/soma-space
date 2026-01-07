@@ -60,11 +60,7 @@ export async function POST(req: Request) {
     // Handle charge.refunded event - auto-exclude refunded registrations
     if (event.type === "charge.refunded") {
       const charge = event.data.object as Stripe.Charge;
-      const sessionId = charge.metadata?.checkout_session_id;
-
-      if (sessionId) {
-        await autoExcludeRefundedRegistration(sessionId, charge);
-      }
+      await handleRefundedCharge(charge);
     }
 
     return NextResponse.json({ received: true });
@@ -121,10 +117,87 @@ async function syncRegistrationToSupabase(
   }
 }
 
-async function autoExcludeRefundedRegistration(
-  sessionId: string,
-  charge: Stripe.Charge
-) {
+async function handleRefundedCharge(charge: Stripe.Charge) {
+  if (!supabase) {
+    console.warn("Supabase not configured, skipping auto-exclude");
+    return;
+  }
+
+  try {
+    let sessionId: string | null = null;
+
+    // Try to get session ID from charge metadata first
+    if (charge.metadata?.checkout_session_id) {
+      sessionId = charge.metadata.checkout_session_id;
+    } else if (charge.payment_intent) {
+      // If not in metadata, try to find checkout session via payment intent
+      try {
+        const paymentIntent = await stripe.paymentIntents.retrieve(
+          typeof charge.payment_intent === "string"
+            ? charge.payment_intent
+            : charge.payment_intent.id
+        );
+
+        // Payment intent metadata might have session ID
+        if (paymentIntent.metadata?.checkout_session_id) {
+          sessionId = paymentIntent.metadata.checkout_session_id;
+        } else {
+          // Search for checkout sessions with this payment intent
+          const sessions = await stripe.checkout.sessions.list({
+            payment_intent: paymentIntent.id,
+            limit: 1,
+          });
+
+          if (sessions.data.length > 0) {
+            sessionId = sessions.data[0].id;
+          }
+        }
+      } catch (error) {
+        console.error("Error retrieving payment intent:", error);
+      }
+    }
+
+    // If we still don't have a session ID, try to find by customer and amount
+    if (!sessionId && charge.customer) {
+      try {
+        const amountInCents = charge.amount;
+        const sessions = await stripe.checkout.sessions.list({
+          customer: typeof charge.customer === "string" ? charge.customer : charge.customer.id,
+          limit: 100,
+        });
+
+        // Find session with matching amount (within $22-44 range)
+        const matchingSession = sessions.data.find((session) => {
+          const sessionAmount = session.amount_total || 0;
+          return (
+            sessionAmount >= 2200 &&
+            sessionAmount <= 4400 &&
+            Math.abs(sessionAmount - amountInCents) < 100 // Allow small variance
+          );
+        });
+
+        if (matchingSession) {
+          sessionId = matchingSession.id;
+        }
+      } catch (error) {
+        console.error("Error searching for checkout session:", error);
+      }
+    }
+
+    if (!sessionId) {
+      console.log(
+        `Could not find checkout session for refunded charge ${charge.id}, skipping auto-exclude`
+      );
+      return;
+    }
+
+    await autoExcludeRefundedRegistration(sessionId);
+  } catch (error) {
+    console.error("Error in handleRefundedCharge:", error);
+  }
+}
+
+async function autoExcludeRefundedRegistration(sessionId: string) {
   if (!supabase) {
     console.warn("Supabase not configured, skipping auto-exclude");
     return;
@@ -139,7 +212,9 @@ async function autoExcludeRefundedRegistration(
       .single();
 
     if (regError || !registration) {
-      console.log(`Registration ${sessionId} not found in Supabase, skipping auto-exclude`);
+      console.log(
+        `Registration ${sessionId} not found in Supabase, skipping auto-exclude`
+      );
       return;
     }
 
