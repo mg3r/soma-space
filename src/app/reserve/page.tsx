@@ -323,7 +323,7 @@ export default function Page() {
                   this gathering is currently full.
                 </p>
                 <p className="text-sm text-white/70">
-                  if you&apos;d like, you can join the waitlist and we&apos;ll reach out if a spot opens. we&apos;ll also let you know about future gatherings.
+                  join the waitlist and we&apos;ll reach out if a spot opens. we&apos;ll also let you know about future gatherings.
                 </p>
                 <button
                   onClick={() => setShowWaitlist(true)}
