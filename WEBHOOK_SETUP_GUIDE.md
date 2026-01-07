@@ -65,7 +65,9 @@ ALTER TABLE excluded_registrations ENABLE ROW LEVEL SECURITY;
      - (If testing locally, use a tool like [ngrok](https://ngrok.com) to expose localhost)
    - **Description**: "Soma Space Registration Sync"
 6. Under **Events to send**, click **Select events**
-7. Check the box for: `checkout.session.completed`
+7. Check the boxes for:
+   - `checkout.session.completed` (syncs new registrations)
+   - `charge.refunded` (auto-excludes refunded registrations)
 8. Click **Add endpoint**
 
 ### 2.2 Get Webhook Signing Secret
