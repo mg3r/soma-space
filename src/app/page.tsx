@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { nextEvent } from "@/config/event";
 
-type Phase = "boot" | "await_password" | "checking" | "unlocked";
+type Phase = "boot" | "await_password" | "checking" | "unlocked" | "waitlist_first_name" | "waitlist_last_name" | "waitlist_email" | "waitlist_phone";
 
 function rand_ms(min = 1000, max = 3000) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -15,6 +15,14 @@ export default function Page() {
   const [showNav, setShowNav] = useState(false);
   const [isCreatingCheckout, setIsCreatingCheckout] = useState(false);
   const [contributionAmount, setContributionAmount] = useState("33");
+  const [eventStatus, setEventStatus] = useState<{ remainingSpots: number; isFull: boolean } | null>(null);
+  const [waitlistData, setWaitlistData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+  });
+  const [isSubmittingWaitlist, setIsSubmittingWaitlist] = useState(false);
 
   const [lines, setLines] = useState<
     Array<
@@ -22,6 +30,7 @@ export default function Page() {
       | { type: "typing" }
       | { type: "bot_manifesto_link" }
       | { type: "bot_reserve_link" }
+      | { type: "bot_waitlist_link" }
       | { type: "user"; text: string }
     >
   >([]);
@@ -110,6 +119,24 @@ export default function Page() {
     }
   }, [lines.length]);
 
+  async function loadEventStatus() {
+    try {
+      const res = await fetch(`/api/event-status?eventId=${nextEvent.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        const stats = data.stats;
+        setEventStatus({
+          remainingSpots: stats.remainingSpots,
+          isFull: stats.remainingSpots === 0,
+        });
+        return stats.remainingSpots === 0;
+      }
+    } catch (error) {
+      console.error("Error loading event status:", error);
+    }
+    return false;
+  }
+
   async function createCheckoutSession() {
     if (isCreatingCheckout) return;
     
@@ -150,14 +177,90 @@ export default function Page() {
     }
   }
 
+  async function submitWaitlist() {
+    if (!waitlistData.firstName || !waitlistData.lastName || !waitlistData.email) {
+      await botSay({ type: "bot", text: "please provide your first name, last name, and email" });
+      return;
+    }
+
+    setIsSubmittingWaitlist(true);
+    try {
+      const res = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: `${waitlistData.firstName} ${waitlistData.lastName}`,
+          email: waitlistData.email,
+          phone: waitlistData.phone || undefined,
+          eventId: nextEvent.id,
+        }),
+      });
+
+      if (res.ok) {
+        await botSay({
+          type: "bot",
+          text: "you've been added to the waitlist. we'll reach out if a spot becomes available.",
+        });
+        setWaitlistData({ firstName: "", lastName: "", email: "", phone: "" });
+        setPhase("unlocked");
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        await botSay({
+          type: "bot",
+          text: errorData.message || "failed to add to waitlist. please try again.",
+        });
+      }
+    } catch (error) {
+      console.error("Error submitting waitlist:", error);
+      await botSay({ type: "bot", text: "an error occurred. please try again." });
+    } finally {
+      setIsSubmittingWaitlist(false);
+    }
+  }
+
   async function submit() {
     const trimmed = input.trim();
-    if (!trimmed) return;
+    
+    // Allow empty input only for optional phone field
+    if (!trimmed && phase !== "waitlist_phone") return;
 
-    // Show user input (actual text)
-    push({ type: "user", text: trimmed });
+    // Show user input (actual text) - show something even if empty for phone
+    push({ type: "user", text: trimmed || "(skipped)" });
 
     setInput("");
+
+    // Handle waitlist collection phases
+    if (phase === "waitlist_first_name") {
+      setWaitlistData((prev) => ({ ...prev, firstName: trimmed }));
+      await botSay({ type: "bot", text: "last name?" });
+      setPhase("waitlist_last_name");
+      return;
+    }
+
+    if (phase === "waitlist_last_name") {
+      setWaitlistData((prev) => ({ ...prev, lastName: trimmed }));
+      await botSay({ type: "bot", text: "email?" });
+      setPhase("waitlist_email");
+      return;
+    }
+
+    if (phase === "waitlist_email") {
+      // Basic email validation
+      if (!trimmed.includes("@")) {
+        await botSay({ type: "bot", text: "please enter a valid email address" });
+        return;
+      }
+      setWaitlistData((prev) => ({ ...prev, email: trimmed }));
+      await botSay({ type: "bot", text: "phone number? (optional)" });
+      setPhase("waitlist_phone");
+      return;
+    }
+
+    if (phase === "waitlist_phone") {
+      setWaitlistData((prev) => ({ ...prev, phone: trimmed || "" }));
+      await submitWaitlist();
+      return;
+    }
 
     if (phase !== "await_password") return;
 
@@ -204,8 +307,16 @@ export default function Page() {
       text: "sliding scale contribution ($22–$44, your choice). reach out if you need support",
     });
 
-    // Show reserve link
-    await botSay({ type: "bot_reserve_link" });
+    // Check event status before showing reserve link
+    const isFull = await loadEventStatus();
+    
+    if (isFull) {
+      await botSay({ type: "bot", text: "this event is full" });
+      await botSay({ type: "bot_waitlist_link" });
+    } else {
+      // Show reserve link
+      await botSay({ type: "bot_reserve_link" });
+    }
   }
 
   return (
@@ -278,6 +389,21 @@ export default function Page() {
                       </div>
                     );
                   }
+                  if (l.type === "bot_waitlist_link") {
+                    return (
+                      <div key={idx} className="flex flex-col gap-3">
+                        <button
+                          onClick={async () => {
+                            await botSay({ type: "bot", text: "first name?" });
+                            setPhase("waitlist_first_name");
+                          }}
+                          className="text-[#05fd00] hover:text-[#05fd00]/80 text-left max-w-[85%]"
+                        >
+                          join the waitlist →
+                        </button>
+                      </div>
+                    );
+                  }
                   if (l.type === "bot_reserve_link") {
                     return (
                       <div key={idx} className="flex flex-col gap-3">
@@ -330,16 +456,34 @@ export default function Page() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && submit()}
-                  placeholder={phase === "await_password" ? "password" : ""}
-                  disabled={phase !== "await_password"}
+                  placeholder={
+                    phase === "await_password" ? "password" :
+                    phase === "waitlist_first_name" ? "first name" :
+                    phase === "waitlist_last_name" ? "last name" :
+                    phase === "waitlist_email" ? "email" :
+                    phase === "waitlist_phone" ? "phone (optional)" :
+                    ""
+                  }
+                  disabled={
+                    phase === "boot" || 
+                    phase === "checking" || 
+                    phase === "unlocked" || 
+                    isSubmittingWaitlist
+                  }
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
+                  type={phase === "waitlist_email" ? "email" : phase === "waitlist_phone" ? "tel" : "text"}
                 />
                 <button
                   className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm hover:bg-white/15 disabled:opacity-40"
                   onClick={submit}
-                  disabled={phase !== "await_password"}
+                  disabled={
+                    phase === "boot" || 
+                    phase === "checking" || 
+                    phase === "unlocked" || 
+                    isSubmittingWaitlist
+                  }
                 >
                   send
                 </button>
