@@ -195,7 +195,7 @@ export default function Page() {
       },
       {
         type: "bot",
-        text: "sliding scale contribution ($22–$44, your choice). reach out if you need support",
+        text: "sliding scale contribution ($22–$44, your choice). nobody turned away for lack of funds. reach out if you need support!",
       },
     ]);
 
@@ -395,7 +395,7 @@ export default function Page() {
 
     await botSay({
       type: "bot",
-      text: "sliding scale contribution ($22–$44, your choice). reach out if you need support",
+      text: "sliding scale contribution ($22–$44, your choice). nobody turned away for lack of funds. reach out if you need support!",
     });
 
     // Check event status before showing reserve link
