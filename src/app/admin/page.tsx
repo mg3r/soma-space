@@ -239,10 +239,10 @@ export default function AdminPage() {
     // Only include registrations if custom emails field is empty
     const hasCustomEmailInput = customEmails.trim().length > 0;
     
-    // Include selected registrations
+    // Include selected registrations (including excluded ones)
     if (selectedSessionIds.size > 0) {
       registrations
-        .filter(reg => selectedSessionIds.has(reg.sessionId) && !reg.isExcluded)
+        .filter(reg => selectedSessionIds.has(reg.sessionId))
         .forEach(reg => {
           if (reg.customerEmail && reg.customerEmail !== "N/A") {
             emails.push(reg.customerEmail);
@@ -367,8 +367,8 @@ export default function AdminPage() {
   };
 
   const selectAllRegistrations = () => {
-    const activeRegistrations = registrations.filter(reg => !reg.isExcluded);
-    setSelectedSessionIds(new Set(activeRegistrations.map(reg => reg.sessionId)));
+    // Include all registrations, including excluded ones
+    setSelectedSessionIds(new Set(registrations.map(reg => reg.sessionId)));
   };
 
   const clearSelection = () => {
@@ -786,12 +786,12 @@ export default function AdminPage() {
                 <h2 className="text-sm text-[#05fd00]">
                   registered attendees ({registrations.length})
                 </h2>
-                {registrations.filter(r => !r.isExcluded).length > 0 && (
+                {registrations.length > 0 && (
                   <button
-                    onClick={selectedSessionIds.size === registrations.filter(r => !r.isExcluded).length ? clearSelection : selectAllRegistrations}
+                    onClick={selectedSessionIds.size === registrations.length ? clearSelection : selectAllRegistrations}
                     className="text-xs text-white/50 hover:text-white/80"
                   >
-                    {selectedSessionIds.size === registrations.filter(r => !r.isExcluded).length ? "clear all" : "select all"}
+                    {selectedSessionIds.size === registrations.length ? "clear all" : "select all"}
                   </button>
                 )}
               </div>
@@ -811,7 +811,7 @@ export default function AdminPage() {
                         <th className="px-4 py-3 text-left text-xs text-white/50 w-12">
                           <input
                             type="checkbox"
-                            checked={selectedSessionIds.size > 0 && selectedSessionIds.size === registrations.filter(r => !r.isExcluded).length}
+                            checked={selectedSessionIds.size > 0 && selectedSessionIds.size === registrations.length}
                             onChange={(e) => {
                               if (e.target.checked) {
                                 selectAllRegistrations();
@@ -848,14 +848,12 @@ export default function AdminPage() {
                           }`}
                         >
                           <td className="px-4 py-3">
-                            {!reg.isExcluded && (
-                              <input
-                                type="checkbox"
-                                checked={selectedSessionIds.has(reg.sessionId)}
-                                onChange={() => toggleRegistrationSelection(reg.sessionId)}
-                                className="w-4 h-4"
-                              />
-                            )}
+                            <input
+                              type="checkbox"
+                              checked={selectedSessionIds.has(reg.sessionId)}
+                              onChange={() => toggleRegistrationSelection(reg.sessionId)}
+                              className="w-4 h-4"
+                            />
                           </td>
                           <td className="px-4 py-3 text-sm text-white/80">
                             {reg.customerName}

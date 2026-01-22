@@ -117,7 +117,7 @@ function getEmailTemplate(htmlBody: string): string {
                 </tr>
                 <!-- Content -->
                 <tr>
-                  <td class="email-padding" style="padding: 40px 50px; background: #ffffff;">
+                  <td class="email-padding" style="padding: 40px 50px; background: #f8f8f8;">
                     <div style="color: #111111 !important; font-size: 17px; line-height: 1.8;">
                       ${htmlBody}
                     </div>
