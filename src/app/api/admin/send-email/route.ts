@@ -85,44 +85,53 @@ export async function POST(req: Request) {
       );
     }
 
-    // Get registrations for the event
-    const registrations = await getEventRegistrations(eventId);
-    
-    // Build list of emails to send to
-    const emails: string[] = [];
-
-    // Add selected registrations if specified
-    if (selectedSessionIds && Array.isArray(selectedSessionIds) && selectedSessionIds.length > 0) {
-      const selectedRegistrations = registrations.filter(reg => 
-        selectedSessionIds.includes(reg.sessionId) && 
-        (!excludeExcluded || !reg.isExcluded)
-      );
-      selectedRegistrations.forEach(reg => {
-        if (reg.customerEmail && reg.customerEmail !== "N/A") {
-          emails.push(reg.customerEmail);
-        }
-      });
-    } else {
-      // If no selection, send to all (excluding excluded if requested)
-      const activeRegistrations = excludeExcluded 
-        ? registrations.filter(reg => !reg.isExcluded)
-        : registrations;
-      
-      activeRegistrations.forEach(reg => {
-        if (reg.customerEmail && reg.customerEmail !== "N/A") {
-          emails.push(reg.customerEmail);
-        }
-      });
-    }
-
-    // Add custom email addresses
+    // Parse custom emails first
+    const customEmailList: string[] = [];
     if (customEmails && Array.isArray(customEmails)) {
       customEmails.forEach((email: string) => {
         const trimmed = email.trim();
         if (trimmed && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-          emails.push(trimmed);
+          customEmailList.push(trimmed);
         }
       });
+    }
+
+    // Build list of emails to send to
+    const emails: string[] = [];
+
+    // Get registrations for the event (needed for all cases)
+    const registrations = await getEventRegistrations(eventId);
+
+    // If custom emails are provided and no registrations selected, ONLY send to custom emails
+    if (customEmailList.length > 0 && (!selectedSessionIds || selectedSessionIds.length === 0)) {
+      emails.push(...customEmailList);
+    } else {
+      // Add selected registrations if specified
+      if (selectedSessionIds && Array.isArray(selectedSessionIds) && selectedSessionIds.length > 0) {
+        const selectedRegistrations = registrations.filter(reg => 
+          selectedSessionIds.includes(reg.sessionId) && 
+          (!excludeExcluded || !reg.isExcluded)
+        );
+        selectedRegistrations.forEach(reg => {
+          if (reg.customerEmail && reg.customerEmail !== "N/A") {
+            emails.push(reg.customerEmail);
+          }
+        });
+      } else if (customEmailList.length === 0) {
+        // If no selection and no custom emails, send to all (excluding excluded if requested)
+        const activeRegistrations = excludeExcluded 
+          ? registrations.filter(reg => !reg.isExcluded)
+          : registrations;
+        
+        activeRegistrations.forEach(reg => {
+          if (reg.customerEmail && reg.customerEmail !== "N/A") {
+            emails.push(reg.customerEmail);
+          }
+        });
+      }
+
+      // Add custom emails to the list (if registrations are also selected)
+      customEmailList.forEach(email => emails.push(email));
     }
 
     // Remove duplicates

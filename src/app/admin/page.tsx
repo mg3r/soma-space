@@ -196,6 +196,23 @@ export default function AdminPage() {
   const getEmailRecipients = () => {
     const emails: string[] = [];
     
+    // Parse custom emails first
+    const customEmailList: string[] = [];
+    if (customEmails.trim()) {
+      customEmails.split(/[,\n]/).forEach(email => {
+        const trimmed = email.trim();
+        if (trimmed && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+          customEmailList.push(trimmed);
+        }
+      });
+    }
+
+    // If custom emails are provided, ONLY send to those (unless registrations are also selected)
+    if (customEmailList.length > 0 && selectedSessionIds.size === 0) {
+      return customEmailList;
+    }
+
+    // Otherwise, include selected registrations
     if (selectedSessionIds.size > 0) {
       registrations
         .filter(reg => selectedSessionIds.has(reg.sessionId) && !reg.isExcluded)
@@ -204,7 +221,8 @@ export default function AdminPage() {
             emails.push(reg.customerEmail);
           }
         });
-    } else {
+    } else if (customEmailList.length === 0) {
+      // Only include all registrations if no custom emails AND no selection
       registrations
         .filter(reg => !reg.isExcluded)
         .forEach(reg => {
@@ -214,15 +232,8 @@ export default function AdminPage() {
         });
     }
 
-    // Add custom emails
-    if (customEmails.trim()) {
-      customEmails.split(/[,\n]/).forEach(email => {
-        const trimmed = email.trim();
-        if (trimmed && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-          emails.push(trimmed);
-        }
-      });
-    }
+    // Add custom emails to the list (if registrations are also selected)
+    customEmailList.forEach(email => emails.push(email));
 
     return [...new Set(emails)];
   };
@@ -495,120 +506,6 @@ export default function AdminPage() {
           </p>
         </div>
 
-        {/* Email Section */}
-        <div className="mb-8 bg-white/5 border border-white/10 p-6">
-          <h2 className="mb-4 text-sm text-[#05fd00]">send email to registrations</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="mb-2 block text-xs text-white/70">
-                subject
-              </label>
-              <input
-                type="text"
-                value={emailSubject}
-                onChange={(e) => setEmailSubject(e.target.value)}
-                placeholder="Email subject"
-                className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
-              />
-            </div>
-            <div>
-              <label className="mb-2 block text-xs text-white/70">
-                email body (HTML)
-              </label>
-              <textarea
-                value={emailBody}
-                onChange={(e) => setEmailBody(e.target.value)}
-                placeholder="Email body (HTML supported)"
-                rows={8}
-                className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2 font-mono"
-              />
-            </div>
-            <div>
-              <label className="mb-2 block text-xs text-white/70">
-                additional email addresses (comma or newline separated)
-              </label>
-              <textarea
-                value={customEmails}
-                onChange={(e) => setCustomEmails(e.target.value)}
-                placeholder="email1@example.com, email2@example.com"
-                rows={3}
-                className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
-              />
-            </div>
-            <div>
-              <label className="mb-2 block text-xs text-white/70">
-                attachments (PDF, images, etc.)
-              </label>
-              <input
-                type="file"
-                multiple
-                onChange={handleAttachmentChange}
-                className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-[#05fd00]/20 file:text-[#05fd00] hover:file:bg-[#05fd00]/30"
-                accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
-              />
-              {attachments.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  {attachments.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between bg-white/5 border border-white/10 px-3 py-2 text-xs text-white/70">
-                      <span>{file.name} ({(file.size / 1024).toFixed(1)} KB)</span>
-                      <button
-                        onClick={() => removeAttachment(index)}
-                        className="text-red-500 hover:text-red-400"
-                      >
-                        remove
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 text-xs text-white/70">
-                <input
-                  type="checkbox"
-                  checked={useBcc}
-                  onChange={(e) => setUseBcc(e.target.checked)}
-                  className="w-4 h-4"
-                />
-                <span>use BCC (faster, but less reliable)</span>
-              </label>
-            </div>
-            <div className="pt-2 border-t border-white/10">
-              <p className="text-xs text-white/50 mb-2">
-                recipients: <span className="text-[#05fd00]">{getEmailRecipients().length}</span>
-                {selectedSessionIds.size > 0 && (
-                  <span className="ml-2">
-                    ({selectedSessionIds.size} selected from registrations)
-                  </span>
-                )}
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={sendEmailToRegistrations}
-                  disabled={isSendingEmail || !emailSubject.trim() || !emailBody.trim() || getEmailRecipients().length === 0}
-                  className="rounded border border-[#05fd00] bg-transparent px-4 py-2 text-sm text-[#05fd00] hover:bg-[#05fd00]/10 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSendingEmail ? "sending..." : `send to ${getEmailRecipients().length} recipient${getEmailRecipients().length !== 1 ? "s" : ""}`}
-                </button>
-                {selectedSessionIds.size > 0 && (
-                  <button
-                    onClick={clearSelection}
-                    className="text-xs text-white/50 hover:text-white/80"
-                  >
-                    clear selection
-                  </button>
-                )}
-              </div>
-              {emailResult && (
-                <p className="mt-2 text-xs text-white/50">
-                  sent: <span className="text-[#05fd00]">{emailResult.sent}</span> | 
-                  failed: <span className="text-red-500">{emailResult.failed}</span>
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
         {/* Registrations Table */}
         <div className="bg-white/5 border border-white/10">
           <div className="border-b border-white/10 p-4 flex items-center justify-between">
@@ -789,6 +686,128 @@ export default function AdminPage() {
               </table>
             </div>
           )}
+        </div>
+
+        {/* Email Section */}
+        <div className="mt-8 bg-white/5 border border-white/10 p-6">
+          <h2 className="mb-4 text-sm text-[#05fd00]">send email</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="mb-2 block text-xs text-white/70">
+                subject
+              </label>
+              <input
+                type="text"
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+                placeholder="Email subject"
+                className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-xs text-white/70">
+                email body (HTML)
+              </label>
+              <textarea
+                value={emailBody}
+                onChange={(e) => setEmailBody(e.target.value)}
+                placeholder="Email body (HTML supported)"
+                rows={8}
+                className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2 font-mono"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-xs text-white/70">
+                email addresses (comma or newline separated)
+              </label>
+              <p className="mb-2 text-xs text-white/40">
+                enter email addresses here, or select registrations above
+              </p>
+              <textarea
+                value={customEmails}
+                onChange={(e) => setCustomEmails(e.target.value)}
+                placeholder="email1@example.com, email2@example.com"
+                rows={3}
+                className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-xs text-white/70">
+                attachments (PDF, images, etc.)
+              </label>
+              <input
+                type="file"
+                multiple
+                onChange={handleAttachmentChange}
+                className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-[#05fd00]/20 file:text-[#05fd00] hover:file:bg-[#05fd00]/30"
+                accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
+              />
+              {attachments.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {attachments.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between bg-white/5 border border-white/10 px-3 py-2 text-xs text-white/70">
+                      <span>{file.name} ({(file.size / 1024).toFixed(1)} KB)</span>
+                      <button
+                        onClick={() => removeAttachment(index)}
+                        className="text-red-500 hover:text-red-400"
+                      >
+                        remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 text-xs text-white/70">
+                <input
+                  type="checkbox"
+                  checked={useBcc}
+                  onChange={(e) => setUseBcc(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <span>use BCC (faster, but less reliable)</span>
+              </label>
+            </div>
+            <div className="pt-2 border-t border-white/10">
+              <p className="text-xs text-white/50 mb-2">
+                recipients: <span className="text-[#05fd00]">{getEmailRecipients().length}</span>
+                {selectedSessionIds.size > 0 && (
+                  <span className="ml-2">
+                    ({selectedSessionIds.size} selected from registrations)
+                  </span>
+                )}
+                {customEmails.trim() && selectedSessionIds.size === 0 && (
+                  <span className="ml-2 text-white/40">
+                    (custom emails only)
+                  </span>
+                )}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={sendEmailToRegistrations}
+                  disabled={isSendingEmail || !emailSubject.trim() || !emailBody.trim() || getEmailRecipients().length === 0}
+                  className="rounded border border-[#05fd00] bg-transparent px-4 py-2 text-sm text-[#05fd00] hover:bg-[#05fd00]/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSendingEmail ? "sending..." : `send to ${getEmailRecipients().length} recipient${getEmailRecipients().length !== 1 ? "s" : ""}`}
+                </button>
+                {selectedSessionIds.size > 0 && (
+                  <button
+                    onClick={clearSelection}
+                    className="text-xs text-white/50 hover:text-white/80"
+                  >
+                    clear selection
+                  </button>
+                )}
+              </div>
+              {emailResult && (
+                <p className="mt-2 text-xs text-white/50">
+                  sent: <span className="text-[#05fd00]">{emailResult.sent}</span> | 
+                  failed: <span className="text-red-500">{emailResult.failed}</span>
+                </p>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Waitlist Table */}
