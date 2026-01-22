@@ -249,23 +249,23 @@ function getRegistrationConfirmationEmail(
   eventAddress: string
 ): string {
   const htmlBody = `
-    <p style="margin: 0 0 20px 0; font-size: 16px; font-weight: 600;">you're in.</p>
+    <p style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600;">you're in.</p>
     
-    <p style="margin: 0 0 20px 0;">thank you for reserving your spot at ${eventName}.</p>
+    <p style="margin: 0 0 12px 0;">thank you for reserving your spot at ${eventName}.</p>
     
-    <p style="margin: 0 0 20px 0;">an evening of movement, music, connection, gentle guidance, and embodied presence.</p>
+    <p style="margin: 0 0 12px 0;">an evening of movement, music, connection, gentle guidance, and embodied presence.</p>
     
-    <div style="margin: 20px 0;">
-      <p style="margin: 5px 0; font-weight: 500;">${eventDate} • ${eventTime}</p>
-      <p style="margin: 5px 0; font-weight: 500;">${eventPlace}</p>
-      <p style="margin: 5px 0; font-weight: 500;">${eventAddress}</p>
+    <div style="margin: 12px 0;">
+      <p style="margin: 4px 0; font-weight: 500;">${eventDate} • ${eventTime}</p>
+      <p style="margin: 4px 0; font-weight: 500;">${eventPlace}</p>
+      <p style="margin: 4px 0; font-weight: 500;">${eventAddress}</p>
     </div>
     
-    <div style="margin: 20px 0;">
+    <div style="margin: 12px 0;">
       <a href="https://entersoma.space/manifesto" style="color: #05fd00; text-decoration: none; font-weight: 500;">read the manifesto →</a>
     </div>
     
-    <p style="margin: 20px 0 0 0; color: #666666;">see you there.</p>
+    <p style="margin: 12px 0 0 0; color: #666666;">see you there.</p>
   `;
   
   return getEmailTemplate(htmlBody);
