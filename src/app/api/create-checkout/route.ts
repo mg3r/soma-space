@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getStripeClient, isTestMode } from "@/lib/stripe";
-import { nextEvent } from "@/config/event";
 import { getEventCapacity, countEventRegistrations, checkAndNotifyCapacityReached } from "@/lib/admin";
 import { getActiveEventConfig } from "@/lib/event-config";
 
