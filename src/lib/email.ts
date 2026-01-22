@@ -71,6 +71,7 @@ function getEmailTemplate(htmlBody: string): string {
               max-width: 100% !important;
               width: 100% !important;
               border-radius: 0 !important;
+              border-width: 0 !important;
             }
             .email-padding {
               padding: 30px 25px !important;
@@ -88,27 +89,28 @@ function getEmailTemplate(htmlBody: string): string {
         <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f5f5f5; padding: 20px 10px;">
           <tr>
             <td align="center">
-              <table role="presentation" class="email-container" style="max-width: 1200px; width: 100%; border-collapse: collapse; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);">
+              <table role="presentation" class="email-container" style="max-width: 1200px; width: 100%; border-collapse: collapse; background-color: #ffffff; border: 2px solid #05fd00; border-radius: 8px; overflow: hidden;">
                 <!-- Header -->
                 <tr>
                   <td style="padding: 0; background: #111111; position: relative; overflow: hidden;">
-                    <!-- Visible spiral -->
-                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 200px; height: 200px; opacity: 0.15;">
+                    <!-- Centered spiral -->
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 180px; height: 180px; opacity: 0.2;">
                       <svg viewBox="0 0 200 200" style="width: 100%; height: 100%;">
                         <path d="M 100 100 m -70 0 a 70 70 0 1 1 140 0 a 70 70 0 1 1 -140 0" fill="none" stroke="#05fd00" stroke-width="2" stroke-dasharray="3,3"/>
                         <path d="M 100 100 m -50 0 a 50 50 0 1 1 100 0 a 50 50 0 1 1 -100 0" fill="none" stroke="#05fd00" stroke-width="1.5" stroke-dasharray="2,2"/>
                       </svg>
                     </div>
-                    <!-- Subtle aura -->
-                    <div style="position: absolute; top: -50px; right: -50px; width: 200px; height: 200px; background: radial-gradient(circle, rgba(5, 253, 0, 0.1) 0%, transparent 70%); border-radius: 50%; filter: blur(30px);"></div>
-                    <div class="header-padding" style="padding: 20px 40px; text-align: center; position: relative; z-index: 1;">
-                      <h1 style="margin: 0; color: #ffffff; font-size: 26px; font-weight: 600; letter-spacing: -0.5px; text-transform: lowercase;">soma space</h1>
+                    <!-- Centered aura -->
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 250px; height: 250px; background: radial-gradient(circle, rgba(5, 253, 0, 0.12) 0%, transparent 70%); border-radius: 50%; filter: blur(40px);"></div>
+                    <div class="header-padding" style="padding: 18px 40px; text-align: center; position: relative; z-index: 1;">
+                      <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600; letter-spacing: -0.5px; text-transform: lowercase;">soma space</h1>
+                      <div style="margin-top: 10px; width: 50px; height: 2px; background: #05fd00; margin-left: auto; margin-right: auto;"></div>
                     </div>
                   </td>
                 </tr>
                 <!-- Content -->
                 <tr>
-                  <td class="email-padding" style="padding: 40px 50px;">
+                  <td class="email-padding" style="padding: 40px 50px; background: #f9f9f9;">
                     <div style="color: #111111; font-size: 17px; line-height: 1.8;">
                       ${htmlBody}
                     </div>
@@ -116,7 +118,7 @@ function getEmailTemplate(htmlBody: string): string {
                 </tr>
                 <!-- Footer -->
                 <tr>
-                  <td class="footer-padding" style="padding: 18px 40px; background: #f9f9f9; border-top: 1px solid #e8e8e8; text-align: center; position: relative;">
+                  <td class="footer-padding" style="padding: 18px 40px; background: #111111; text-align: center; position: relative;">
                     <p style="margin: 0; font-size: 13px; line-height: 1.5;">
                       <a href="https://entersoma.space" style="color: #05fd00; text-decoration: none; font-weight: 600; letter-spacing: 0.5px; text-transform: lowercase;">entersoma.space</a>
                     </p>
