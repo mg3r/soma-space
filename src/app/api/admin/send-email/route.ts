@@ -108,10 +108,10 @@ export async function POST(req: Request) {
       emails.push(...customEmailList);
     } else {
       // Add selected registrations if specified
+      // When explicitly selected, include them regardless of exclusion status
       if (selectedSessionIds && Array.isArray(selectedSessionIds) && selectedSessionIds.length > 0) {
         const selectedRegistrations = registrations.filter(reg => 
-          selectedSessionIds.includes(reg.sessionId) && 
-          (!excludeExcluded || !reg.isExcluded)
+          selectedSessionIds.includes(reg.sessionId)
         );
         selectedRegistrations.forEach(reg => {
           if (reg.customerEmail && reg.customerEmail !== "N/A") {

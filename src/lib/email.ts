@@ -66,6 +66,7 @@ function getEmailTemplate(htmlBody: string): string {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap');
+          @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&display=swap');
           @media only screen and (max-width: 600px) {
             .email-container {
               max-width: 100% !important;
@@ -114,7 +115,7 @@ function getEmailTemplate(htmlBody: string): string {
                     <table role="presentation" style="width: 100%; border-collapse: collapse;">
                       <tr>
                         <td style="text-align: center; vertical-align: middle;">
-                          <h1 style="margin: 0; padding: 0; color: #ffffff; font-size: 20px; font-weight: 600; letter-spacing: -0.5px; text-transform: lowercase; line-height: 1.1;">soma space</h1>
+                          <h1 style="margin: 0; padding: 0; color: #ffffff; font-size: 20px; font-weight: 400; font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; letter-spacing: -0.5px; text-transform: lowercase; line-height: 1.1;">soma space</h1>
                           <div style="margin-top: 6px; width: 60px; height: 2px; background: linear-gradient(90deg, transparent, #05fd00, transparent); margin-left: auto; margin-right: auto; box-shadow: 0 0 10px rgba(5, 253, 0, 0.7), 0 0 20px rgba(5, 253, 0, 0.4); border-radius: 1px;"></div>
                         </td>
                       </tr>
