@@ -238,3 +238,85 @@ export async function sendEmailToRegistrations(
   return { sent, failed, errors };
 }
 
+/**
+ * Generate registration confirmation email HTML
+ */
+function getRegistrationConfirmationEmail(
+  eventName: string,
+  eventDate: string,
+  eventTime: string,
+  eventPlace: string,
+  eventAddress: string
+): string {
+  const htmlBody = `
+    <p style="margin: 0 0 20px 0; font-size: 16px; font-weight: 600;">you're in.</p>
+    
+    <p style="margin: 0 0 20px 0;">thank you for reserving your spot at ${eventName}.</p>
+    
+    <p style="margin: 0 0 20px 0;">an evening of movement, music, connection, gentle guidance, and embodied presence.</p>
+    
+    <div style="margin: 20px 0;">
+      <p style="margin: 5px 0; font-weight: 500;">${eventDate} • ${eventTime}</p>
+      <p style="margin: 5px 0; font-weight: 500;">${eventPlace}</p>
+      <p style="margin: 5px 0; font-weight: 500;">${eventAddress}</p>
+    </div>
+    
+    <div style="margin: 20px 0;">
+      <a href="https://entersoma.space/manifesto" style="color: #05fd00; text-decoration: none; font-weight: 500;">read the manifesto →</a>
+    </div>
+    
+    <p style="margin: 20px 0 0 0; color: #666666;">see you there.</p>
+  `;
+  
+  return getEmailTemplate(htmlBody);
+}
+
+/**
+ * Send registration confirmation email to customer
+ */
+export async function sendRegistrationConfirmationEmail(
+  customerEmail: string,
+  customerName: string,
+  eventName: string,
+  eventDate: string,
+  eventTime: string,
+  eventPlace: string,
+  eventAddress: string
+): Promise<void> {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  
+  if (!resendApiKey) {
+    console.log("RESEND_API_KEY not set, skipping registration confirmation email");
+    return;
+  }
+
+  if (!customerEmail || customerEmail === "N/A") {
+    console.log("No valid customer email, skipping registration confirmation email");
+    return;
+  }
+
+  try {
+    const resend = new Resend(resendApiKey);
+    const fromEmail = process.env.RESEND_FROM_EMAIL || "noreply@entersoma.space";
+    const emailHtml = getRegistrationConfirmationEmail(
+      eventName,
+      eventDate,
+      eventTime,
+      eventPlace,
+      eventAddress
+    );
+    
+    await resend.emails.send({
+      from: fromEmail,
+      to: customerEmail,
+      subject: `you're in. ${eventName} confirmation`,
+      html: emailHtml,
+    });
+
+    console.log(`✅ Registration confirmation email sent to ${customerEmail}`);
+  } catch (error) {
+    console.error("Error sending registration confirmation email:", error);
+    // Don't throw - we don't want email failures to break the booking flow
+  }
+}
+

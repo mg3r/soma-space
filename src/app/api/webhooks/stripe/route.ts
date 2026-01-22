@@ -3,6 +3,8 @@ import { headers } from "next/headers";
 import Stripe from "stripe";
 import { getStripeClient } from "@/lib/stripe";
 import { supabase } from "@/lib/supabase";
+import { sendRegistrationConfirmationEmail } from "@/lib/email";
+import { nextEvent } from "@/config/event";
 
 const stripe = getStripeClient();
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -53,7 +55,25 @@ export async function POST(req: Request) {
             successUrl.includes("localhost:3000")));
 
       if (isSomaSpace && session.payment_status === "paid") {
-        await syncRegistrationToSupabase(session, eventId || "RENEWAL");
+        const finalEventId = eventId || "RENEWAL";
+        await syncRegistrationToSupabase(session, finalEventId);
+        
+        // Send confirmation email
+        const customerEmail = session.customer_details?.email;
+        const customerName = session.customer_details?.name || customerEmail || "there";
+        
+        if (customerEmail && customerEmail !== "N/A") {
+          // Use event details from config (assuming RENEWAL for now, can be extended)
+          await sendRegistrationConfirmationEmail(
+            customerEmail,
+            customerName,
+            nextEvent.name,
+            nextEvent.date,
+            nextEvent.time,
+            nextEvent.place,
+            nextEvent.address
+          );
+        }
       }
     }
 
