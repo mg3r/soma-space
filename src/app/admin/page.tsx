@@ -64,11 +64,16 @@ export default function AdminPage() {
   const [emailResult, setEmailResult] = useState<{ sent: number; failed: number } | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
   const emailEditorRef = useRef<HTMLDivElement>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "email">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "email" | "event-config">("overview");
   const [emailTemplates, setEmailTemplates] = useState<Array<{ id: string; name: string; subject: string; body: string; attachments?: Array<{ filename: string; content: string; content_type?: string }>; updated_at: string }>>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+  
+  // Event config state
+  const [eventConfig, setEventConfig] = useState<any>(null);
+  const [isLoadingEventConfig, setIsLoadingEventConfig] = useState(false);
+  const [isSavingEventConfig, setIsSavingEventConfig] = useState(false);
 
   const loadEmailTemplates = useCallback(async () => {
     setIsLoadingTemplates(true);
@@ -84,6 +89,49 @@ export default function AdminPage() {
       setIsLoadingTemplates(false);
     }
   }, []);
+
+  const loadEventConfig = useCallback(async () => {
+    setIsLoadingEventConfig(true);
+    try {
+      const res = await fetch("/api/admin/event-config?active=true");
+      if (res.ok) {
+        const data = await res.json();
+        setEventConfig(data.config);
+      }
+    } catch (error) {
+      console.error("Error loading event config:", error);
+    } finally {
+      setIsLoadingEventConfig(false);
+    }
+  }, []);
+
+  const saveEventConfig = async () => {
+    if (!eventConfig) return;
+    
+    setIsSavingEventConfig(true);
+    try {
+      const method = eventConfig.id ? "PUT" : "POST";
+      const res = await fetch("/api/admin/event-config", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(eventConfig),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setEventConfig(data.config);
+        alert("Event config saved successfully");
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(errorData.error || "Failed to save event config");
+      }
+    } catch (error) {
+      console.error("Error saving event config:", error);
+      alert("An error occurred while saving the event config");
+    } finally {
+      setIsSavingEventConfig(false);
+    }
+  };
 
   const saveEmailTemplate = async () => {
     if (!templateName.trim() || !emailSubject.trim() || !emailBody.trim()) {
@@ -305,6 +353,12 @@ export default function AdminPage() {
       loadEmailTemplates();
     }
   }, [isAuthenticated, loadData, loadEmailTemplates]);
+
+  useEffect(() => {
+    if (activeTab === "event-config" && isAuthenticated) {
+      loadEventConfig();
+    }
+  }, [activeTab, isAuthenticated, loadEventConfig]);
 
   // Reset email selection when event changes
   useEffect(() => {
@@ -631,6 +685,16 @@ export default function AdminPage() {
               }`}
             >
               email
+            </button>
+            <button
+              onClick={() => setActiveTab("event-config")}
+              className={`pb-3 text-sm transition-colors ${
+                activeTab === "event-config"
+                  ? "text-[#05fd00] border-b-2 border-[#05fd00]"
+                  : "text-white/50 hover:text-white/80"
+              }`}
+            >
+              event config
             </button>
           </div>
         </div>
@@ -1369,6 +1433,314 @@ export default function AdminPage() {
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {activeTab === "event-config" && (
+          <div className="space-y-8">
+            <h2 className="text-sm text-[#05fd00]">event configuration</h2>
+            
+            {isLoadingEventConfig ? (
+              <p className="text-sm text-white/50">Loading event config...</p>
+            ) : (
+              <div className="space-y-6">
+                {/* Initialize config if none exists */}
+                {!eventConfig && (
+                  <div className="bg-white/5 border border-white/10 p-4">
+                    <p className="text-sm text-white/70 mb-4">
+                      No event config found. Create one to get started.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setEventConfig({
+                          event_id: "RENEWAL",
+                          event_name: "RENEWAL",
+                          event_date: "friday, 1/23",
+                          event_time: "7:00–9:30 pm",
+                          event_place: "farfields farm",
+                          event_address: "40 farfields ln, afton, va 22920",
+                          event_note: "exact address shared after reserving.",
+                          event_description: "mountain views, earth home, farm setting, cacao, live dj set",
+                          chat_welcome_message: "hey :) welcome to soma space",
+                          chat_intro_message: "this is a movement gathering rooted in presence and free expression, with gentle guidance throughout. no experience required — just come as you are",
+                          chat_password_prompt: "to see details of our next gathering and reserve your spot, type the password",
+                          chat_access_granted_message: "access granted",
+                          chat_event_announcement: "join us for RENEWAL",
+                          chat_event_description: "mountain views, earth home, farm setting, cacao, live dj set",
+                          chat_location_message: "location shared after reserving (~25 minutes west of downtown mall)",
+                          chat_contribution_message: "sliding scale contribution ($22–$44, your choice). nobody turned away for lack of funds. reach out if you need support!",
+                          chat_full_message: "we checked, and this gathering is currently full",
+                          chat_waitlist_message: "join the waitlist and we'll reach out if a spot opens. we'll also let you know about future gatherings",
+                          primary_color: "#05fd00",
+                          background_color: "#111111",
+                          stripe_product_name: "soma space",
+                          stripe_product_description: "soma space is a guided movement gathering rooted in presence, free expression, and connection. participants are invited to move with music and explore embodied awareness. no prior movement or dance experience is required.\n\nno one is ever turned away for not having enough. if you need financial support, please reach out to us directly.",
+                          stripe_image_url: "/renewal-checkout.jpg",
+                          stripe_min_amount: 2200,
+                          stripe_max_amount: 4400,
+                          capacity: 25,
+                          is_active: true,
+                        });
+                      }}
+                      className="rounded border border-[#05fd00] bg-transparent px-4 py-2 text-sm text-[#05fd00] hover:bg-[#05fd00]/10"
+                    >
+                      initialize with defaults
+                    </button>
+                  </div>
+                )}
+
+                {eventConfig && (
+                  <div className="space-y-6">
+                    {/* Event Details */}
+                    <div className="bg-white/5 border border-white/10 p-4 space-y-4">
+                      <h3 className="text-xs text-white/70 uppercase">event details</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs text-white/50 mb-1">Event ID</label>
+                          <input
+                            type="text"
+                            value={eventConfig.event_id || ""}
+                            onChange={(e) => setEventConfig({ ...eventConfig, event_id: e.target.value })}
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-white/50 mb-1">Event Name</label>
+                          <input
+                            type="text"
+                            value={eventConfig.event_name || ""}
+                            onChange={(e) => setEventConfig({ ...eventConfig, event_name: e.target.value })}
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-white/50 mb-1">Date</label>
+                          <input
+                            type="text"
+                            value={eventConfig.event_date || ""}
+                            onChange={(e) => setEventConfig({ ...eventConfig, event_date: e.target.value })}
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-white/50 mb-1">Time</label>
+                          <input
+                            type="text"
+                            value={eventConfig.event_time || ""}
+                            onChange={(e) => setEventConfig({ ...eventConfig, event_time: e.target.value })}
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-white/50 mb-1">Place</label>
+                          <input
+                            type="text"
+                            value={eventConfig.event_place || ""}
+                            onChange={(e) => setEventConfig({ ...eventConfig, event_place: e.target.value })}
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-white/50 mb-1">Address</label>
+                          <input
+                            type="text"
+                            value={eventConfig.event_address || ""}
+                            onChange={(e) => setEventConfig({ ...eventConfig, event_address: e.target.value })}
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-xs text-white/50 mb-1">Note</label>
+                          <input
+                            type="text"
+                            value={eventConfig.event_note || ""}
+                            onChange={(e) => setEventConfig({ ...eventConfig, event_note: e.target.value })}
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-xs text-white/50 mb-1">Description</label>
+                          <textarea
+                            value={eventConfig.event_description || ""}
+                            onChange={(e) => setEventConfig({ ...eventConfig, event_description: e.target.value })}
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                            rows={3}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Colors */}
+                    <div className="bg-white/5 border border-white/10 p-4 space-y-4">
+                      <h3 className="text-xs text-white/70 uppercase">colors</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs text-white/50 mb-1">Primary Color</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="color"
+                              value={eventConfig.primary_color || "#05fd00"}
+                              onChange={(e) => setEventConfig({ ...eventConfig, primary_color: e.target.value })}
+                              className="h-10 w-20 cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={eventConfig.primary_color || "#05fd00"}
+                              onChange={(e) => setEventConfig({ ...eventConfig, primary_color: e.target.value })}
+                              className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] flex-1 px-3 py-2"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-white/50 mb-1">Background Color</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="color"
+                              value={eventConfig.background_color || "#111111"}
+                              onChange={(e) => setEventConfig({ ...eventConfig, background_color: e.target.value })}
+                              className="h-10 w-20 cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={eventConfig.background_color || "#111111"}
+                              onChange={(e) => setEventConfig({ ...eventConfig, background_color: e.target.value })}
+                              className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] flex-1 px-3 py-2"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stripe Configuration */}
+                    <div className="bg-white/5 border border-white/10 p-4 space-y-4">
+                      <h3 className="text-xs text-white/70 uppercase">stripe configuration</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2">
+                          <label className="block text-xs text-white/50 mb-1">Product Name</label>
+                          <input
+                            type="text"
+                            value={eventConfig.stripe_product_name || ""}
+                            onChange={(e) => setEventConfig({ ...eventConfig, stripe_product_name: e.target.value })}
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-xs text-white/50 mb-1">Product Description</label>
+                          <textarea
+                            value={eventConfig.stripe_product_description || ""}
+                            onChange={(e) => setEventConfig({ ...eventConfig, stripe_product_description: e.target.value })}
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                            rows={4}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-white/50 mb-1">Image URL</label>
+                          <input
+                            type="text"
+                            value={eventConfig.stripe_image_url || ""}
+                            onChange={(e) => setEventConfig({ ...eventConfig, stripe_image_url: e.target.value })}
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-white/50 mb-1">Capacity</label>
+                          <input
+                            type="number"
+                            value={eventConfig.capacity || 25}
+                            onChange={(e) => setEventConfig({ ...eventConfig, capacity: parseInt(e.target.value) || 25 })}
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-white/50 mb-1">Min Amount (cents)</label>
+                          <input
+                            type="number"
+                            value={eventConfig.stripe_min_amount || 2200}
+                            onChange={(e) => setEventConfig({ ...eventConfig, stripe_min_amount: parseInt(e.target.value) || 2200 })}
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-white/50 mb-1">Max Amount (cents)</label>
+                          <input
+                            type="number"
+                            value={eventConfig.stripe_max_amount || 4400}
+                            onChange={(e) => setEventConfig({ ...eventConfig, stripe_max_amount: parseInt(e.target.value) || 4400 })}
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Chat Messages */}
+                    <div className="bg-white/5 border border-white/10 p-4 space-y-4">
+                      <h3 className="text-xs text-white/70 uppercase">chat messages</h3>
+                      <div className="space-y-4">
+                        {[
+                          { key: "chat_welcome_message", label: "Welcome Message" },
+                          { key: "chat_intro_message", label: "Intro Message" },
+                          { key: "chat_password_prompt", label: "Password Prompt" },
+                          { key: "chat_access_granted_message", label: "Access Granted" },
+                          { key: "chat_event_announcement", label: "Event Announcement" },
+                          { key: "chat_event_description", label: "Event Description" },
+                          { key: "chat_location_message", label: "Location Message" },
+                          { key: "chat_contribution_message", label: "Contribution Message" },
+                          { key: "chat_full_message", label: "Full Message" },
+                          { key: "chat_waitlist_message", label: "Waitlist Message" },
+                        ].map(({ key, label }) => (
+                          <div key={key}>
+                            <label className="block text-xs text-white/50 mb-1">{label}</label>
+                            <textarea
+                              value={eventConfig[key] || ""}
+                              onChange={(e) => setEventConfig({ ...eventConfig, [key]: e.target.value })}
+                              className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                              rows={2}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Event Password */}
+                    <div className="bg-white/5 border border-white/10 p-4 space-y-4">
+                      <h3 className="text-xs text-white/70 uppercase">event password</h3>
+                      <div>
+                        <label className="block text-xs text-white/50 mb-1">Password (leave empty to use environment variable)</label>
+                        <input
+                          type="password"
+                          value={eventConfig.event_password || ""}
+                          onChange={(e) => setEventConfig({ ...eventConfig, event_password: e.target.value })}
+                          className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                          placeholder="Leave empty to use EVENT_PASSWORD env var"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Active Toggle */}
+                    <div className="bg-white/5 border border-white/10 p-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={eventConfig.is_active || false}
+                          onChange={(e) => setEventConfig({ ...eventConfig, is_active: e.target.checked })}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-xs text-white/70">Set as active event (only one can be active at a time)</span>
+                      </label>
+                    </div>
+
+                    {/* Save Button */}
+                    <button
+                      onClick={saveEventConfig}
+                      disabled={isSavingEventConfig || !eventConfig.event_id || !eventConfig.event_name}
+                      className="w-full rounded border border-[#05fd00] bg-transparent px-4 py-2 text-sm text-[#05fd00] hover:bg-[#05fd00]/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSavingEventConfig ? "Saving..." : "Save Event Config"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

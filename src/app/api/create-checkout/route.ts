@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getStripeClient, isTestMode } from "@/lib/stripe";
 import { nextEvent } from "@/config/event";
 import { getEventCapacity, countEventRegistrations, checkAndNotifyCapacityReached } from "@/lib/admin";
+import { getActiveEventConfig } from "@/lib/event-config";
 
 export async function POST(req: Request) {
   try {
@@ -18,18 +19,24 @@ export async function POST(req: Request) {
     // Get the amount from the request body
     const { amount } = await req.json();
     
-    // Validate amount is between $22 and $44
+    // Get active event config for price validation
+    const eventConfig = await getActiveEventConfig();
+    const minAmount = eventConfig.stripe_min_amount || 2200;
+    const maxAmount = eventConfig.stripe_max_amount || 4400;
+    
+    // Validate amount is within configured range
     const amountInCents = Math.round(parseFloat(amount) * 100);
-    if (isNaN(amountInCents) || amountInCents < 2200 || amountInCents > 4400) {
+    if (isNaN(amountInCents) || amountInCents < minAmount || amountInCents > maxAmount) {
       return NextResponse.json(
-        { error: "Amount must be between $22 and $44" },
+        { error: `Amount must be between $${minAmount / 100} and $${maxAmount / 100}` },
         { status: 400 }
       );
     }
 
-    // Check capacity before creating checkout session
-    const eventId = nextEvent.id;
-    const capacity = await getEventCapacity(eventId);
+    // Get active event config
+    const eventConfig = await getActiveEventConfig();
+    const eventId = eventConfig.event_id;
+    const capacity = eventConfig.capacity || await getEventCapacity(eventId);
     const currentRegistrations = await countEventRegistrations(eventId);
     
     // Check if we just reached capacity (for notification)
@@ -55,7 +62,10 @@ export async function POST(req: Request) {
     // For images, always use production domain since Stripe requires publicly accessible HTTPS URLs
     // Even in test mode, the image must be accessible via HTTPS
     const imageUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://entersoma.space';
-    console.log('Using image URL:', `${imageUrl}/renewal-checkout.jpg`);
+    const stripeImageUrl = eventConfig.stripe_image_url 
+      ? (eventConfig.stripe_image_url.startsWith('http') ? eventConfig.stripe_image_url : `${imageUrl}${eventConfig.stripe_image_url}`)
+      : `${imageUrl}/renewal-checkout.jpg`;
+    console.log('Using image URL:', stripeImageUrl);
 
     // Create Checkout Session with dynamic price
     const session = await stripe.checkout.sessions.create({
@@ -65,11 +75,9 @@ export async function POST(req: Request) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: 'soma space',
-              description: 'soma space is a guided movement gathering rooted in presence, free expression, and connection. participants are invited to move with music and explore embodied awareness. no prior movement or dance experience is required.\n\nno one is ever turned away for not having enough. if you need financial support, please reach out to us directly.',
-              images: [
-                `${imageUrl}/renewal-checkout.jpg`,
-              ],
+              name: eventConfig.stripe_product_name || 'soma space',
+              description: eventConfig.stripe_product_description || 'soma space is a guided movement gathering rooted in presence, free expression, and connection. participants are invited to move with music and explore embodied awareness. no prior movement or dance experience is required.\n\nno one is ever turned away for not having enough. if you need financial support, please reach out to us directly.',
+              images: [stripeImageUrl],
             },
             unit_amount: amountInCents,
           },
@@ -87,8 +95,8 @@ export async function POST(req: Request) {
       // Add metadata to identify the event
       metadata: {
         event_id: eventId,
-        event_name: nextEvent.name,
-        event_date: nextEvent.date,
+        event_name: eventConfig.event_name,
+        event_date: eventConfig.event_date,
       },
     });
 

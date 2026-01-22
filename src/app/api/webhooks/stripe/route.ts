@@ -38,6 +38,7 @@ export async function POST(req: Request) {
     // Handle checkout.session.completed event
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
+      const eventConfig = await getActiveEventConfig();
 
       // Only process if it's a soma space registration
       const amountTotal = session.amount_total || 0;
@@ -67,11 +68,11 @@ export async function POST(req: Request) {
           await sendRegistrationConfirmationEmail(
             customerEmail,
             customerName,
-            nextEvent.name,
-            nextEvent.date,
-            nextEvent.time,
-            nextEvent.place,
-            nextEvent.address
+            eventConfig.event_name,
+            eventConfig.event_date,
+            eventConfig.event_time,
+            eventConfig.event_place,
+            eventConfig.event_address
           );
         }
       }
