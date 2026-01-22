@@ -65,7 +65,7 @@ export default function AdminPage() {
   const [attachments, setAttachments] = useState<File[]>([]);
   const emailEditorRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "email">("overview");
-  const [emailTemplates, setEmailTemplates] = useState<Array<{ id: string; name: string; subject: string; body: string; updated_at: string }>>([]);
+  const [emailTemplates, setEmailTemplates] = useState<Array<{ id: string; name: string; subject: string; body: string; attachments?: Array<{ filename: string; content: string; content_type?: string }>; updated_at: string }>>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -92,6 +92,19 @@ export default function AdminPage() {
     }
 
     try {
+      // Convert attachments to base64 for storage
+      const attachmentData = await Promise.all(
+        attachments.map(async (file) => {
+          const arrayBuffer = await file.arrayBuffer();
+          const base64 = Buffer.from(arrayBuffer).toString('base64');
+          return {
+            filename: file.name,
+            content: base64,
+            content_type: file.type || undefined,
+          };
+        })
+      );
+
       const res = await fetch("/api/admin/email-templates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -99,6 +112,7 @@ export default function AdminPage() {
           name: templateName.trim(),
           subject: emailSubject,
           body: emailBody,
+          attachments: attachments.length > 0 ? attachmentData : undefined,
         }),
       });
 
@@ -117,13 +131,31 @@ export default function AdminPage() {
     }
   };
 
-  const loadEmailTemplate = (template: { subject: string; body: string }) => {
+  const loadEmailTemplate = (template: { subject: string; body: string; attachments?: Array<{ filename: string; content: string; content_type?: string }> }) => {
     setEmailSubject(template.subject);
     setEmailBody(template.body);
     // Set the editor content directly to preserve HTML formatting
     if (emailEditorRef.current) {
       emailEditorRef.current.innerHTML = template.body;
     }
+    
+    // Load attachments if they exist
+    if (template.attachments && template.attachments.length > 0) {
+      const files = template.attachments.map(att => {
+        // Convert base64 back to File object
+        const binaryString = atob(att.content);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: att.content_type || 'application/octet-stream' });
+        return new File([blob], att.filename, { type: att.content_type || 'application/octet-stream' });
+      });
+      setAttachments(files);
+    } else {
+      setAttachments([]);
+    }
+    
     setShowTemplateModal(false);
   };
 

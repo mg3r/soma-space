@@ -6,6 +6,7 @@ type EmailTemplate = {
   name: string;
   subject: string;
   body: string;
+  attachments?: Array<{ filename: string; content: string; content_type?: string }>;
   created_at?: string;
   updated_at?: string;
 };
@@ -25,6 +26,12 @@ export async function GET() {
       .select("*")
       .order("updated_at", { ascending: false });
 
+    // Parse attachments JSON if present
+    const templates = (data || []).map(template => ({
+      ...template,
+      attachments: template.attachments ? (typeof template.attachments === 'string' ? JSON.parse(template.attachments) : template.attachments) : undefined,
+    }));
+
     if (error) {
       console.error("Error fetching email templates:", error);
       return NextResponse.json(
@@ -33,7 +40,7 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json({ templates: data || [] });
+    return NextResponse.json({ templates });
   } catch (error) {
     console.error("Error in GET email templates:", error);
     return NextResponse.json(
@@ -54,7 +61,7 @@ export async function POST(req: Request) {
 
   try {
     const body: EmailTemplate = await req.json();
-    const { name, subject, body: emailBody } = body;
+    const { name, subject, body: emailBody, attachments } = body;
 
     if (!name || !subject || !emailBody) {
       return NextResponse.json(
@@ -69,6 +76,7 @@ export async function POST(req: Request) {
         name: name.trim(),
         subject: subject.trim(),
         body: emailBody,
+        attachments: attachments || null,
         updated_at: new Date().toISOString(),
       })
       .select()
@@ -82,7 +90,13 @@ export async function POST(req: Request) {
       );
     }
 
-    return NextResponse.json({ template: data });
+    // Parse attachments if present
+    const template = {
+      ...data,
+      attachments: data.attachments ? (typeof data.attachments === 'string' ? JSON.parse(data.attachments) : data.attachments) : undefined,
+    };
+
+    return NextResponse.json({ template });
   } catch (error) {
     console.error("Error in POST email templates:", error);
     return NextResponse.json(
@@ -103,7 +117,7 @@ export async function PUT(req: Request) {
 
   try {
     const body: EmailTemplate & { id: string } = await req.json();
-    const { id, name, subject, body: emailBody } = body;
+    const { id, name, subject, body: emailBody, attachments } = body;
 
     if (!id || !name || !subject || !emailBody) {
       return NextResponse.json(
@@ -118,6 +132,7 @@ export async function PUT(req: Request) {
         name: name.trim(),
         subject: subject.trim(),
         body: emailBody,
+        attachments: attachments || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
@@ -132,7 +147,13 @@ export async function PUT(req: Request) {
       );
     }
 
-    return NextResponse.json({ template: data });
+    // Parse attachments if present
+    const template = {
+      ...data,
+      attachments: data.attachments ? (typeof data.attachments === 'string' ? JSON.parse(data.attachments) : data.attachments) : undefined,
+    };
+
+    return NextResponse.json({ template });
   } catch (error) {
     console.error("Error in PUT email templates:", error);
     return NextResponse.json(

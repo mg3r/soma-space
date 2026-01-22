@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS email_templates (
   name TEXT NOT NULL,
   subject TEXT NOT NULL,
   body TEXT NOT NULL,
+  attachments JSONB,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
