@@ -69,29 +69,40 @@ function getEmailTemplate(htmlBody: string): string {
         </style>
       </head>
       <body style="margin: 0; padding: 0; font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
-        <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f5f5f5; padding: 40px 20px;">
+        <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f5f5f5; padding: 20px 10px;">
           <tr>
             <td align="center">
-              <table role="presentation" style="max-width: 600px; width: 100%; border-collapse: collapse; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
-                <!-- Header -->
+              <table role="presentation" style="max-width: 800px; width: 100%; border-collapse: collapse; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);">
+                <!-- Header with spiral-inspired accent -->
                 <tr>
-                  <td style="padding: 40px 40px 30px; background-color: #111111; text-align: center;">
-                    <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600; letter-spacing: -0.5px;">soma space</h1>
+                  <td style="padding: 0; background: linear-gradient(135deg, #111111 0%, #1a1a1a 100%); position: relative;">
+                    <!-- Spiral accent element -->
+                    <div style="position: absolute; top: -50px; right: -50px; width: 200px; height: 200px; background: radial-gradient(circle, rgba(5, 253, 0, 0.15) 0%, transparent 70%); border-radius: 50%;"></div>
+                    <div style="position: absolute; bottom: -30px; left: -30px; width: 150px; height: 150px; background: radial-gradient(circle, rgba(5, 253, 0, 0.1) 0%, transparent 70%); border-radius: 50%;"></div>
+                    <div style="padding: 50px 60px 40px; text-align: center; position: relative; z-index: 1;">
+                      <h1 style="margin: 0; color: #ffffff; font-size: 32px; font-weight: 600; letter-spacing: -0.5px; text-transform: lowercase;">soma space</h1>
+                      <div style="margin-top: 16px; width: 60px; height: 2px; background: linear-gradient(90deg, transparent, #05fd00, transparent); margin-left: auto; margin-right: auto;"></div>
+                    </div>
                   </td>
                 </tr>
                 <!-- Content -->
                 <tr>
-                  <td style="padding: 40px;">
-                    <div style="color: #111111; font-size: 16px; line-height: 1.6;">
+                  <td style="padding: 50px 60px;">
+                    <div style="color: #111111; font-size: 17px; line-height: 1.8; max-width: 100%;">
                       ${htmlBody}
                     </div>
                   </td>
                 </tr>
-                <!-- Footer -->
+                <!-- Footer with better visibility -->
                 <tr>
-                  <td style="padding: 30px 40px; background-color: #f9f9f9; border-top: 1px solid #e5e5e5; text-align: center;">
-                    <p style="margin: 0; color: #666666; font-size: 12px; line-height: 1.5;">
-                      <a href="https://entersoma.space" style="color: #05fd00; text-decoration: none;">entersoma.space</a>
+                  <td style="padding: 40px 60px; background: linear-gradient(to bottom, #fafafa 0%, #f5f5f5 100%); border-top: 2px solid #e8e8e8; text-align: center; position: relative;">
+                    <!-- Subtle spiral accent in footer -->
+                    <div style="position: absolute; top: 0; right: 0; width: 100px; height: 100px; background: radial-gradient(circle, rgba(5, 253, 0, 0.05) 0%, transparent 70%); border-radius: 50%; opacity: 0.5;"></div>
+                    <p style="margin: 0; font-size: 13px; line-height: 1.6; position: relative; z-index: 1;">
+                      <a href="https://entersoma.space" style="color: #05fd00; text-decoration: none; font-weight: 500; letter-spacing: 0.5px; text-transform: lowercase; transition: opacity 0.2s;">entersoma.space</a>
+                    </p>
+                    <p style="margin: 12px 0 0; color: #888888; font-size: 11px; line-height: 1.5; position: relative; z-index: 1;">
+                      connect. accept. discover.
                     </p>
                   </td>
                 </tr>
