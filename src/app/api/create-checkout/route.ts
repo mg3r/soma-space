@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     // Get the amount from the request body
     const { amount } = await req.json();
     
-    // Get active event config for price validation
+    // Get active event config for price validation and event details
     const eventConfig = await getActiveEventConfig();
     const minAmount = eventConfig.stripe_min_amount || 2200;
     const maxAmount = eventConfig.stripe_max_amount || 4400;
@@ -33,8 +33,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Get active event config
-    const eventConfig = await getActiveEventConfig();
     const eventId = eventConfig.event_id;
     const capacity = eventConfig.capacity || await getEventCapacity(eventId);
     const currentRegistrations = await countEventRegistrations(eventId);
