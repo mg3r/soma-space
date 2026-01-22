@@ -981,6 +981,36 @@ export default function AdminPage() {
                     setEmailBody(emailEditorRef.current.innerHTML);
                   }
                 }}
+                onPaste={(e) => {
+                  e.preventDefault();
+                  const text = e.clipboardData.getData('text/plain');
+                  
+                  // Insert plain text at cursor position
+                  const selection = window.getSelection();
+                  if (selection && selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    range.deleteContents();
+                    
+                    // Create text node with plain text
+                    const textNode = document.createTextNode(text);
+                    range.insertNode(textNode);
+                    
+                    // Move cursor to end of inserted text
+                    range.setStartAfter(textNode);
+                    range.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                  } else if (emailEditorRef.current) {
+                    // If no selection, append to end
+                    const textNode = document.createTextNode(text);
+                    emailEditorRef.current.appendChild(textNode);
+                  }
+                  
+                  // Update state
+                  if (emailEditorRef.current) {
+                    setEmailBody(emailEditorRef.current.innerHTML);
+                  }
+                }}
                 style={{ minHeight: '200px', color: 'rgba(255, 255, 255, 0.8)' }}
                 className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
                 data-placeholder="Email body (use toolbar above for formatting)"
