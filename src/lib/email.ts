@@ -31,7 +31,7 @@ export async function sendCapacityReachedNotification(
     const resend = new Resend(resendApiKey);
     
     // Use the from email from env, or default to noreply
-    const fromEmail = process.env.RESEND_FROM_EMAIL || "max@entersoma.space";
+    const fromEmail = process.env.RESEND_FROM_EMAIL || "ovi@entersoma.space";
     
     await resend.emails.send({
       from: fromEmail,
@@ -320,7 +320,7 @@ export async function sendRegistrationConfirmationEmail(
 
   try {
     const resend = new Resend(resendApiKey);
-    const fromEmail = process.env.RESEND_FROM_EMAIL || "max@entersoma.space";
+    const fromEmail = process.env.RESEND_FROM_EMAIL || "ovi@entersoma.space";
     const emailHtml = getRegistrationConfirmationEmail(
       eventName,
       eventDate,
