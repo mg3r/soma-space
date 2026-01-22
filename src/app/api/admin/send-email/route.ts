@@ -87,7 +87,8 @@ export async function POST(req: Request) {
 
     // Parse custom emails first
     const customEmailList: string[] = [];
-    if (customEmails && Array.isArray(customEmails)) {
+    const hasCustomEmailInput = customEmails && Array.isArray(customEmails) && customEmails.length > 0;
+    if (hasCustomEmailInput) {
       customEmails.forEach((email: string) => {
         const trimmed = email.trim();
         if (trimmed && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
@@ -117,8 +118,9 @@ export async function POST(req: Request) {
             emails.push(reg.customerEmail);
           }
         });
-      } else if (customEmailList.length === 0) {
-        // If no selection and no custom emails, send to all (excluding excluded if requested)
+      } else if (!hasCustomEmailInput) {
+        // Only send to all registrations if no custom email input AND no selection
+        // (If user typed invalid email, don't default to all)
         const activeRegistrations = excludeExcluded 
           ? registrations.filter(reg => !reg.isExcluded)
           : registrations;

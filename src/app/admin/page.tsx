@@ -212,7 +212,11 @@ export default function AdminPage() {
       return customEmailList;
     }
 
-    // Otherwise, include selected registrations
+    // If user has typed something in custom emails but it's invalid, don't default to all registrations
+    // Only include registrations if custom emails field is empty
+    const hasCustomEmailInput = customEmails.trim().length > 0;
+    
+    // Include selected registrations
     if (selectedSessionIds.size > 0) {
       registrations
         .filter(reg => selectedSessionIds.has(reg.sessionId) && !reg.isExcluded)
@@ -221,8 +225,8 @@ export default function AdminPage() {
             emails.push(reg.customerEmail);
           }
         });
-    } else if (customEmailList.length === 0) {
-      // Only include all registrations if no custom emails AND no selection
+    } else if (!hasCustomEmailInput) {
+      // Only include all registrations if no custom email input AND no selection
       registrations
         .filter(reg => !reg.isExcluded)
         .forEach(reg => {
@@ -777,11 +781,23 @@ export default function AdminPage() {
                     ({selectedSessionIds.size} selected from registrations)
                   </span>
                 )}
-                {customEmails.trim() && selectedSessionIds.size === 0 && (
-                  <span className="ml-2 text-white/40">
-                    (custom emails only)
-                  </span>
-                )}
+                {(() => {
+                  // Parse custom emails to check if there are valid ones
+                  const customEmailList: string[] = [];
+                  if (customEmails.trim()) {
+                    customEmails.split(/[,\n]/).forEach(email => {
+                      const trimmed = email.trim();
+                      if (trimmed && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+                        customEmailList.push(trimmed);
+                      }
+                    });
+                  }
+                  return customEmailList.length > 0 && selectedSessionIds.size === 0 ? (
+                    <span className="ml-2 text-white/40">
+                      (custom emails only)
+                    </span>
+                  ) : null;
+                })()}
               </p>
               <div className="flex items-center gap-2">
                 <button
