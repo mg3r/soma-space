@@ -104,7 +104,7 @@ function getEmailTemplate(htmlBody: string): string {
                     <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 250px; height: 250px; background: radial-gradient(circle, rgba(5, 253, 0, 0.12) 0%, transparent 70%); border-radius: 50%; filter: blur(40px);"></div>
                     <div class="header-padding" style="padding: 18px 40px; text-align: center; position: relative; z-index: 1;">
                       <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600; letter-spacing: -0.5px; text-transform: lowercase;">soma space</h1>
-                      <div style="margin-top: 10px; width: 50px; height: 2px; background: #05fd00; margin-left: auto; margin-right: auto;"></div>
+                      <div style="margin-top: 10px; width: 60px; height: 2px; background: linear-gradient(90deg, transparent, #05fd00, transparent); margin-left: auto; margin-right: auto; box-shadow: 0 0 8px rgba(5, 253, 0, 0.6), 0 0 16px rgba(5, 253, 0, 0.4);"></div>
                     </div>
                   </td>
                 </tr>
