@@ -83,7 +83,7 @@ function getEmailTemplate(htmlBody: string): string {
               padding: 0 !important;
               width: 100% !important;
             }
-            table[role="presentation"] td {
+            table[role="presentation"] > tbody > tr > td {
               padding: 0 !important;
             }
             .email-container {
@@ -105,7 +105,7 @@ function getEmailTemplate(htmlBody: string): string {
               padding: 30px 20px !important;
             }
             .header-padding {
-              padding: 12px 20px 12px !important;
+              padding: 24px 20px 24px !important;
             }
             .footer-padding {
               padding: 12px 20px 12px !important;
@@ -138,7 +138,7 @@ function getEmailTemplate(htmlBody: string): string {
               <table role="presentation" class="email-container" style="max-width: 1200px; width: 100%; border-collapse: collapse; background-color: transparent !important; border-radius: 16px; overflow: visible; color-scheme: light !important; border: none !important; outline: none !important; box-shadow: none !important; margin: 0; padding: 0;">
                 <!-- Header -->
                 <tr>
-                  <td style="padding: 24px 40px; background: linear-gradient(135deg, #111111 0%, #1a1a1a 50%, #111111 100%) !important; text-align: center; vertical-align: middle; border: none !important; outline: none !important;">
+                  <td class="header-padding" style="padding: 24px 40px; background: linear-gradient(135deg, #111111 0%, #1a1a1a 50%, #111111 100%) !important; text-align: center; vertical-align: middle; border: none !important; outline: none !important;">
                     <table role="presentation" style="width: 100%; border-collapse: collapse;">
                       <tr>
                         <td style="text-align: center; vertical-align: middle;">
