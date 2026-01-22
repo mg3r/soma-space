@@ -4,7 +4,7 @@ import Stripe from "stripe";
 import { getStripeClient } from "@/lib/stripe";
 import { supabase } from "@/lib/supabase";
 import { sendRegistrationConfirmationEmail } from "@/lib/email";
-import { nextEvent } from "@/config/event";
+import { getActiveEventConfig } from "@/lib/event-config";
 
 const stripe = getStripeClient();
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
