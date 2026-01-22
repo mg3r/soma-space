@@ -92,15 +92,9 @@ function getEmailTemplate(htmlBody: string): string {
               <table role="presentation" class="email-container" style="max-width: 1200px; width: 100%; border-collapse: collapse; background-color: #ffffff; border: 2px solid #05fd00; border-radius: 8px; overflow: hidden;">
                 <!-- Header -->
                 <tr>
-                  <td style="padding: 0; background: #111111; position: relative; overflow: hidden;">
-                    <div style="position: relative; padding: 12px 40px 12px; text-align: center;">
-                      <!-- Centered aura -->
-                      <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 180px; height: 180px; background: radial-gradient(circle, rgba(5, 253, 0, 0.12) 0%, transparent 70%); border-radius: 50%; filter: blur(40px); pointer-events: none; z-index: 0;"></div>
-                      <div style="position: relative; z-index: 1;">
-                        <h1 style="margin: 0; padding: 0; color: #ffffff; font-size: 20px; font-weight: 600; letter-spacing: -0.5px; text-transform: lowercase; line-height: 1.1;">soma space</h1>
-                        <div style="margin-top: 6px; width: 60px; height: 2px; background: linear-gradient(90deg, transparent, #05fd00, transparent); margin-left: auto; margin-right: auto; box-shadow: 0 0 10px rgba(5, 253, 0, 0.7), 0 0 20px rgba(5, 253, 0, 0.4); border-radius: 1px;"></div>
-                      </div>
-                    </div>
+                  <td style="padding: 12px 40px; background: #111111; text-align: center;">
+                    <h1 style="margin: 0; padding: 0; color: #ffffff; font-size: 20px; font-weight: 600; letter-spacing: -0.5px; text-transform: lowercase; line-height: 1.1;">soma space</h1>
+                    <div style="margin-top: 6px; width: 60px; height: 2px; background: linear-gradient(90deg, transparent, #05fd00, transparent); margin-left: auto; margin-right: auto; box-shadow: 0 0 10px rgba(5, 253, 0, 0.7), 0 0 20px rgba(5, 253, 0, 0.4); border-radius: 1px;"></div>
                   </td>
                 </tr>
                 <!-- Content -->
