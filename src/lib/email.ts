@@ -74,29 +74,41 @@ function getEmailTemplate(htmlBody: string): string {
           @media only screen and (max-width: 600px) {
             body {
               background-color: transparent !important;
+              margin: 0 !important;
+              padding: 0 !important;
             }
             table[role="presentation"] {
               background-color: transparent !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              width: 100% !important;
+            }
+            table[role="presentation"] td {
+              padding: 0 !important;
             }
             .email-container {
               max-width: 100% !important;
               width: 100% !important;
-              border-radius: 12px !important;
+              border-radius: 0 !important;
               border: none !important;
               outline: none !important;
               background-color: transparent !important;
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+            .email-container td {
+              padding-left: 0 !important;
+              padding-right: 0 !important;
             }
             .email-padding {
-              border-radius: 12px !important;
-            }
-            .email-padding {
+              border-radius: 0 !important;
               padding: 30px 20px !important;
             }
             .header-padding {
-              padding: 12px 30px 12px !important;
+              padding: 12px 20px 12px !important;
             }
             .footer-padding {
-              padding: 12px 30px 12px !important;
+              padding: 12px 20px 12px !important;
             }
           }
           ul, ol {
@@ -120,10 +132,10 @@ function getEmailTemplate(htmlBody: string): string {
         </style>
       </head>
       <body style="margin: 0; padding: 0; font-family: 'Avenir', 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; background-color: transparent !important; color-scheme: light !important;">
-        <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: transparent !important; padding: 20px 10px; border: none !important; outline: none !important;">
+        <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: transparent !important; padding: 0; margin: 0; border: none !important; outline: none !important;">
           <tr>
-            <td align="center" style="background-color: transparent !important;">
-              <table role="presentation" class="email-container" style="max-width: 1200px; width: 100%; border-collapse: collapse; background-color: transparent !important; border-radius: 16px; overflow: visible; color-scheme: light !important; border: none !important; outline: none !important; box-shadow: none !important;">
+            <td align="center" style="background-color: transparent !important; padding: 0 !important;">
+              <table role="presentation" class="email-container" style="max-width: 1200px; width: 100%; border-collapse: collapse; background-color: transparent !important; border-radius: 16px; overflow: visible; color-scheme: light !important; border: none !important; outline: none !important; box-shadow: none !important; margin: 0; padding: 0;">
                 <!-- Header -->
                 <tr>
                   <td style="padding: 24px 40px; background: linear-gradient(135deg, #111111 0%, #1a1a1a 50%, #111111 100%) !important; text-align: center; vertical-align: middle; border: none !important; outline: none !important;">
