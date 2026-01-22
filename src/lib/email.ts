@@ -83,6 +83,18 @@ function getEmailTemplate(htmlBody: string): string {
               padding: 12px 30px 12px !important;
             }
           }
+          ul, ol {
+            color: #111111 !important;
+            margin: 10px 0;
+            padding-left: 30px;
+          }
+          li {
+            color: #111111 !important;
+            margin: 5px 0;
+          }
+          p, div, span {
+            color: #111111 !important;
+          }
         </style>
       </head>
       <body style="margin: 0; padding: 0; font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
@@ -106,7 +118,7 @@ function getEmailTemplate(htmlBody: string): string {
                 <!-- Content -->
                 <tr>
                   <td class="email-padding" style="padding: 40px 50px; background: #f5f5f5;">
-                    <div style="color: #111111; font-size: 17px; line-height: 1.8;">
+                    <div style="color: #111111 !important; font-size: 17px; line-height: 1.8;">
                       ${htmlBody}
                     </div>
                   </td>

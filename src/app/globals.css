@@ -30,3 +30,22 @@ body {
   color: rgba(255, 255, 255, 0.3);
   pointer-events: none;
 }
+
+/* Rich text editor styles */
+#email-body-editor ul,
+#email-body-editor ol {
+  margin: 10px 0;
+  padding-left: 30px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+#email-body-editor li {
+  margin: 5px 0;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+#email-body-editor p,
+#email-body-editor div,
+#email-body-editor span {
+  color: rgba(255, 255, 255, 0.8);
+}

@@ -59,6 +59,7 @@ export default function AdminPage() {
   const [emailResult, setEmailResult] = useState<{ sent: number; failed: number } | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
   const emailEditorRef = useRef<HTMLDivElement>(null);
+  const [activeTab, setActiveTab] = useState<"overview" | "email">("overview");
 
   const errorMessages = [
     "hmm, that didn't quite work. feel free to try again.",
@@ -486,29 +487,57 @@ export default function AdminPage() {
           </select>
         </div>
 
-        {/* Stats Summary */}
-        {stats && (
-          <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
-            <div className="bg-white/5 border border-white/10 p-4">
-              <p className="text-xs text-white/50">registered</p>
-              <p className="mt-1 text-2xl text-white">{stats.registered}</p>
-            </div>
-            <div className="bg-white/5 border border-white/10 p-4">
-              <p className="text-xs text-white/50">capacity</p>
-              <p className="mt-1 text-2xl text-white">{stats.capacity}</p>
-            </div>
-            <div className="bg-white/5 border border-white/10 p-4">
-              <p className="text-xs text-white/50">remaining</p>
-              <p className="mt-1 text-2xl text-[#05fd00]">{stats.remainingSpots}</p>
-            </div>
-            <div className="bg-white/5 border border-white/10 p-4">
-              <p className="text-xs text-white/50">total revenue</p>
-              <p className="mt-1 text-2xl text-white">${stats.totalRevenue.toFixed(2)}</p>
-            </div>
+        {/* Tabs */}
+        <div className="mb-8 border-b border-white/10">
+          <div className="flex gap-4">
+            <button
+              onClick={() => setActiveTab("overview")}
+              className={`pb-3 text-sm transition-colors ${
+                activeTab === "overview"
+                  ? "text-[#05fd00] border-b-2 border-[#05fd00]"
+                  : "text-white/50 hover:text-white/80"
+              }`}
+            >
+              overview
+            </button>
+            <button
+              onClick={() => setActiveTab("email")}
+              className={`pb-3 text-sm transition-colors ${
+                activeTab === "email"
+                  ? "text-[#05fd00] border-b-2 border-[#05fd00]"
+                  : "text-white/50 hover:text-white/80"
+              }`}
+            >
+              email
+            </button>
           </div>
-        )}
+        </div>
 
-        {/* Capacity Management */}
+        {activeTab === "overview" && (
+          <>
+            {/* Stats Summary */}
+            {stats && (
+              <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
+                <div className="bg-white/5 border border-white/10 p-4">
+                  <p className="text-xs text-white/50">registered</p>
+                  <p className="mt-1 text-2xl text-white">{stats.registered}</p>
+                </div>
+                <div className="bg-white/5 border border-white/10 p-4">
+                  <p className="text-xs text-white/50">capacity</p>
+                  <p className="mt-1 text-2xl text-white">{stats.capacity}</p>
+                </div>
+                <div className="bg-white/5 border border-white/10 p-4">
+                  <p className="text-xs text-white/50">remaining</p>
+                  <p className="mt-1 text-2xl text-[#05fd00]">{stats.remainingSpots}</p>
+                </div>
+                <div className="bg-white/5 border border-white/10 p-4">
+                  <p className="text-xs text-white/50">total revenue</p>
+                  <p className="mt-1 text-2xl text-white">${stats.totalRevenue.toFixed(2)}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Capacity Management */}
         <div className="mb-8 bg-white/5 border border-white/10 p-6">
           <h2 className="mb-4 text-sm text-[#05fd00]">capacity management</h2>
           <div className="flex items-center gap-4">
@@ -778,9 +807,11 @@ export default function AdminPage() {
             </div>
           )}
         </div>
+          </>
+        )}
 
-        {/* Email Section */}
-        <div className="mt-8 bg-white/5 border border-white/10 p-6">
+        {activeTab === "email" && (
+          <div className="bg-white/5 border border-white/10 p-6">
           <h2 className="mb-4 text-sm text-[#05fd00]">send email</h2>
           <div className="space-y-4">
             <div>
@@ -893,6 +924,7 @@ export default function AdminPage() {
               </div>
               {/* Rich Text Editor */}
               <div
+                id="email-body-editor"
                 ref={emailEditorRef}
                 contentEditable
                 onInput={(e) => {
@@ -904,7 +936,7 @@ export default function AdminPage() {
                     setEmailBody(emailEditorRef.current.innerHTML);
                   }
                 }}
-                style={{ minHeight: '200px' }}
+                style={{ minHeight: '200px', color: 'rgba(255, 255, 255, 0.8)' }}
                 className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
                 data-placeholder="Email body (use toolbar above for formatting)"
                 suppressContentEditableWarning
@@ -1018,6 +1050,7 @@ export default function AdminPage() {
             </div>
           </div>
         </div>
+        )}
       </div>
     </main>
   );
