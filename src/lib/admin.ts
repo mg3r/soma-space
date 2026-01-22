@@ -367,9 +367,15 @@ export async function getEventStats(eventId: string) {
   const registrations = await getEventRegistrations(eventId);
   const capacity = await getEventCapacity(eventId);
   
-  // Filter out excluded registrations for count/capacity
+  // Total registered includes ALL registrations (including excluded)
+  const totalRegistered = registrations.length;
+  
+  // Filter out excluded registrations for active count/capacity
   const activeRegistrations = registrations.filter((reg) => !reg.isExcluded);
-  const count = activeRegistrations.length;
+  const activeCount = activeRegistrations.length;
+  
+  // Count excluded registrations
+  const excludedCount = registrations.filter((reg) => reg.isExcluded).length;
   
   // Total revenue includes all registrations EXCEPT refunded ones
   // Manually excluded users still count towards revenue
@@ -382,16 +388,19 @@ export async function getEventStats(eventId: string) {
     .filter((reg) => reg.isRefunded)
     .reduce((sum, reg) => sum + reg.amountPaid, 0);
   
-  const remainingSpots = Math.max(0, capacity - count);
+  // Remaining spots based on active (non-excluded) registrations
+  const remainingSpots = Math.max(0, capacity - activeCount);
   
   return {
     eventId,
     capacity,
-    registered: count,
+    registered: totalRegistered,
+    activeRegistered: activeCount,
+    excluded: excludedCount,
     remainingSpots,
     totalRevenue,
     refundedAmount,
-    averageContribution: count > 0 ? totalRevenue / count : 0,
+    averageContribution: activeCount > 0 ? totalRevenue / activeCount : 0,
   };
 }
 

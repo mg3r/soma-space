@@ -22,6 +22,8 @@ type Stats = {
   eventId: string;
   capacity: number;
   registered: number;
+  activeRegistered: number;
+  excluded: number;
   remainingSpots: number;
   totalRevenue: number;
   refundedAmount: number;
@@ -520,10 +522,14 @@ export default function AdminPage() {
           <>
         {/* Stats Summary */}
         {stats && (
-          <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-5">
+          <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-6">
             <div className="bg-white/5 border border-white/10 p-4">
               <p className="text-xs text-white/50">registered</p>
               <p className="mt-1 text-2xl text-white">{stats.registered}</p>
+            </div>
+            <div className="bg-white/5 border border-white/10 p-4">
+              <p className="text-xs text-white/50">excluded</p>
+              <p className="mt-1 text-2xl text-yellow-500">{stats.excluded}</p>
             </div>
             <div className="bg-white/5 border border-white/10 p-4">
               <p className="text-xs text-white/50">capacity</p>
@@ -537,12 +543,10 @@ export default function AdminPage() {
               <p className="text-xs text-white/50">total revenue</p>
               <p className="mt-1 text-2xl text-white">${stats.totalRevenue.toFixed(2)}</p>
             </div>
-            {stats.refundedAmount > 0 && (
-              <div className="bg-white/5 border border-white/10 p-4">
-                <p className="text-xs text-white/50">refunded</p>
-                <p className="mt-1 text-2xl text-red-500">${stats.refundedAmount.toFixed(2)}</p>
-              </div>
-            )}
+            <div className="bg-white/5 border border-white/10 p-4">
+              <p className="text-xs text-white/50">refunded</p>
+              <p className="mt-1 text-2xl text-red-500">${stats.refundedAmount.toFixed(2)}</p>
+            </div>
           </div>
         )}
 
