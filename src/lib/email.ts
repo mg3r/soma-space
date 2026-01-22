@@ -102,9 +102,9 @@ function getEmailTemplate(htmlBody: string): string {
                     </div>
                     <!-- Centered aura -->
                     <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 250px; height: 250px; background: radial-gradient(circle, rgba(5, 253, 0, 0.12) 0%, transparent 70%); border-radius: 50%; filter: blur(40px);"></div>
-                    <div class="header-padding" style="padding: 12px 40px 18px; text-align: center; position: relative; z-index: 1;">
-                      <h1 style="margin: 0; padding: 0; color: #ffffff; font-size: 24px; font-weight: 600; letter-spacing: -0.5px; text-transform: lowercase; line-height: 1.2;">soma space</h1>
-                      <div style="margin-top: 8px; width: 60px; height: 2px; background: linear-gradient(90deg, transparent, #05fd00, transparent); margin-left: auto; margin-right: auto; box-shadow: 0 0 10px rgba(5, 253, 0, 0.7), 0 0 20px rgba(5, 253, 0, 0.4); border-radius: 1px;"></div>
+                    <div class="header-padding" style="padding: 12px 40px 12px; text-align: center; position: relative; z-index: 1;">
+                      <h1 style="margin: 0; padding: 0; color: #ffffff; font-size: 20px; font-weight: 600; letter-spacing: -0.5px; text-transform: lowercase; line-height: 1.1;">soma space</h1>
+                      <div style="margin-top: 6px; width: 60px; height: 2px; background: linear-gradient(90deg, transparent, #05fd00, transparent); margin-left: auto; margin-right: auto; box-shadow: 0 0 10px rgba(5, 253, 0, 0.7), 0 0 20px rgba(5, 253, 0, 0.4); border-radius: 1px;"></div>
                     </div>
                   </td>
                 </tr>
@@ -118,11 +118,11 @@ function getEmailTemplate(htmlBody: string): string {
                 </tr>
                 <!-- Footer -->
                 <tr>
-                  <td class="footer-padding" style="padding: 12px 40px 18px; background: #111111; text-align: center; position: relative;">
-                    <p style="margin: 0; padding: 0; font-size: 13px; line-height: 1.5;">
+                  <td class="footer-padding" style="padding: 12px 40px 12px; background: #111111; text-align: center; position: relative;">
+                    <p style="margin: 0; padding: 0; font-size: 13px; line-height: 1.3;">
                       <a href="https://entersoma.space" style="color: #05fd00; text-decoration: none; font-weight: 600; letter-spacing: 0.5px; text-transform: lowercase;">entersoma.space</a>
                     </p>
-                    <p style="margin: 6px 0 0; padding: 0; color: #888888; font-size: 10px; line-height: 1.4;">
+                    <p style="margin: 5px 0 0; padding: 0; color: #888888; font-size: 10px; line-height: 1.3;">
                       connect. accept. discover.
                     </p>
                   </td>
