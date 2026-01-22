@@ -64,9 +64,9 @@ function getEmailTemplate(htmlBody: string): string {
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap');
-          @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&display=swap');
           @media only screen and (max-width: 600px) {
             .email-container {
               max-width: 100% !important;
@@ -104,7 +104,7 @@ function getEmailTemplate(htmlBody: string): string {
           }
         </style>
       </head>
-      <body style="margin: 0; padding: 0; font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+      <body style="margin: 0; padding: 0; font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; background-color: #f5f5f5;">
         <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f5f5f5; padding: 20px 10px;">
           <tr>
             <td align="center">
@@ -115,7 +115,7 @@ function getEmailTemplate(htmlBody: string): string {
                     <table role="presentation" style="width: 100%; border-collapse: collapse;">
                       <tr>
                         <td style="text-align: center; vertical-align: middle;">
-                          <h1 style="margin: 0; padding: 0; color: #ffffff; font-size: 20px; font-weight: 400; font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; letter-spacing: -0.5px; text-transform: lowercase; line-height: 1.1;">soma space</h1>
+                          <h1 style="margin: 0; padding: 0; color: #ffffff; font-size: 20px; font-weight: 400; font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; letter-spacing: -0.5px; text-transform: lowercase; line-height: 1.1;">soma space</h1>
                           <div style="margin-top: 6px; width: 60px; height: 2px; background: linear-gradient(90deg, transparent, #05fd00, transparent); margin-left: auto; margin-right: auto; box-shadow: 0 0 10px rgba(5, 253, 0, 0.7), 0 0 20px rgba(5, 253, 0, 0.4); border-radius: 1px;"></div>
                         </td>
                       </tr>
@@ -125,7 +125,7 @@ function getEmailTemplate(htmlBody: string): string {
                 <!-- Content -->
                 <tr>
                   <td class="email-padding" style="padding: 40px 30px; background: #f8f8f8;">
-                    <div style="color: #111111 !important; font-size: 14px; line-height: 1.6; font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+                    <div style="color: #111111 !important; font-size: 14px; line-height: 1.6; font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;">
                       <style>
                         p { margin: 0 0 10px 0 !important; }
                         p:last-child { margin-bottom: 0 !important; }

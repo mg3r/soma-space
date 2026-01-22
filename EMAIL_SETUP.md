@@ -42,6 +42,12 @@ RESEND_API_KEY=re_xxxxxxxxxxxxx
 
 # Optional - custom from email (must be verified domain)
 # If not set, defaults to noreply@entersoma.space
+# To change the from email:
+# 1. Go to Resend dashboard > Domains
+# 2. Verify your domain (e.g., entersoma.space)
+# 3. Add DNS records as instructed
+# 4. Once verified, you can use any email @yourdomain.com
+# 5. Set RESEND_FROM_EMAIL=your-email@entersoma.space in Vercel
 RESEND_FROM_EMAIL=noreply@entersoma.space
 ```
 
