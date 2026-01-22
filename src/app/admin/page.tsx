@@ -692,6 +692,66 @@ export default function AdminPage() {
           )}
         </div>
 
+        {/* Waitlist Table */}
+        <div className="mt-8 bg-white/5 border border-white/10">
+          <div className="border-b border-white/10 p-4">
+            <h2 className="text-sm text-[#05fd00]">
+              waitlist ({waitlist.length})
+            </h2>
+          </div>
+          {isLoading ? (
+            <div className="p-8 text-center text-sm text-white/50">
+              loading...
+            </div>
+          ) : waitlist.length === 0 ? (
+            <div className="p-8 text-center text-sm text-white/50">
+              no waitlist entries yet
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="px-4 py-3 text-left text-xs text-white/50">
+                      name
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs text-white/50">
+                      email
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs text-white/50">
+                      phone
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs text-white/50">
+                      joined
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {waitlist.map((entry) => (
+                    <tr
+                      key={entry.id}
+                      className="border-b border-white/5 hover:bg-white/5"
+                    >
+                      <td className="px-4 py-3 text-sm text-white/80">
+                        {entry.name}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-white/80">
+                        {entry.email}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-white/80">
+                        {entry.phone || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-white/80">
+                        {new Date(entry.created_at).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
         {/* Email Section */}
         <div className="mt-8 bg-white/5 border border-white/10 p-6">
           <h2 className="mb-4 text-sm text-[#05fd00]">send email</h2>
@@ -824,66 +884,6 @@ export default function AdminPage() {
               )}
             </div>
           </div>
-        </div>
-
-        {/* Waitlist Table */}
-        <div className="mt-8 bg-white/5 border border-white/10">
-          <div className="border-b border-white/10 p-4">
-            <h2 className="text-sm text-[#05fd00]">
-              waitlist ({waitlist.length})
-            </h2>
-          </div>
-          {isLoading ? (
-            <div className="p-8 text-center text-sm text-white/50">
-              loading...
-            </div>
-          ) : waitlist.length === 0 ? (
-            <div className="p-8 text-center text-sm text-white/50">
-              no waitlist entries yet
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="px-4 py-3 text-left text-xs text-white/50">
-                      name
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs text-white/50">
-                      email
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs text-white/50">
-                      phone
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs text-white/50">
-                      joined
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {waitlist.map((entry) => (
-                    <tr
-                      key={entry.id}
-                      className="border-b border-white/5 hover:bg-white/5"
-                    >
-                      <td className="px-4 py-3 text-sm text-white/80">
-                        {entry.name}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-white/80">
-                        {entry.email}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-white/80">
-                        {entry.phone || "—"}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-white/80">
-                        {new Date(entry.created_at).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
       </div>
     </main>
