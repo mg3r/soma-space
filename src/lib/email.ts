@@ -125,8 +125,15 @@ export async function sendEmailToRegistrations(
   const resendApiKey = process.env.RESEND_API_KEY;
   
   if (!resendApiKey) {
-    throw new Error("RESEND_API_KEY not configured");
+    console.error("❌ RESEND_API_KEY is not set in environment variables");
+    throw new Error("RESEND_API_KEY not configured. Please set it in Vercel environment variables.");
   }
+
+  console.log(`📧 Attempting to send email to ${emails.length} recipient(s)`);
+  console.log(`📧 From email: ${process.env.RESEND_FROM_EMAIL || "noreply@entersoma.space"}`);
+  console.log(`📧 Subject: ${subject}`);
+  console.log(`📧 Use BCC: ${useBcc}`);
+  console.log(`📧 Attachments: ${attachments?.length || 0}`);
 
   const resend = new Resend(resendApiKey);
   const fromEmail = process.env.RESEND_FROM_EMAIL || "noreply@entersoma.space";
@@ -154,11 +161,15 @@ export async function sendEmailToRegistrations(
         attachments: resendAttachments,
       });
       sent = emails.length;
+      console.log(`✅ BCC email sent successfully to ${emails.length} recipients`);
     } catch (error) {
       failed = emails.length;
       const errorMsg = error instanceof Error ? error.message : "Unknown error";
       errors.push(`BCC send failed: ${errorMsg}`);
-      console.error("Failed to send BCC email:", error);
+      console.error("❌ Failed to send BCC email:", error);
+      if (error instanceof Error) {
+        console.error("Error details:", error.message, error.stack);
+      }
     }
   } else {
     // Send individual emails (more reliable, better deliverability)
@@ -172,11 +183,15 @@ export async function sendEmailToRegistrations(
           attachments: resendAttachments,
         });
         sent++;
+        console.log(`✅ Email sent successfully to ${email}`);
       } catch (error) {
         failed++;
         const errorMsg = error instanceof Error ? error.message : "Unknown error";
         errors.push(`${email}: ${errorMsg}`);
-        console.error(`Failed to send email to ${email}:`, error);
+        console.error(`❌ Failed to send email to ${email}:`, error);
+        if (error instanceof Error) {
+          console.error("Error details:", error.message);
+        }
       }
     }
   }

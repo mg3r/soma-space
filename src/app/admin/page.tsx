@@ -313,11 +313,16 @@ export default function AdminPage() {
         setEmailResult({ sent: data.sent, failed: data.failed });
         if (data.failed > 0 && data.errors) {
           console.error("Email errors:", data.errors);
+          alert(`Emails sent: ${data.sent} successful, ${data.failed} failed.\n\nErrors:\n${data.errors.slice(0, 3).join('\n')}${data.errors.length > 3 ? '\n...' : ''}`);
+        } else {
+          alert(`Emails sent: ${data.sent} successful, ${data.failed} failed`);
         }
-        alert(`Emails sent: ${data.sent} successful, ${data.failed} failed`);
       } else {
         const errorData = await res.json().catch(() => ({}));
-        alert(errorData.error || "Failed to send emails");
+        const errorMsg = errorData.details || errorData.error || "Failed to send emails";
+        const hint = errorData.hint ? `\n\n${errorData.hint}` : '';
+        alert(`${errorMsg}${hint}`);
+        console.error("Email send error:", errorData);
       }
     } catch {
       alert("An error occurred. Please try again.");

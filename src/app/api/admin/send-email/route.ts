@@ -165,6 +165,19 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("Error sending emails:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    
+    // Check if it's a missing API key error
+    if (errorMessage.includes("RESEND_API_KEY")) {
+      return NextResponse.json(
+        { 
+          error: "Email service not configured", 
+          details: "RESEND_API_KEY environment variable is not set. Please configure it in Vercel.",
+          hint: "Go to Vercel dashboard > Settings > Environment Variables and add RESEND_API_KEY"
+        },
+        { status: 500 }
+      );
+    }
+    
     return NextResponse.json(
       { error: "Failed to send emails", details: errorMessage },
       { status: 500 }
