@@ -64,9 +64,15 @@ function getEmailTemplate(htmlBody: string): string {
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="color-scheme" content="light">
+        <meta name="supported-color-schemes" content="light">
         <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
         <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
         <style>
+          :root {
+            color-scheme: light;
+            supported-color-schemes: light;
+          }
           @media only screen and (max-width: 600px) {
             .email-container {
               max-width: 100% !important;
@@ -104,14 +110,14 @@ function getEmailTemplate(htmlBody: string): string {
           }
         </style>
       </head>
-      <body style="margin: 0; padding: 0; font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; background-color: #f5f5f5;">
+      <body style="margin: 0; padding: 0; font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; background-color: #f5f5f5 !important; color-scheme: light !important;">
         <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f5f5f5; padding: 20px 10px;">
           <tr>
             <td align="center">
-              <table role="presentation" class="email-container" style="max-width: 1200px; width: 100%; border-collapse: collapse; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
+              <table role="presentation" class="email-container" style="max-width: 1200px; width: 100%; border-collapse: collapse; background-color: #ffffff !important; border-radius: 8px; overflow: hidden; color-scheme: light !important;">
                 <!-- Header -->
                 <tr>
-                  <td style="padding: 24px 40px; background: linear-gradient(135deg, #111111 0%, #1a1a1a 50%, #111111 100%); text-align: center; vertical-align: middle;">
+                  <td style="padding: 24px 40px; background: linear-gradient(135deg, #111111 0%, #1a1a1a 50%, #111111 100%) !important; text-align: center; vertical-align: middle;">
                     <table role="presentation" style="width: 100%; border-collapse: collapse;">
                       <tr>
                         <td style="text-align: center; vertical-align: middle;">
@@ -128,7 +134,7 @@ function getEmailTemplate(htmlBody: string): string {
                 </tr>
                 <!-- Content -->
                 <tr>
-                  <td class="email-padding" style="padding: 40px 30px; background: #f8f8f8;">
+                  <td class="email-padding" style="padding: 40px 30px; background: #f8f8f8 !important;">
                     <div style="color: #111111 !important; font-size: 14px; line-height: 1.6; font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;">
                       <style>
                         p { margin: 0 0 10px 0 !important; }
@@ -142,7 +148,7 @@ function getEmailTemplate(htmlBody: string): string {
                 </tr>
                 <!-- Footer -->
                 <tr>
-                  <td class="footer-padding" style="padding: 12px 40px 12px; background: #111111; text-align: center; position: relative; height: auto;">
+                  <td class="footer-padding" style="padding: 12px 40px 12px; background: #111111 !important; text-align: center; position: relative; height: auto;">
                     <p style="margin: 0; padding: 0; font-size: 13px; line-height: 1.3;">
                       <a href="https://entersoma.space" style="color: #05fd00; text-decoration: none; font-weight: 600; letter-spacing: 0.5px; text-transform: lowercase;">entersoma.space</a>
                     </p>
