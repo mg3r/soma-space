@@ -92,17 +92,17 @@ function getEmailTemplate(htmlBody: string): string {
               <table role="presentation" class="email-container" style="max-width: 1200px; width: 100%; border-collapse: collapse; background-color: #ffffff; border: 2px solid #05fd00; border-radius: 8px; overflow: hidden;">
                 <!-- Header -->
                 <tr>
-                  <td style="padding: 0; background: #111111; position: relative; overflow: hidden;">
+                  <td style="padding: 0; background: #111111; position: relative; overflow: hidden; height: auto;">
                     <!-- Centered spiral -->
-                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 180px; height: 180px; opacity: 0.2;">
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 180px; height: 180px; opacity: 0.2; pointer-events: none;">
                       <svg viewBox="0 0 200 200" style="width: 100%; height: 100%;">
                         <path d="M 100 100 m -70 0 a 70 70 0 1 1 140 0 a 70 70 0 1 1 -140 0" fill="none" stroke="#05fd00" stroke-width="2" stroke-dasharray="3,3"/>
                         <path d="M 100 100 m -50 0 a 50 50 0 1 1 100 0 a 50 50 0 1 1 -100 0" fill="none" stroke="#05fd00" stroke-width="1.5" stroke-dasharray="2,2"/>
                       </svg>
                     </div>
                     <!-- Centered aura -->
-                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 250px; height: 250px; background: radial-gradient(circle, rgba(5, 253, 0, 0.12) 0%, transparent 70%); border-radius: 50%; filter: blur(40px);"></div>
-                    <div class="header-padding" style="padding: 12px 40px 12px; text-align: center; position: relative; z-index: 1;">
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 200px; height: 200px; background: radial-gradient(circle, rgba(5, 253, 0, 0.12) 0%, transparent 70%); border-radius: 50%; filter: blur(40px); pointer-events: none;"></div>
+                    <div class="header-padding" style="padding: 12px 40px 12px; text-align: center; position: relative; z-index: 1; min-height: auto;">
                       <h1 style="margin: 0; padding: 0; color: #ffffff; font-size: 20px; font-weight: 600; letter-spacing: -0.5px; text-transform: lowercase; line-height: 1.1;">soma space</h1>
                       <div style="margin-top: 6px; width: 60px; height: 2px; background: linear-gradient(90deg, transparent, #05fd00, transparent); margin-left: auto; margin-right: auto; box-shadow: 0 0 10px rgba(5, 253, 0, 0.7), 0 0 20px rgba(5, 253, 0, 0.4); border-radius: 1px;"></div>
                     </div>
@@ -110,7 +110,7 @@ function getEmailTemplate(htmlBody: string): string {
                 </tr>
                 <!-- Content -->
                 <tr>
-                  <td class="email-padding" style="padding: 40px 50px; background: #f9f9f9;">
+                  <td class="email-padding" style="padding: 40px 50px; background: #f5f5f5;">
                     <div style="color: #111111; font-size: 17px; line-height: 1.8;">
                       ${htmlBody}
                     </div>
@@ -118,7 +118,7 @@ function getEmailTemplate(htmlBody: string): string {
                 </tr>
                 <!-- Footer -->
                 <tr>
-                  <td class="footer-padding" style="padding: 12px 40px 12px; background: #111111; text-align: center; position: relative;">
+                  <td class="footer-padding" style="padding: 12px 40px 12px; background: #111111; text-align: center; position: relative; height: auto;">
                     <p style="margin: 0; padding: 0; font-size: 13px; line-height: 1.3;">
                       <a href="https://entersoma.space" style="color: #05fd00; text-decoration: none; font-weight: 600; letter-spacing: 0.5px; text-transform: lowercase;">entersoma.space</a>
                     </p>
