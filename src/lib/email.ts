@@ -105,20 +105,20 @@ function getEmailTemplate(htmlBody: string): string {
             }
             @media only screen and (max-width: 600px) {
               .email-padding[style] {
-                padding-left: 20px !important;
-                padding-right: 20px !important;
-                padding-top: 30px !important;
-                padding-bottom: 30px !important;
+                padding-left: 30px !important;
+                padding-right: 30px !important;
+                padding-top: 40px !important;
+                padding-bottom: 40px !important;
               }
             }
             .header-padding {
               padding: 24px 20px 24px !important;
             }
             td.header-padding[style] {
-              padding: 24px 20px 24px !important;
+              padding: 24px 30px 24px !important;
             }
             td.header-padding {
-              padding: 24px 20px 24px !important;
+              padding: 24px 30px 24px !important;
             }
             .footer-padding {
               padding-top: 20px !important;
@@ -126,8 +126,10 @@ function getEmailTemplate(htmlBody: string): string {
             }
             @media only screen and (max-width: 600px) {
               .footer-padding[style] {
-                padding-left: 20px !important;
-                padding-right: 20px !important;
+                padding-left: 30px !important;
+                padding-right: 30px !important;
+                padding-top: 24px !important;
+                padding-bottom: 24px !important;
               }
             }
           }
