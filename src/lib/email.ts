@@ -102,10 +102,14 @@ function getEmailTemplate(htmlBody: string): string {
             }
             .email-padding {
               border-radius: 0 !important;
-              padding-left: 20px !important;
-              padding-right: 20px !important;
-              padding-top: 30px !important;
-              padding-bottom: 30px !important;
+            }
+            @media only screen and (max-width: 600px) {
+              .email-padding[style] {
+                padding-left: 20px !important;
+                padding-right: 20px !important;
+                padding-top: 30px !important;
+                padding-bottom: 30px !important;
+              }
             }
             .header-padding {
               padding: 24px 20px 24px !important;
@@ -119,8 +123,12 @@ function getEmailTemplate(htmlBody: string): string {
             .footer-padding {
               padding-top: 20px !important;
               padding-bottom: 20px !important;
-              padding-left: 20px !important;
-              padding-right: 20px !important;
+            }
+            @media only screen and (max-width: 600px) {
+              .footer-padding[style] {
+                padding-left: 20px !important;
+                padding-right: 20px !important;
+              }
             }
           }
           ul, ol {
@@ -167,12 +175,7 @@ function getEmailTemplate(htmlBody: string): string {
                 </tr>
                 <!-- Content -->
                 <tr>
-                  <td class="email-padding" style="padding: 40px 30px; background: #ffffff !important; border-radius: 0;">
-                    <!--[if mso]>
-                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-                    <tr>
-                    <td style="padding: 30px 20px;">
-                    <![endif]-->
+                  <td class="email-padding" style="padding: 40px 30px; padding-left: 30px; padding-right: 30px; padding-top: 40px; padding-bottom: 40px; background: #ffffff !important; border-radius: 0;">
                     <div style="color: #111111 !important; font-size: 14px; line-height: 1.6; font-family: 'Avenir', 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;">
                       <style>
                         p { margin: 0 0 10px 0 !important; }
@@ -182,16 +185,11 @@ function getEmailTemplate(htmlBody: string): string {
                       </style>
                       ${htmlBody}
                     </div>
-                    <!--[if mso]>
-                    </td>
-                    </tr>
-                    </table>
-                    <![endif]-->
                   </td>
                 </tr>
                 <!-- Footer -->
                 <tr>
-                  <td class="footer-padding" style="padding: 20px 40px 20px; background: #111111 !important; text-align: center; position: relative; height: auto; border: none !important; outline: none !important;">
+                  <td class="footer-padding" style="padding: 20px 40px 20px; padding-top: 20px; padding-bottom: 20px; padding-left: 40px; padding-right: 40px; background: #111111 !important; text-align: center; position: relative; height: auto; border: none !important; outline: none !important;">
                     <p style="margin: 0; padding: 0; font-size: 13px; line-height: 1.3;">
                       <a href="https://entersoma.space" style="color: #05fd00; text-decoration: none; font-weight: 600; letter-spacing: 0.5px; text-transform: lowercase;">entersoma.space</a>
                     </p>
