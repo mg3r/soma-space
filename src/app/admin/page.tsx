@@ -966,43 +966,6 @@ export default function AdminPage() {
                 >
                   1.
                 </button>
-                <div className="w-px bg-white/20" />
-                <select
-                  onChange={(e) => {
-                    emailEditorRef.current?.focus();
-                    const size = e.target.value;
-                    if (size) {
-                      document.execCommand('fontSize', false, '7');
-                      const selection = window.getSelection();
-                      if (selection && selection.rangeCount > 0) {
-                        const range = selection.getRangeAt(0);
-                        const span = document.createElement('span');
-                        span.style.fontSize = size;
-                        try {
-                          range.surroundContents(span);
-                        } catch (err) {
-                          span.appendChild(range.extractContents());
-                          range.insertNode(span);
-                        }
-                        if (emailEditorRef.current) setEmailBody(emailEditorRef.current.innerHTML);
-                      }
-                    }
-                    e.target.value = ''; // Reset dropdown
-                  }}
-                  className="px-2 py-1 text-xs text-white/70 bg-white/5 border border-white/10 hover:bg-white/10 focus:outline-none focus:border-[#05fd00]"
-                  title="Font Size"
-                  defaultValue=""
-                >
-                  <option value="" disabled>Size</option>
-                  <option value="12px">12px</option>
-                  <option value="14px">14px</option>
-                  <option value="16px">16px</option>
-                  <option value="17px">17px (default)</option>
-                  <option value="18px">18px</option>
-                  <option value="20px">20px</option>
-                  <option value="24px">24px</option>
-                  <option value="28px">28px</option>
-                </select>
               </div>
               {/* Rich Text Editor */}
               <div
