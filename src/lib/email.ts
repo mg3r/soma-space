@@ -192,7 +192,7 @@ export async function sendEmailToRegistrations(
   }
 
   console.log(`📧 Attempting to send email to ${emails.length} recipient(s)`);
-  console.log(`📧 From email: ${process.env.RESEND_FROM_EMAIL || "noreply@entersoma.space"}`);
+  console.log(`📧 From email: ${process.env.RESEND_FROM_EMAIL || "ovi@entersoma.space"}`);
   console.log(`📧 Subject: ${subject}`);
   console.log(`📧 Use BCC: ${useBcc}`);
   console.log(`📧 Attachments: ${attachments?.length || 0}`);
