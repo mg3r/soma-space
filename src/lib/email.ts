@@ -66,8 +66,7 @@ function getEmailTemplate(htmlBody: string): string {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta name="color-scheme" content="light">
         <meta name="supported-color-schemes" content="light">
-        <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
-        <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Avenir:wght@400;500;600;700&display=swap" rel="stylesheet">
         <style>
           :root {
             color-scheme: light;
@@ -86,6 +85,10 @@ function getEmailTemplate(htmlBody: string): string {
               border-radius: 12px !important;
               border: none !important;
               outline: none !important;
+              background-color: transparent !important;
+            }
+            .email-padding {
+              border-radius: 12px !important;
             }
             .email-padding {
               padding: 30px 20px !important;
@@ -117,18 +120,18 @@ function getEmailTemplate(htmlBody: string): string {
           }
         </style>
       </head>
-      <body style="margin: 0; padding: 0; font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; background-color: transparent !important; color-scheme: light !important;">
+      <body style="margin: 0; padding: 0; font-family: 'Avenir', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; background-color: transparent !important; color-scheme: light !important;">
         <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: transparent !important; padding: 20px 10px; border: none !important; outline: none !important;">
           <tr>
             <td align="center" style="background-color: transparent !important;">
-              <table role="presentation" class="email-container" style="max-width: 1200px; width: 100%; border-collapse: collapse; background-color: #ffffff !important; border-radius: 16px; overflow: hidden; color-scheme: light !important; border: none !important; outline: none !important; box-shadow: none !important;">
+              <table role="presentation" class="email-container" style="max-width: 1200px; width: 100%; border-collapse: collapse; background-color: transparent !important; border-radius: 16px; overflow: visible; color-scheme: light !important; border: none !important; outline: none !important; box-shadow: none !important;">
                 <!-- Header -->
                 <tr>
                   <td style="padding: 24px 40px; background: linear-gradient(135deg, #111111 0%, #1a1a1a 50%, #111111 100%) !important; text-align: center; vertical-align: middle; border: none !important; outline: none !important;">
                     <table role="presentation" style="width: 100%; border-collapse: collapse;">
                       <tr>
                         <td style="text-align: center; vertical-align: middle;">
-                          <h1 style="margin: 0; padding: 0; color: #ffffff; font-size: 20px; font-weight: 400; font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; letter-spacing: -0.5px; text-transform: lowercase; line-height: 1.1;">soma space</h1>
+                          <h1 style="margin: 0; padding: 0; color: #ffffff; font-size: 20px; font-weight: 400; font-family: 'Avenir', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; letter-spacing: -0.5px; text-transform: lowercase; line-height: 1.1;">soma space</h1>
                           <table role="presentation" style="margin: 6px auto 0 auto; border-collapse: collapse;">
                             <tr>
                               <td style="width: 60px; height: 2px; background: linear-gradient(90deg, transparent, #05fd00, transparent); box-shadow: 0 0 10px rgba(5, 253, 0, 0.7), 0 0 20px rgba(5, 253, 0, 0.4); border-radius: 1px;"></td>
@@ -141,8 +144,8 @@ function getEmailTemplate(htmlBody: string): string {
                 </tr>
                 <!-- Content -->
                 <tr>
-                  <td class="email-padding" style="padding: 40px 30px; background: #f8f8f8 !important;">
-                    <div style="color: #111111 !important; font-size: 14px; line-height: 1.6; font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;">
+                  <td class="email-padding" style="padding: 40px 30px; background: #ffffff !important; border-radius: 0;">
+                    <div style="color: #111111 !important; font-size: 14px; line-height: 1.6; font-family: 'Avenir', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;">
                       <style>
                         p { margin: 0 0 10px 0 !important; }
                         p:last-child { margin-bottom: 0 !important; }
