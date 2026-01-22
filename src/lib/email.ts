@@ -102,13 +102,10 @@ function getEmailTemplate(htmlBody: string): string {
             }
             .email-padding {
               border-radius: 0 !important;
-              padding: 0 !important;
-            }
-            .email-padding table {
-              width: 100% !important;
-            }
-            .email-padding table td {
-              padding: 30px 20px !important;
+              padding-left: 20px !important;
+              padding-right: 20px !important;
+              padding-top: 30px !important;
+              padding-bottom: 30px !important;
             }
             .header-padding {
               padding: 24px 20px 24px !important;
@@ -120,10 +117,10 @@ function getEmailTemplate(htmlBody: string): string {
               padding: 24px 20px 24px !important;
             }
             .footer-padding {
-              padding: 12px 20px 12px !important;
-            }
-            td.footer-padding {
-              padding: 12px 20px 12px !important;
+              padding-top: 20px !important;
+              padding-bottom: 20px !important;
+              padding-left: 20px !important;
+              padding-right: 20px !important;
             }
           }
           ul, ol {
@@ -170,27 +167,31 @@ function getEmailTemplate(htmlBody: string): string {
                 </tr>
                 <!-- Content -->
                 <tr>
-                  <td class="email-padding" style="padding: 0; background: transparent !important; border-radius: 0;">
-                    <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #ffffff !important;">
-                      <tr>
-                        <td style="padding: 40px 30px;">
-                          <div style="color: #111111 !important; font-size: 14px; line-height: 1.6; font-family: 'Avenir', 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;">
-                            <style>
-                              p { margin: 0 0 10px 0 !important; }
-                              p:last-child { margin-bottom: 0 !important; }
-                              div { margin: 0 0 10px 0 !important; }
-                              div:last-child { margin-bottom: 0 !important; }
-                            </style>
-                            ${htmlBody}
-                          </div>
-                        </td>
-                      </tr>
+                  <td class="email-padding" style="padding: 40px 30px; background: #ffffff !important; border-radius: 0;">
+                    <!--[if mso]>
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                    <tr>
+                    <td style="padding: 30px 20px;">
+                    <![endif]-->
+                    <div style="color: #111111 !important; font-size: 14px; line-height: 1.6; font-family: 'Avenir', 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;">
+                      <style>
+                        p { margin: 0 0 10px 0 !important; }
+                        p:last-child { margin-bottom: 0 !important; }
+                        div { margin: 0 0 10px 0 !important; }
+                        div:last-child { margin-bottom: 0 !important; }
+                      </style>
+                      ${htmlBody}
+                    </div>
+                    <!--[if mso]>
+                    </td>
+                    </tr>
                     </table>
+                    <![endif]-->
                   </td>
                 </tr>
                 <!-- Footer -->
                 <tr>
-                  <td class="footer-padding" style="padding: 12px 40px 12px; background: #111111 !important; text-align: center; position: relative; height: auto; border: none !important; outline: none !important;">
+                  <td class="footer-padding" style="padding: 20px 40px 20px; background: #111111 !important; text-align: center; position: relative; height: auto; border: none !important; outline: none !important;">
                     <p style="margin: 0; padding: 0; font-size: 13px; line-height: 1.3;">
                       <a href="https://entersoma.space" style="color: #05fd00; text-decoration: none; font-weight: 600; letter-spacing: 0.5px; text-transform: lowercase;">entersoma.space</a>
                     </p>
