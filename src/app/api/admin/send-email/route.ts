@@ -95,7 +95,7 @@ export async function POST(req: Request) {
         }
       });
     }
-    const hasCustomEmailInput = customEmails && Array.isArray(customEmails) && customEmails.length > 0;
+    const hasCustomEmailInput = Boolean(customEmails && Array.isArray(customEmails) && customEmails.length > 0);
 
     // Build list of emails to send to
     const emails: string[] = [];
