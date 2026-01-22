@@ -77,8 +77,9 @@ function getEmailTemplate(htmlBody: string): string {
             .email-container {
               max-width: 100% !important;
               width: 100% !important;
-              border-radius: 0 !important;
-              border-width: 0 !important;
+              border-radius: 12px !important;
+              border: none !important;
+              outline: none !important;
             }
             .email-padding {
               padding: 30px 20px !important;
@@ -111,13 +112,13 @@ function getEmailTemplate(htmlBody: string): string {
         </style>
       </head>
       <body style="margin: 0; padding: 0; font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; background-color: #f5f5f5 !important; color-scheme: light !important;">
-        <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f5f5f5; padding: 20px 10px;">
+        <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f5f5f5; padding: 20px 10px; border: none !important; outline: none !important;">
           <tr>
             <td align="center">
-              <table role="presentation" class="email-container" style="max-width: 1200px; width: 100%; border-collapse: collapse; background-color: #ffffff !important; border-radius: 8px; overflow: hidden; color-scheme: light !important;">
+              <table role="presentation" class="email-container" style="max-width: 1200px; width: 100%; border-collapse: collapse; background-color: #ffffff !important; border-radius: 16px; overflow: hidden; color-scheme: light !important; border: none !important; outline: none !important;">
                 <!-- Header -->
                 <tr>
-                  <td style="padding: 24px 40px; background: linear-gradient(135deg, #111111 0%, #1a1a1a 50%, #111111 100%) !important; text-align: center; vertical-align: middle;">
+                  <td style="padding: 24px 40px; background: linear-gradient(135deg, #111111 0%, #1a1a1a 50%, #111111 100%) !important; text-align: center; vertical-align: middle; border: none !important; outline: none !important;">
                     <table role="presentation" style="width: 100%; border-collapse: collapse;">
                       <tr>
                         <td style="text-align: center; vertical-align: middle;">
@@ -148,7 +149,7 @@ function getEmailTemplate(htmlBody: string): string {
                 </tr>
                 <!-- Footer -->
                 <tr>
-                  <td class="footer-padding" style="padding: 12px 40px 12px; background: #111111 !important; text-align: center; position: relative; height: auto;">
+                  <td class="footer-padding" style="padding: 12px 40px 12px; background: #111111 !important; text-align: center; position: relative; height: auto; border: none !important; outline: none !important;">
                     <p style="margin: 0; padding: 0; font-size: 13px; line-height: 1.3;">
                       <a href="https://entersoma.space" style="color: #05fd00; text-decoration: none; font-weight: 600; letter-spacing: 0.5px; text-transform: lowercase;">entersoma.space</a>
                     </p>
