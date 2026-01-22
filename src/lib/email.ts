@@ -102,12 +102,12 @@ function getEmailTemplate(htmlBody: string): string {
             }
             .email-padding {
               border-radius: 0 !important;
-              padding: 30px 20px !important;
+              padding: 0 !important;
             }
-            td.email-padding[style] {
-              padding: 30px 20px !important;
+            .email-padding table {
+              width: 100% !important;
             }
-            td.email-padding {
+            .email-padding table td {
               padding: 30px 20px !important;
             }
             .header-padding {
@@ -170,16 +170,22 @@ function getEmailTemplate(htmlBody: string): string {
                 </tr>
                 <!-- Content -->
                 <tr>
-                  <td class="email-padding" style="padding: 40px 30px; background: #ffffff !important; border-radius: 0;">
-                    <div style="color: #111111 !important; font-size: 14px; line-height: 1.6; font-family: 'Avenir', 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;">
-                      <style>
-                        p { margin: 0 0 10px 0 !important; }
-                        p:last-child { margin-bottom: 0 !important; }
-                        div { margin: 0 0 10px 0 !important; }
-                        div:last-child { margin-bottom: 0 !important; }
-                      </style>
-                      ${htmlBody}
-                    </div>
+                  <td class="email-padding" style="padding: 0; background: transparent !important; border-radius: 0;">
+                    <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #ffffff !important;">
+                      <tr>
+                        <td style="padding: 40px 30px;">
+                          <div style="color: #111111 !important; font-size: 14px; line-height: 1.6; font-family: 'Avenir', 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;">
+                            <style>
+                              p { margin: 0 0 10px 0 !important; }
+                              p:last-child { margin-bottom: 0 !important; }
+                              div { margin: 0 0 10px 0 !important; }
+                              div:last-child { margin-bottom: 0 !important; }
+                            </style>
+                            ${htmlBody}
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
                 <!-- Footer -->
