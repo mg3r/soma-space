@@ -66,7 +66,6 @@ function getEmailTemplate(htmlBody: string): string {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta name="color-scheme" content="light">
         <meta name="supported-color-schemes" content="light">
-        <link href="https://fonts.googleapis.com/css2?family=Avenir:wght@400;500;600;700&display=swap" rel="stylesheet">
         <style>
           :root {
             color-scheme: light;
@@ -120,7 +119,7 @@ function getEmailTemplate(htmlBody: string): string {
           }
         </style>
       </head>
-      <body style="margin: 0; padding: 0; font-family: 'Avenir', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; background-color: transparent !important; color-scheme: light !important;">
+      <body style="margin: 0; padding: 0; font-family: 'Avenir', 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; background-color: transparent !important; color-scheme: light !important;">
         <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: transparent !important; padding: 20px 10px; border: none !important; outline: none !important;">
           <tr>
             <td align="center" style="background-color: transparent !important;">
@@ -131,7 +130,7 @@ function getEmailTemplate(htmlBody: string): string {
                     <table role="presentation" style="width: 100%; border-collapse: collapse;">
                       <tr>
                         <td style="text-align: center; vertical-align: middle;">
-                          <h1 style="margin: 0; padding: 0; color: #ffffff; font-size: 20px; font-weight: 400; font-family: 'Avenir', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; letter-spacing: -0.5px; text-transform: lowercase; line-height: 1.1;">soma space</h1>
+                          <h1 style="margin: 0; padding: 0; color: #ffffff; font-size: 20px; font-weight: 400; font-family: 'Avenir', 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; letter-spacing: -0.5px; text-transform: lowercase; line-height: 1.1;">soma space</h1>
                           <table role="presentation" style="margin: 6px auto 0 auto; border-collapse: collapse;">
                             <tr>
                               <td style="width: 60px; height: 2px; background: linear-gradient(90deg, transparent, #05fd00, transparent); box-shadow: 0 0 10px rgba(5, 253, 0, 0.7), 0 0 20px rgba(5, 253, 0, 0.4); border-radius: 1px;"></td>
@@ -145,7 +144,7 @@ function getEmailTemplate(htmlBody: string): string {
                 <!-- Content -->
                 <tr>
                   <td class="email-padding" style="padding: 40px 30px; background: #ffffff !important; border-radius: 0;">
-                    <div style="color: #111111 !important; font-size: 14px; line-height: 1.6; font-family: 'Avenir', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;">
+                    <div style="color: #111111 !important; font-size: 14px; line-height: 1.6; font-family: 'Avenir', 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;">
                       <style>
                         p { margin: 0 0 10px 0 !important; }
                         p:last-child { margin-bottom: 0 !important; }
