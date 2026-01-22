@@ -95,6 +95,12 @@ function getEmailTemplate(htmlBody: string): string {
           p, div, span {
             color: #111111 !important;
           }
+          p {
+            margin: 0 0 10px 0 !important;
+          }
+          p:last-child {
+            margin-bottom: 0 !important;
+          }
         </style>
       </head>
       <body style="margin: 0; padding: 0; font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
@@ -119,6 +125,12 @@ function getEmailTemplate(htmlBody: string): string {
                 <tr>
                   <td class="email-padding" style="padding: 40px 30px; background: #f8f8f8;">
                     <div style="color: #111111 !important; font-size: 14px; line-height: 1.6; font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+                      <style>
+                        p { margin: 0 0 10px 0 !important; }
+                        p:last-child { margin-bottom: 0 !important; }
+                        div { margin: 0 0 10px 0 !important; }
+                        div:last-child { margin-bottom: 0 !important; }
+                      </style>
                       ${htmlBody}
                     </div>
                   </td>
@@ -249,23 +261,23 @@ function getRegistrationConfirmationEmail(
   eventAddress: string
 ): string {
   const htmlBody = `
-    <p style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600;">you're in.</p>
+    <p style="margin: 0 0 20px 0; font-size: 16px; font-weight: 600;">you're in.</p>
     
-    <p style="margin: 0 0 12px 0;">thank you for reserving your spot at ${eventName}.</p>
+    <p style="margin: 0 0 20px 0;">thank you for reserving your spot at ${eventName}.</p>
     
-    <p style="margin: 0 0 12px 0;">an evening of movement, music, connection, gentle guidance, and embodied presence.</p>
+    <p style="margin: 0 0 20px 0;">an evening of movement, music, connection, gentle guidance, and embodied presence.</p>
     
-    <div style="margin: 12px 0;">
-      <p style="margin: 4px 0; font-weight: 500;">${eventDate} • ${eventTime}</p>
-      <p style="margin: 4px 0; font-weight: 500;">${eventPlace}</p>
-      <p style="margin: 4px 0; font-weight: 500;">${eventAddress}</p>
+    <div style="margin: 20px 0;">
+      <p style="margin: 5px 0; font-weight: 500;">${eventDate} • ${eventTime}</p>
+      <p style="margin: 5px 0; font-weight: 500;">${eventPlace}</p>
+      <p style="margin: 5px 0; font-weight: 500;">${eventAddress}</p>
     </div>
     
-    <div style="margin: 12px 0;">
+    <div style="margin: 20px 0;">
       <a href="https://entersoma.space/manifesto" style="color: #05fd00; text-decoration: none; font-weight: 500;">read the manifesto →</a>
     </div>
     
-    <p style="margin: 12px 0 0 0; color: #666666;">see you there.</p>
+    <p style="margin: 20px 0 0 0; color: #666666;">see you there.</p>
   `;
   
   return getEmailTemplate(htmlBody);
