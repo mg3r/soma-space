@@ -77,10 +77,10 @@ function getEmailTemplate(htmlBody: string): string {
               padding: 30px 25px !important;
             }
             .header-padding {
-              padding: 12px 30px 18px !important;
+              padding: 12px 30px 12px !important;
             }
             .footer-padding {
-              padding: 12px 30px 18px !important;
+              padding: 12px 30px 12px !important;
             }
           }
         </style>
