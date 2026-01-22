@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { nextEvent } from "@/config/event";
 import Link from "next/link";
 
@@ -58,6 +58,7 @@ export default function AdminPage() {
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [emailResult, setEmailResult] = useState<{ sent: number; failed: number } | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
+  const emailEditorRef = useRef<HTMLDivElement>(null);
 
   const errorMessages = [
     "hmm, that didn't quite work. feel free to try again.",
@@ -190,7 +191,28 @@ export default function AdminPage() {
     setCustomEmails("");
     setEmailResult(null);
     setAttachments([]);
+    if (emailEditorRef.current) {
+      emailEditorRef.current.innerHTML = "";
+    }
   }, [selectedEvent]);
+
+  // Sync emailBody to editor when it changes externally
+  useEffect(() => {
+    if (emailEditorRef.current && emailEditorRef.current.innerHTML !== emailBody) {
+      // Only update if content is different to avoid cursor jumping
+      const selection = window.getSelection();
+      const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+      emailEditorRef.current.innerHTML = emailBody || "";
+      if (range && selection) {
+        try {
+          selection.removeAllRanges();
+          selection.addRange(range);
+        } catch (e) {
+          // Ignore selection errors
+        }
+      }
+    }
+  }, [emailBody]);
 
   // Calculate email recipients
   const getEmailRecipients = () => {
@@ -775,15 +797,121 @@ export default function AdminPage() {
             </div>
             <div>
               <label className="mb-2 block text-xs text-white/70">
-                email body (HTML)
+                email body
               </label>
-              <textarea
-                value={emailBody}
-                onChange={(e) => setEmailBody(e.target.value)}
-                placeholder="Email body (HTML supported)"
-                rows={8}
-                className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2 font-mono"
+              {/* Rich Text Editor Toolbar */}
+              <div className="mb-2 flex flex-wrap gap-2 border border-white/20 bg-white/5 p-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    emailEditorRef.current?.focus();
+                    document.execCommand('bold', false);
+                    if (emailEditorRef.current) setEmailBody(emailEditorRef.current.innerHTML);
+                  }}
+                  className="px-2 py-1 text-xs text-white/70 hover:text-white hover:bg-white/10 border border-white/10"
+                  title="Bold"
+                >
+                  <strong>B</strong>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    emailEditorRef.current?.focus();
+                    document.execCommand('italic', false);
+                    if (emailEditorRef.current) setEmailBody(emailEditorRef.current.innerHTML);
+                  }}
+                  className="px-2 py-1 text-xs text-white/70 hover:text-white hover:bg-white/10 border border-white/10"
+                  title="Italic"
+                >
+                  <em>I</em>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    emailEditorRef.current?.focus();
+                    document.execCommand('underline', false);
+                    if (emailEditorRef.current) setEmailBody(emailEditorRef.current.innerHTML);
+                  }}
+                  className="px-2 py-1 text-xs text-white/70 hover:text-white hover:bg-white/10 border border-white/10"
+                  title="Underline"
+                >
+                  <u>U</u>
+                </button>
+                <div className="w-px bg-white/20" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    emailEditorRef.current?.focus();
+                    document.execCommand('insertUnorderedList', false);
+                    if (emailEditorRef.current) setEmailBody(emailEditorRef.current.innerHTML);
+                  }}
+                  className="px-2 py-1 text-xs text-white/70 hover:text-white hover:bg-white/10 border border-white/10"
+                  title="Bullet List"
+                >
+                  •
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    emailEditorRef.current?.focus();
+                    document.execCommand('insertOrderedList', false);
+                    if (emailEditorRef.current) setEmailBody(emailEditorRef.current.innerHTML);
+                  }}
+                  className="px-2 py-1 text-xs text-white/70 hover:text-white hover:bg-white/10 border border-white/10"
+                  title="Numbered List"
+                >
+                  1.
+                </button>
+                <div className="w-px bg-white/20" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    emailEditorRef.current?.focus();
+                    const size = prompt('Enter font size (e.g., 14px, 16px, 18px):', '17px');
+                    if (size) {
+                      document.execCommand('fontSize', false, '7');
+                      const selection = window.getSelection();
+                      if (selection && selection.rangeCount > 0) {
+                        const range = selection.getRangeAt(0);
+                        const span = document.createElement('span');
+                        span.style.fontSize = size;
+                        try {
+                          range.surroundContents(span);
+                        } catch (e) {
+                          span.appendChild(range.extractContents());
+                          range.insertNode(span);
+                        }
+                        if (emailEditorRef.current) setEmailBody(emailEditorRef.current.innerHTML);
+                      }
+                    }
+                  }}
+                  className="px-2 py-1 text-xs text-white/70 hover:text-white hover:bg-white/10 border border-white/10"
+                  title="Font Size"
+                >
+                  Aa
+                </button>
+              </div>
+              {/* Rich Text Editor */}
+              <div
+                ref={emailEditorRef}
+                contentEditable
+                onInput={(e) => {
+                  const target = e.target as HTMLDivElement;
+                  setEmailBody(target.innerHTML);
+                }}
+                onBlur={() => {
+                  if (emailEditorRef.current) {
+                    setEmailBody(emailEditorRef.current.innerHTML);
+                  }
+                }}
+                style={{ minHeight: '200px' }}
+                className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                data-placeholder="Email body (use toolbar above for formatting)"
+                suppressContentEditableWarning
               />
+              <p className="mt-2 text-xs text-white/40">
+                tip: select text and use toolbar buttons to format. supports HTML.
+              </p>
             </div>
             <div>
               <label className="mb-2 block text-xs text-white/70">
