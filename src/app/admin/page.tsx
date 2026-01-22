@@ -1678,22 +1678,22 @@ export default function AdminPage() {
                       <h3 className="text-xs text-white/70 uppercase">chat messages</h3>
                       <div className="space-y-4">
                         {[
-                          { key: "chat_welcome_message", label: "Welcome Message" },
-                          { key: "chat_intro_message", label: "Intro Message" },
-                          { key: "chat_password_prompt", label: "Password Prompt" },
-                          { key: "chat_access_granted_message", label: "Access Granted" },
-                          { key: "chat_event_announcement", label: "Event Announcement" },
-                          { key: "chat_event_description", label: "Event Description" },
-                          { key: "chat_location_message", label: "Location Message" },
-                          { key: "chat_contribution_message", label: "Contribution Message" },
-                          { key: "chat_full_message", label: "Full Message" },
-                          { key: "chat_waitlist_message", label: "Waitlist Message" },
+                          { key: "chat_welcome_message" as keyof EventConfig, label: "Welcome Message" },
+                          { key: "chat_intro_message" as keyof EventConfig, label: "Intro Message" },
+                          { key: "chat_password_prompt" as keyof EventConfig, label: "Password Prompt" },
+                          { key: "chat_access_granted_message" as keyof EventConfig, label: "Access Granted" },
+                          { key: "chat_event_announcement" as keyof EventConfig, label: "Event Announcement" },
+                          { key: "chat_event_description" as keyof EventConfig, label: "Event Description" },
+                          { key: "chat_location_message" as keyof EventConfig, label: "Location Message" },
+                          { key: "chat_contribution_message" as keyof EventConfig, label: "Contribution Message" },
+                          { key: "chat_full_message" as keyof EventConfig, label: "Full Message" },
+                          { key: "chat_waitlist_message" as keyof EventConfig, label: "Waitlist Message" },
                         ].map(({ key, label }) => (
                           <div key={key}>
                             <label className="block text-xs text-white/50 mb-1">{label}</label>
                             <textarea
-                              value={eventConfig[key] || ""}
-                              onChange={(e) => setEventConfig({ ...eventConfig, [key]: e.target.value })}
+                              value={(eventConfig[key] as string | undefined) || ""}
+                              onChange={(e) => setEventConfig({ ...eventConfig, [key]: e.target.value } as EventConfig)}
                               className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
                               rows={2}
                             />
