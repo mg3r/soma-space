@@ -70,6 +70,86 @@ export default function AdminPage() {
   const [templateName, setTemplateName] = useState("");
   const [showTemplateModal, setShowTemplateModal] = useState(false);
 
+  const loadEmailTemplates = useCallback(async () => {
+    setIsLoadingTemplates(true);
+    try {
+      const res = await fetch("/api/admin/email-templates");
+      if (res.ok) {
+        const data = await res.json();
+        setEmailTemplates(data.templates || []);
+      }
+    } catch (error) {
+      console.error("Error loading email templates:", error);
+    } finally {
+      setIsLoadingTemplates(false);
+    }
+  }, []);
+
+  const saveEmailTemplate = async () => {
+    if (!templateName.trim() || !emailSubject.trim() || !emailBody.trim()) {
+      alert("Please enter a template name, subject, and body");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/admin/email-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: templateName.trim(),
+          subject: emailSubject,
+          body: emailBody,
+        }),
+      });
+
+      if (res.ok) {
+        await loadEmailTemplates();
+        setTemplateName("");
+        setShowTemplateModal(false);
+        alert("Template saved successfully");
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(errorData.error || "Failed to save template");
+      }
+    } catch (error) {
+      console.error("Error saving template:", error);
+      alert("An error occurred while saving the template");
+    }
+  };
+
+  const loadEmailTemplate = (template: { subject: string; body: string }) => {
+    setEmailSubject(template.subject);
+    setEmailBody(template.body);
+    // Set the editor content directly to preserve HTML formatting
+    if (emailEditorRef.current) {
+      emailEditorRef.current.innerHTML = template.body;
+    }
+    setShowTemplateModal(false);
+  };
+
+  const deleteEmailTemplate = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this template?")) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/email-templates?id=${id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        await loadEmailTemplates();
+        alert("Template deleted successfully");
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(errorData.error || "Failed to delete template");
+      }
+    } catch (error) {
+      console.error("Error deleting template:", error);
+      alert("An error occurred while deleting the template");
+    }
+  };
+
   const errorMessages = [
     "hmm, that didn't quite work. feel free to try again.",
     "not quite. you're welcome to try again.",
@@ -190,8 +270,9 @@ export default function AdminPage() {
   useEffect(() => {
     if (isAuthenticated) {
       loadData();
+      loadEmailTemplates();
     }
-  }, [isAuthenticated, loadData]);
+  }, [isAuthenticated, loadData, loadEmailTemplates]);
 
   // Reset email selection when event changes
   useEffect(() => {
@@ -217,7 +298,7 @@ export default function AdminPage() {
         try {
           selection.removeAllRanges();
           selection.addRange(range);
-        } catch (e) {
+        } catch {
           // Ignore selection errors
         }
       }
