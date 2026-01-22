@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET(req: Request) {
+export async function GET() {
   // Check if user is authenticated
   try {
     const cookieStore = await cookies();
@@ -44,7 +44,7 @@ export async function GET(req: Request) {
   }
 }
 
-export async function DELETE(req: Request) {
+export async function DELETE() {
   // Logout - clear auth cookie
   try {
     const cookieStore = await cookies();

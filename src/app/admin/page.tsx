@@ -249,7 +249,7 @@ export default function AdminPage() {
     try {
       // Use FormData if there are attachments, otherwise use JSON
       let body: FormData | string;
-      let headers: Record<string, string> = {};
+      const headers: Record<string, string> = {};
 
       if (attachments.length > 0) {
         // Use FormData for file uploads

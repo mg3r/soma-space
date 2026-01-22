@@ -48,7 +48,7 @@ export async function POST(req: Request) {
         ([key]) => key.startsWith("attachment_")
       );
 
-      for (const [key, value] of fileEntries) {
+      for (const [, value] of fileEntries) {
         if (value instanceof File) {
           const arrayBuffer = await value.arrayBuffer();
           const buffer = Buffer.from(arrayBuffer);
