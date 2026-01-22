@@ -94,13 +94,6 @@ function getEmailTemplate(htmlBody: string): string {
                 <tr>
                   <td style="padding: 0; background: #111111; position: relative; overflow: hidden;">
                     <div style="position: relative; padding: 12px 40px 12px; text-align: center;">
-                      <!-- Centered spiral - positioned relative to content -->
-                      <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 150px; height: 150px; opacity: 0.2; pointer-events: none; z-index: 0;">
-                        <svg viewBox="0 0 200 200" style="width: 100%; height: 100%;">
-                          <path d="M 100 100 m -70 0 a 70 70 0 1 1 140 0 a 70 70 0 1 1 -140 0" fill="none" stroke="#05fd00" stroke-width="2" stroke-dasharray="3,3"/>
-                          <path d="M 100 100 m -50 0 a 50 50 0 1 1 100 0 a 50 50 0 1 1 -100 0" fill="none" stroke="#05fd00" stroke-width="1.5" stroke-dasharray="2,2"/>
-                        </svg>
-                      </div>
                       <!-- Centered aura -->
                       <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 180px; height: 180px; background: radial-gradient(circle, rgba(5, 253, 0, 0.12) 0%, transparent 70%); border-radius: 50%; filter: blur(40px); pointer-events: none; z-index: 0;"></div>
                       <div style="position: relative; z-index: 1;">
