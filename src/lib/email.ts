@@ -65,7 +65,7 @@ function getEmailTemplate(htmlBody: string): string {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&display=swap');
+          @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap');
           @media only screen and (max-width: 600px) {
             .email-container {
               max-width: 100% !important;
@@ -97,7 +97,7 @@ function getEmailTemplate(htmlBody: string): string {
           }
         </style>
       </head>
-      <body style="margin: 0; padding: 0; font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+      <body style="margin: 0; padding: 0; font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
         <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f5f5f5; padding: 20px 10px;">
           <tr>
             <td align="center">
@@ -118,7 +118,7 @@ function getEmailTemplate(htmlBody: string): string {
                 <!-- Content -->
                 <tr>
                   <td class="email-padding" style="padding: 40px 50px; background: #f8f8f8;">
-                    <div style="color: #111111 !important; font-size: 17px; line-height: 1.8;">
+                    <div style="color: #111111 !important; font-size: 17px; line-height: 1.8; font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
                       ${htmlBody}
                     </div>
                   </td>
