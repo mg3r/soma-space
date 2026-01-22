@@ -104,10 +104,19 @@ function getEmailTemplate(htmlBody: string): string {
               border-radius: 0 !important;
               padding: 30px 20px !important;
             }
+            td.email-padding {
+              padding: 30px 20px !important;
+            }
             .header-padding {
               padding: 24px 20px 24px !important;
             }
+            td.header-padding {
+              padding: 24px 20px 24px !important;
+            }
             .footer-padding {
+              padding: 12px 20px 12px !important;
+            }
+            td.footer-padding {
               padding: 12px 20px 12px !important;
             }
           }
@@ -156,7 +165,12 @@ function getEmailTemplate(htmlBody: string): string {
                 <!-- Content -->
                 <tr>
                   <td class="email-padding" style="padding: 40px 30px; background: #ffffff !important; border-radius: 0;">
-                    <div style="color: #111111 !important; font-size: 14px; line-height: 1.6; font-family: 'Avenir', 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;">
+                    <!--[if mso]>
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                    <tr>
+                    <td style="padding: 30px 20px;">
+                    <![endif]-->
+                    <div style="color: #111111 !important; font-size: 14px; line-height: 1.6; font-family: 'Avenir', 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; padding: 0 0 0 0;">
                       <style>
                         p { margin: 0 0 10px 0 !important; }
                         p:last-child { margin-bottom: 0 !important; }
@@ -165,6 +179,11 @@ function getEmailTemplate(htmlBody: string): string {
                       </style>
                       ${htmlBody}
                     </div>
+                    <!--[if mso]>
+                    </td>
+                    </tr>
+                    </table>
+                    <![endif]-->
                   </td>
                 </tr>
                 <!-- Footer -->
