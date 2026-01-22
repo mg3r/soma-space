@@ -65,6 +65,10 @@ export default function AdminPage() {
   const [attachments, setAttachments] = useState<File[]>([]);
   const emailEditorRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "email">("overview");
+  const [emailTemplates, setEmailTemplates] = useState<Array<{ id: string; name: string; subject: string; body: string; updated_at: string }>>([]);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   const errorMessages = [
     "hmm, that didn't quite work. feel free to try again.",
@@ -908,7 +912,29 @@ export default function AdminPage() {
 
             {/* Email Form */}
             <div className="bg-white/5 border border-white/10 p-6">
-          <h2 className="mb-4 text-sm text-[#05fd00]">send email</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm text-[#05fd00]">send email</h2>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowTemplateModal(true)}
+                className="text-xs text-white/50 hover:text-white/80 border border-white/10 px-3 py-1 rounded"
+              >
+                templates
+              </button>
+              <button
+                onClick={() => {
+                  if (!emailSubject.trim() || !emailBody.trim()) {
+                    alert("Please enter subject and body to save as template");
+                    return;
+                  }
+                  setShowTemplateModal(true);
+                }}
+                className="text-xs text-white/50 hover:text-white/80 border border-white/10 px-3 py-1 rounded"
+              >
+                save template
+              </button>
+            </div>
+          </div>
           <div className="space-y-4">
             <div>
               <label className="mb-2 block text-xs text-white/70">
@@ -1149,6 +1175,88 @@ export default function AdminPage() {
           </div>
         </div>
           </>
+        )}
+
+        {/* Email Template Modal */}
+        {showTemplateModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-[#111111] border border-white/20 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm text-[#05fd00]">email templates</h3>
+                <button
+                  onClick={() => {
+                    setShowTemplateModal(false);
+                    setTemplateName("");
+                  }}
+                  className="text-xs text-white/50 hover:text-white/80"
+                >
+                  close
+                </button>
+              </div>
+
+              {/* Save Template Form */}
+              <div className="mb-6 pb-6 border-b border-white/10">
+                <h4 className="text-xs text-white/70 mb-3">save current email as template</h4>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    value={templateName}
+                    onChange={(e) => setTemplateName(e.target.value)}
+                    placeholder="Template name"
+                    className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                  />
+                  <button
+                    onClick={saveEmailTemplate}
+                    disabled={!templateName.trim() || !emailSubject.trim() || !emailBody.trim()}
+                    className="w-full rounded border border-[#05fd00] bg-transparent px-4 py-2 text-sm text-[#05fd00] hover:bg-[#05fd00]/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    save template
+                  </button>
+                </div>
+              </div>
+
+              {/* Load Templates */}
+              <div>
+                <h4 className="text-xs text-white/70 mb-3">saved templates</h4>
+                {isLoadingTemplates ? (
+                  <p className="text-xs text-white/50">loading...</p>
+                ) : emailTemplates.length === 0 ? (
+                  <p className="text-xs text-white/50">no templates saved yet</p>
+                ) : (
+                  <div className="space-y-2">
+                    {emailTemplates.map((template) => (
+                      <div
+                        key={template.id}
+                        className="flex items-center justify-between bg-white/5 border border-white/10 p-3 rounded"
+                      >
+                        <div className="flex-1">
+                          <p className="text-sm text-white/80 font-medium">{template.name}</p>
+                          <p className="text-xs text-white/50 mt-1">{template.subject}</p>
+                          <p className="text-xs text-white/40 mt-1">
+                            {new Date(template.updated_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex gap-2 ml-4">
+                          <button
+                            onClick={() => loadEmailTemplate(template)}
+                            className="text-xs text-[#05fd00] hover:text-[#05fd00]/80 border border-[#05fd00] px-3 py-1 rounded"
+                          >
+                            load
+                          </button>
+                          <button
+                            onClick={() => deleteEmailTemplate(template.id)}
+                            className="text-xs text-red-500 hover:text-red-400 border border-red-500/50 px-3 py-1 rounded"
+                          >
+                            delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </main>
