@@ -74,6 +74,12 @@ function getEmailTemplate(htmlBody: string): string {
             supported-color-schemes: light;
           }
           @media only screen and (max-width: 600px) {
+            body {
+              background-color: transparent !important;
+            }
+            table[role="presentation"] {
+              background-color: transparent !important;
+            }
             .email-container {
               max-width: 100% !important;
               width: 100% !important;
@@ -111,11 +117,11 @@ function getEmailTemplate(htmlBody: string): string {
           }
         </style>
       </head>
-      <body style="margin: 0; padding: 0; font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; background-color: #f5f5f5 !important; color-scheme: light !important;">
-        <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f5f5f5; padding: 20px 10px; border: none !important; outline: none !important;">
+      <body style="margin: 0; padding: 0; font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; background-color: transparent !important; color-scheme: light !important;">
+        <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: transparent !important; padding: 20px 10px; border: none !important; outline: none !important;">
           <tr>
-            <td align="center">
-              <table role="presentation" class="email-container" style="max-width: 1200px; width: 100%; border-collapse: collapse; background-color: #ffffff !important; border-radius: 16px; overflow: hidden; color-scheme: light !important; border: none !important; outline: none !important;">
+            <td align="center" style="background-color: transparent !important;">
+              <table role="presentation" class="email-container" style="max-width: 1200px; width: 100%; border-collapse: collapse; background-color: #ffffff !important; border-radius: 16px; overflow: hidden; color-scheme: light !important; border: none !important; outline: none !important; box-shadow: none !important;">
                 <!-- Header -->
                 <tr>
                   <td style="padding: 24px 40px; background: linear-gradient(135deg, #111111 0%, #1a1a1a 50%, #111111 100%) !important; text-align: center; vertical-align: middle; border: none !important; outline: none !important;">
