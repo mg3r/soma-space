@@ -66,42 +66,85 @@ function getEmailTemplate(htmlBody: string): string {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&display=swap');
+          @media only screen and (max-width: 600px) {
+            .email-container {
+              max-width: 100% !important;
+              width: 100% !important;
+              border-radius: 0 !important;
+            }
+            .email-padding {
+              padding: 20px 25px !important;
+            }
+            .header-padding {
+              padding: 25px 30px 20px !important;
+            }
+            .footer-padding {
+              padding: 20px 30px !important;
+            }
+            .header-title {
+              font-size: 24px !important;
+            }
+          }
         </style>
       </head>
       <body style="margin: 0; padding: 0; font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
         <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f5f5f5; padding: 20px 10px;">
+          <style>
+            @media only screen and (max-width: 600px) {
+              .email-wrapper {
+                padding: 10px 5px !important;
+              }
+            }
+          </style>
           <tr>
             <td align="center">
-              <table role="presentation" style="max-width: 800px; width: 100%; border-collapse: collapse; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);">
-                <!-- Header with spiral-inspired accent -->
+              <table role="presentation" class="email-container" style="max-width: 1200px; width: 100%; border-collapse: collapse; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);">
+                <!-- Header with spiral and aura -->
                 <tr>
-                  <td style="padding: 0; background: linear-gradient(135deg, #111111 0%, #1a1a1a 100%); position: relative;">
-                    <!-- Spiral accent element -->
-                    <div style="position: absolute; top: -50px; right: -50px; width: 200px; height: 200px; background: radial-gradient(circle, rgba(5, 253, 0, 0.15) 0%, transparent 70%); border-radius: 50%;"></div>
-                    <div style="position: absolute; bottom: -30px; left: -30px; width: 150px; height: 150px; background: radial-gradient(circle, rgba(5, 253, 0, 0.1) 0%, transparent 70%); border-radius: 50%;"></div>
-                    <div style="padding: 50px 60px 40px; text-align: center; position: relative; z-index: 1;">
-                      <h1 style="margin: 0; color: #ffffff; font-size: 32px; font-weight: 600; letter-spacing: -0.5px; text-transform: lowercase;">soma space</h1>
-                      <div style="margin-top: 16px; width: 60px; height: 2px; background: linear-gradient(90deg, transparent, #05fd00, transparent); margin-left: auto; margin-right: auto;"></div>
+                  <td style="padding: 0; background: linear-gradient(135deg, #111111 0%, #1a1a1a 100%); position: relative; overflow: hidden;">
+                    <!-- Spiral SVG element -->
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 300px; height: 300px; opacity: 0.08;">
+                      <svg viewBox="0 0 200 200" style="width: 100%; height: 100%;">
+                        <path d="M 100 100 m -80 0 a 80 80 0 1 1 160 0 a 80 80 0 1 1 -160 0" fill="none" stroke="#05fd00" stroke-width="1.5" stroke-dasharray="2,2" transform="rotate(0 100 100)">
+                          <animateTransform attributeName="transform" type="rotate" from="0 100 100" to="360 100 100" dur="60s" repeatCount="indefinite"/>
+                        </path>
+                        <path d="M 100 100 m -60 0 a 60 60 0 1 1 120 0 a 60 60 0 1 1 -120 0" fill="none" stroke="#05fd00" stroke-width="1" stroke-dasharray="1.5,1.5" transform="rotate(180 100 100)">
+                          <animateTransform attributeName="transform" type="rotate" from="180 100 100" to="540 100 100" dur="45s" repeatCount="indefinite"/>
+                        </path>
+                      </svg>
+                    </div>
+                    <!-- Subtle aura effects -->
+                    <div style="position: absolute; top: -100px; right: -100px; width: 300px; height: 300px; background: radial-gradient(circle, rgba(5, 253, 0, 0.12) 0%, transparent 70%); border-radius: 50%; filter: blur(40px);"></div>
+                    <div style="position: absolute; bottom: -80px; left: -80px; width: 250px; height: 250px; background: radial-gradient(circle, rgba(5, 253, 0, 0.08) 0%, transparent 70%); border-radius: 50%; filter: blur(35px);"></div>
+                    <div class="header-padding" style="padding: 30px 40px 25px; text-align: center; position: relative; z-index: 1;">
+                      <h1 class="header-title" style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600; letter-spacing: -0.5px; text-transform: lowercase;">soma space</h1>
+                      <div style="margin-top: 12px; width: 50px; height: 2px; background: linear-gradient(90deg, transparent, #05fd00, transparent); margin-left: auto; margin-right: auto;"></div>
                     </div>
                   </td>
                 </tr>
                 <!-- Content -->
                 <tr>
-                  <td style="padding: 50px 60px;">
+                  <td class="email-padding" style="padding: 40px 50px;">
                     <div style="color: #111111; font-size: 17px; line-height: 1.8; max-width: 100%;">
                       ${htmlBody}
                     </div>
                   </td>
                 </tr>
-                <!-- Footer with better visibility -->
+                <!-- Footer with spiral and better visibility -->
                 <tr>
-                  <td style="padding: 40px 60px; background: linear-gradient(to bottom, #fafafa 0%, #f5f5f5 100%); border-top: 2px solid #e8e8e8; text-align: center; position: relative;">
-                    <!-- Subtle spiral accent in footer -->
-                    <div style="position: absolute; top: 0; right: 0; width: 100px; height: 100px; background: radial-gradient(circle, rgba(5, 253, 0, 0.05) 0%, transparent 70%); border-radius: 50%; opacity: 0.5;"></div>
-                    <p style="margin: 0; font-size: 13px; line-height: 1.6; position: relative; z-index: 1;">
-                      <a href="https://entersoma.space" style="color: #05fd00; text-decoration: none; font-weight: 500; letter-spacing: 0.5px; text-transform: lowercase; transition: opacity 0.2s;">entersoma.space</a>
+                  <td class="footer-padding" style="padding: 25px 40px; background: linear-gradient(to bottom, #fafafa 0%, #f5f5f5 100%); border-top: 2px solid #e8e8e8; text-align: center; position: relative; overflow: hidden;">
+                    <!-- Subtle spiral in footer -->
+                    <div style="position: absolute; top: 50%; right: 20px; transform: translateY(-50%); width: 120px; height: 120px; opacity: 0.06;">
+                      <svg viewBox="0 0 100 100" style="width: 100%; height: 100%;">
+                        <path d="M 50 50 m -40 0 a 40 40 0 1 1 80 0 a 40 40 0 1 1 -80 0" fill="none" stroke="#05fd00" stroke-width="1" stroke-dasharray="1,1"/>
+                      </svg>
+                    </div>
+                    <!-- Subtle aura in footer -->
+                    <div style="position: absolute; top: -30px; left: -30px; width: 150px; height: 150px; background: radial-gradient(circle, rgba(5, 253, 0, 0.06) 0%, transparent 70%); border-radius: 50%; filter: blur(25px);"></div>
+                    <p style="margin: 0; font-size: 14px; line-height: 1.6; position: relative; z-index: 1;">
+                      <a href="https://entersoma.space" style="color: #05fd00; text-decoration: none; font-weight: 600; letter-spacing: 0.5px; text-transform: lowercase;">entersoma.space</a>
                     </p>
-                    <p style="margin: 12px 0 0; color: #888888; font-size: 11px; line-height: 1.5; position: relative; z-index: 1;">
+                    <p style="margin: 8px 0 0; color: #666666; font-size: 11px; line-height: 1.5; position: relative; z-index: 1;">
                       connect. accept. discover.
                     </p>
                   </td>
