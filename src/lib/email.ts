@@ -129,7 +129,7 @@ function getEmailTemplate(htmlBody: string): string {
                     <p style="margin: 0; padding: 0; font-size: 13px; line-height: 1.3;">
                       <a href="https://entersoma.space" style="color: #05fd00; text-decoration: none; font-weight: 600; letter-spacing: 0.5px; text-transform: lowercase;">entersoma.space</a>
                     </p>
-                    <p style="margin: 5px 0 0; padding: 0; color: #888888; font-size: 10px; line-height: 1.3;">
+                    <p style="margin: 5px 0 0; padding: 0; color: #aaaaaa !important; font-size: 10px; line-height: 1.3;">
                       connect. accept. discover.
                     </p>
                   </td>

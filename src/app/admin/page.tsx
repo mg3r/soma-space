@@ -568,18 +568,10 @@ export default function AdminPage() {
 
         {/* Registrations Table */}
         <div className="bg-white/5 border border-white/10">
-          <div className="border-b border-white/10 p-4 flex items-center justify-between">
+          <div className="border-b border-white/10 p-4">
             <h2 className="text-sm text-[#05fd00]">
               registrations ({registrations.length})
             </h2>
-            {registrations.filter(r => !r.isExcluded).length > 0 && (
-              <button
-                onClick={selectedSessionIds.size === registrations.filter(r => !r.isExcluded).length ? clearSelection : selectAllRegistrations}
-                className="text-xs text-white/50 hover:text-white/80"
-              >
-                {selectedSessionIds.size === registrations.filter(r => !r.isExcluded).length ? "clear all" : "select all"}
-              </button>
-            )}
           </div>
           {isLoading ? (
             <div className="p-8 text-center text-sm text-white/50">
@@ -594,20 +586,6 @@ export default function AdminPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/10">
-                    <th className="px-4 py-3 text-left text-xs text-white/50 w-12">
-                      <input
-                        type="checkbox"
-                        checked={selectedSessionIds.size > 0 && selectedSessionIds.size === registrations.filter(r => !r.isExcluded).length}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            selectAllRegistrations();
-                          } else {
-                            clearSelection();
-                          }
-                        }}
-                        className="w-4 h-4"
-                      />
-                    </th>
                     <th className="px-4 py-3 text-left text-xs text-white/50">
                       name
                     </th>
@@ -636,16 +614,6 @@ export default function AdminPage() {
                         reg.isExcluded ? "opacity-50" : ""
                       }`}
                     >
-                      <td className="px-4 py-3">
-                        {!reg.isExcluded && (
-                          <input
-                            type="checkbox"
-                            checked={selectedSessionIds.has(reg.sessionId)}
-                            onChange={() => toggleRegistrationSelection(reg.sessionId)}
-                            className="w-4 h-4"
-                          />
-                        )}
-                      </td>
                       <td className="px-4 py-3 text-sm text-white/80">
                         {reg.customerName}
                         {reg.isExcluded && (
@@ -811,7 +779,114 @@ export default function AdminPage() {
         )}
 
         {activeTab === "email" && (
-          <div className="bg-white/5 border border-white/10 p-6">
+          <>
+            {/* Registrations Table for Email Tab */}
+            <div className="mb-8 bg-white/5 border border-white/10">
+              <div className="border-b border-white/10 p-4 flex items-center justify-between">
+                <h2 className="text-sm text-[#05fd00]">
+                  registered attendees ({registrations.length})
+                </h2>
+                {registrations.filter(r => !r.isExcluded).length > 0 && (
+                  <button
+                    onClick={selectedSessionIds.size === registrations.filter(r => !r.isExcluded).length ? clearSelection : selectAllRegistrations}
+                    className="text-xs text-white/50 hover:text-white/80"
+                  >
+                    {selectedSessionIds.size === registrations.filter(r => !r.isExcluded).length ? "clear all" : "select all"}
+                  </button>
+                )}
+              </div>
+              {isLoading ? (
+                <div className="p-8 text-center text-sm text-white/50">
+                  loading...
+                </div>
+              ) : registrations.length === 0 ? (
+                <div className="p-8 text-center text-sm text-white/50">
+                  no registrations yet
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-white/10">
+                        <th className="px-4 py-3 text-left text-xs text-white/50 w-12">
+                          <input
+                            type="checkbox"
+                            checked={selectedSessionIds.size > 0 && selectedSessionIds.size === registrations.filter(r => !r.isExcluded).length}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                selectAllRegistrations();
+                              } else {
+                                clearSelection();
+                              }
+                            }}
+                            className="w-4 h-4"
+                          />
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs text-white/50">
+                          name
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs text-white/50">
+                          email
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs text-white/50">
+                          phone
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs text-white/50">
+                          amount
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs text-white/50">
+                          date
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {registrations.map((reg) => (
+                        <tr
+                          key={reg.sessionId}
+                          className={`border-b border-white/5 hover:bg-white/5 ${
+                            reg.isExcluded ? "opacity-50" : ""
+                          }`}
+                        >
+                          <td className="px-4 py-3">
+                            {!reg.isExcluded && (
+                              <input
+                                type="checkbox"
+                                checked={selectedSessionIds.has(reg.sessionId)}
+                                onChange={() => toggleRegistrationSelection(reg.sessionId)}
+                                className="w-4 h-4"
+                              />
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-white/80">
+                            {reg.customerName}
+                            {reg.isExcluded && (
+                              <span className="ml-2 text-xs text-yellow-500">
+                                (excluded)
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-white/80">
+                            {reg.customerEmail}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-white/80">
+                            {reg.customerPhone}
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm text-white/80">
+                            ${reg.amountPaid.toFixed(2)}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-white/80">
+                            {new Date(reg.paymentDate).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Email Form */}
+            <div className="bg-white/5 border border-white/10 p-6">
           <h2 className="mb-4 text-sm text-[#05fd00]">send email</h2>
           <div className="space-y-4">
             <div>
@@ -950,7 +1025,7 @@ export default function AdminPage() {
                 email addresses (comma or newline separated)
               </label>
               <p className="mb-2 text-xs text-white/40">
-                enter email addresses here, or select registrations above
+                enter email addresses here, or select registrations from the list above
               </p>
               <textarea
                 value={customEmails}
@@ -1050,6 +1125,7 @@ export default function AdminPage() {
             </div>
           </div>
         </div>
+          </>
         )}
       </div>
     </main>

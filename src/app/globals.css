@@ -32,16 +32,26 @@ body {
 }
 
 /* Rich text editor styles */
-#email-body-editor ul,
+#email-body-editor ul {
+  margin: 10px 0;
+  padding-left: 30px;
+  color: rgba(255, 255, 255, 0.8);
+  list-style-type: disc;
+  list-style-position: outside;
+}
+
 #email-body-editor ol {
   margin: 10px 0;
   padding-left: 30px;
   color: rgba(255, 255, 255, 0.8);
+  list-style-type: decimal;
+  list-style-position: outside;
 }
 
 #email-body-editor li {
   margin: 5px 0;
   color: rgba(255, 255, 255, 0.8);
+  display: list-item;
 }
 
 #email-body-editor p,

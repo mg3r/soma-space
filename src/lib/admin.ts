@@ -316,10 +316,12 @@ export async function getEventStats(eventId: string) {
   const registrations = await getEventRegistrations(eventId);
   const capacity = await getEventCapacity(eventId);
   
-  // Filter out excluded registrations for stats
+  // Filter out excluded registrations for count/capacity
   const activeRegistrations = registrations.filter((reg) => !reg.isExcluded);
   const count = activeRegistrations.length;
-  const totalRevenue = activeRegistrations.reduce((sum, reg) => sum + reg.amountPaid, 0);
+  
+  // Total revenue includes ALL registrations (including excluded)
+  const totalRevenue = registrations.reduce((sum, reg) => sum + reg.amountPaid, 0);
   const remainingSpots = Math.max(0, capacity - count);
   
   return {
