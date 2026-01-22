@@ -136,6 +136,41 @@ async function getExcludedSessionIds(eventId: string): Promise<Set<string>> {
 }
 
 /**
+ * Get excluded registrations with their reasons for an event
+ */
+async function getExcludedRegistrationsWithReasons(eventId: string): Promise<Map<string, { reason: string | null; isRefunded: boolean }>> {
+  if (!supabase) {
+    return new Map();
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("excluded_registrations")
+      .select("session_id, reason")
+      .eq("event_id", eventId);
+
+    if (error) {
+      console.error("Error fetching excluded registrations with reasons:", error);
+      return new Map();
+    }
+
+    const result = new Map<string, { reason: string | null; isRefunded: boolean }>();
+    data?.forEach((row) => {
+      const isRefunded = row.reason?.includes("refunded") || row.reason?.includes("Refunded") || false;
+      result.set(row.session_id, {
+        reason: row.reason,
+        isRefunded: isRefunded,
+      });
+    });
+
+    return result;
+  } catch (error) {
+    console.error("Error in getExcludedRegistrationsWithReasons:", error);
+    return new Map();
+  }
+}
+
+/**
  * Count the number of paid registrations for a specific event
  * Uses Supabase if available, falls back to Stripe
  * Excludes excluded registrations
@@ -210,6 +245,8 @@ type RegistrationData = {
   eventId: string;
   notes?: string;
   isExcluded?: boolean;
+  isRefunded?: boolean;
+  exclusionReason?: string;
 };
 
 /**
@@ -224,6 +261,7 @@ export async function getEventRegistrations(
   if (supabase) {
     try {
       const excludedIds = await getExcludedSessionIds(eventId);
+      const excludedWithReasons = await getExcludedRegistrationsWithReasons(eventId);
 
       const { data, error } = await supabase
         .from("registrations")
@@ -232,18 +270,25 @@ export async function getEventRegistrations(
         .order("payment_date", { ascending: false });
 
       if (!error && data) {
-        return data.map((row) => ({
-          sessionId: row.session_id,
-          customerName: row.customer_name,
-          customerEmail: row.customer_email,
-          customerPhone: row.customer_phone || "N/A",
-          amountPaid: parseFloat(row.amount_paid),
-          paymentDate: row.payment_date,
-          eventId: row.event_id,
-          notes: row.notes || undefined,
-          // Check both the is_excluded flag and the excluded_registrations table
-          isExcluded: row.is_excluded || excludedIds.has(row.session_id),
-        }));
+        return data.map((row) => {
+          const isExcluded = row.is_excluded || excludedIds.has(row.session_id);
+          const exclusionInfo = excludedWithReasons.get(row.session_id);
+          const isRefunded = exclusionInfo?.isRefunded || false;
+          
+          return {
+            sessionId: row.session_id,
+            customerName: row.customer_name,
+            customerEmail: row.customer_email,
+            customerPhone: row.customer_phone || "N/A",
+            amountPaid: parseFloat(row.amount_paid),
+            paymentDate: row.payment_date,
+            eventId: row.event_id,
+            notes: row.notes || undefined,
+            isExcluded: isExcluded,
+            isRefunded: isRefunded,
+            exclusionReason: exclusionInfo?.reason || undefined,
+          };
+        });
       }
     } catch (error) {
       console.log("Supabase query failed, falling back to Stripe:", error);
@@ -253,6 +298,7 @@ export async function getEventRegistrations(
   // Fallback to Stripe
   const stripe = getStripeClient();
   const excludedIds = await getExcludedSessionIds(eventId);
+  const excludedWithReasons = await getExcludedRegistrationsWithReasons(eventId);
 
   try {
     const allEventSessions: RegistrationData[] = [];
@@ -276,6 +322,9 @@ export async function getEventRegistrations(
           // Get the amount paid from line items
           const amountTotal = session.amount_total || 0;
           const amountPaid = amountTotal / 100; // Convert from cents to dollars
+          const isExcluded = excludedIds.has(session.id);
+          const exclusionInfo = excludedWithReasons.get(session.id);
+          const isRefunded = exclusionInfo?.isRefunded || false;
 
           return {
             sessionId: session.id,
@@ -285,7 +334,9 @@ export async function getEventRegistrations(
             amountPaid: amountPaid,
             paymentDate: new Date(session.created * 1000).toISOString(),
             eventId: session.metadata?.event_id || eventId,
-            isExcluded: excludedIds.has(session.id),
+            isExcluded: isExcluded,
+            isRefunded: isRefunded,
+            exclusionReason: exclusionInfo?.reason || undefined,
           };
         });
 
@@ -320,8 +371,17 @@ export async function getEventStats(eventId: string) {
   const activeRegistrations = registrations.filter((reg) => !reg.isExcluded);
   const count = activeRegistrations.length;
   
-  // Total revenue includes ALL registrations (including excluded)
-  const totalRevenue = registrations.reduce((sum, reg) => sum + reg.amountPaid, 0);
+  // Total revenue includes all registrations EXCEPT refunded ones
+  // Manually excluded users still count towards revenue
+  const totalRevenue = registrations
+    .filter((reg) => !reg.isRefunded)
+    .reduce((sum, reg) => sum + reg.amountPaid, 0);
+  
+  // Calculate refunded amount
+  const refundedAmount = registrations
+    .filter((reg) => reg.isRefunded)
+    .reduce((sum, reg) => sum + reg.amountPaid, 0);
+  
   const remainingSpots = Math.max(0, capacity - count);
   
   return {
@@ -330,6 +390,7 @@ export async function getEventStats(eventId: string) {
     registered: count,
     remainingSpots,
     totalRevenue,
+    refundedAmount,
     averageContribution: count > 0 ? totalRevenue / count : 0,
   };
 }

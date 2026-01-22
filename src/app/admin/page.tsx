@@ -14,6 +14,8 @@ type Registration = {
   eventId: string;
   notes?: string;
   isExcluded?: boolean;
+  isRefunded?: boolean;
+  exclusionReason?: string;
 };
 
 type Stats = {
@@ -22,6 +24,7 @@ type Stats = {
   registered: number;
   remainingSpots: number;
   totalRevenue: number;
+  refundedAmount: number;
   averageContribution: number;
 };
 
@@ -515,27 +518,33 @@ export default function AdminPage() {
 
         {activeTab === "overview" && (
           <>
-            {/* Stats Summary */}
-            {stats && (
-              <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
-                <div className="bg-white/5 border border-white/10 p-4">
-                  <p className="text-xs text-white/50">registered</p>
-                  <p className="mt-1 text-2xl text-white">{stats.registered}</p>
-                </div>
-                <div className="bg-white/5 border border-white/10 p-4">
-                  <p className="text-xs text-white/50">capacity</p>
-                  <p className="mt-1 text-2xl text-white">{stats.capacity}</p>
-                </div>
-                <div className="bg-white/5 border border-white/10 p-4">
-                  <p className="text-xs text-white/50">remaining</p>
-                  <p className="mt-1 text-2xl text-[#05fd00]">{stats.remainingSpots}</p>
-                </div>
-                <div className="bg-white/5 border border-white/10 p-4">
-                  <p className="text-xs text-white/50">total revenue</p>
-                  <p className="mt-1 text-2xl text-white">${stats.totalRevenue.toFixed(2)}</p>
-                </div>
+        {/* Stats Summary */}
+        {stats && (
+          <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-5">
+            <div className="bg-white/5 border border-white/10 p-4">
+              <p className="text-xs text-white/50">registered</p>
+              <p className="mt-1 text-2xl text-white">{stats.registered}</p>
+            </div>
+            <div className="bg-white/5 border border-white/10 p-4">
+              <p className="text-xs text-white/50">capacity</p>
+              <p className="mt-1 text-2xl text-white">{stats.capacity}</p>
+            </div>
+            <div className="bg-white/5 border border-white/10 p-4">
+              <p className="text-xs text-white/50">remaining</p>
+              <p className="mt-1 text-2xl text-[#05fd00]">{stats.remainingSpots}</p>
+            </div>
+            <div className="bg-white/5 border border-white/10 p-4">
+              <p className="text-xs text-white/50">total revenue</p>
+              <p className="mt-1 text-2xl text-white">${stats.totalRevenue.toFixed(2)}</p>
+            </div>
+            {stats.refundedAmount > 0 && (
+              <div className="bg-white/5 border border-white/10 p-4">
+                <p className="text-xs text-white/50">refunded</p>
+                <p className="mt-1 text-2xl text-red-500">${stats.refundedAmount.toFixed(2)}</p>
               </div>
             )}
+          </div>
+        )}
 
             {/* Capacity Management */}
         <div className="mb-8 bg-white/5 border border-white/10 p-6">
@@ -616,7 +625,12 @@ export default function AdminPage() {
                     >
                       <td className="px-4 py-3 text-sm text-white/80">
                         {reg.customerName}
-                        {reg.isExcluded && (
+                        {reg.isRefunded && (
+                          <span className="ml-2 text-xs text-red-500">
+                            (refunded)
+                          </span>
+                        )}
+                        {reg.isExcluded && !reg.isRefunded && (
                           <span className="ml-2 text-xs text-yellow-500">
                             (excluded)
                           </span>
@@ -857,7 +871,12 @@ export default function AdminPage() {
                           </td>
                           <td className="px-4 py-3 text-sm text-white/80">
                             {reg.customerName}
-                            {reg.isExcluded && (
+                            {reg.isRefunded && (
+                              <span className="ml-2 text-xs text-red-500">
+                                (refunded)
+                              </span>
+                            )}
+                            {reg.isExcluded && !reg.isRefunded && (
                               <span className="ml-2 text-xs text-yellow-500">
                                 (excluded)
                               </span>
