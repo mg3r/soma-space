@@ -13,5 +13,16 @@ CREATE TABLE IF NOT EXISTS email_templates (
 -- Create index for faster queries
 CREATE INDEX IF NOT EXISTS idx_email_templates_updated_at ON email_templates(updated_at DESC);
 
+-- Enable Row Level Security
+ALTER TABLE email_templates ENABLE ROW LEVEL SECURITY;
+
+-- Create policy to allow service role (used by API routes) full access
+-- This is safe because API routes are protected by admin authentication
+CREATE POLICY "Allow service role full access to email_templates"
+  ON email_templates
+  FOR ALL
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');
+
 -- Add comment
 COMMENT ON TABLE email_templates IS 'Stores email templates for admin dashboard';
