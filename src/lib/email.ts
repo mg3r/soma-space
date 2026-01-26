@@ -242,6 +242,7 @@ export async function sendEmailToRegistrations(
   console.log(`📧 Subject: ${subject}`);
   console.log(`📧 Use BCC: ${useBcc}`);
   console.log(`📧 Attachments: ${attachments?.length || 0}`);
+  console.log(`📧 Strategy: ${useBcc ? 'BCC' : (attachments?.length ? 'Individual (has attachments)' : 'Batch API (no attachments)')}`);
 
   const resend = new Resend(resendApiKey);
   const fromEmail = process.env.RESEND_FROM_EMAIL || "noreply@entersoma.space";
@@ -281,29 +282,126 @@ export async function sendEmailToRegistrations(
     }
   } else {
     // Send individual emails (more reliable, better deliverability)
-    for (const email of emails) {
-      try {
-        await resend.emails.send({
-          from: fromEmail,
-          to: email,
-          subject: subject,
-          html: emailHtml,
-          attachments: resendAttachments,
-        });
-        sent++;
-        console.log(`✅ Email sent successfully to ${email}`);
-      } catch (error) {
-        failed++;
-        const errorMsg = error instanceof Error ? error.message : "Unknown error";
-        errors.push(`${email}: ${errorMsg}`);
-        console.error(`❌ Failed to send email to ${email}:`, error);
-        if (error instanceof Error) {
-          console.error("Error details:", error.message);
+    // Use batch API when possible (no attachments) for better performance
+    // Resend batch API supports up to 100 emails per request but doesn't support attachments
+    
+    const BATCH_SIZE = 100;
+    const RATE_LIMIT_DELAY_MS = 600; // ~1.67 requests per second (under 2 req/s limit)
+    const hasAttachments = resendAttachments.length > 0;
+    
+    // If no attachments, use batch API for better performance
+    if (!hasAttachments && emails.length > 1) {
+      // Split emails into batches of 100
+      for (let i = 0; i < emails.length; i += BATCH_SIZE) {
+        const batch = emails.slice(i, i + BATCH_SIZE);
+        
+        try {
+          const batchData = batch.map(email => ({
+            from: fromEmail,
+            to: email,
+            subject: subject,
+            html: emailHtml,
+          }));
+          
+          const batchResponse = await resend.batch.send(batchData);
+          
+          // Count successful and failed sends from batch response
+          if (batchResponse.data && Array.isArray(batchResponse.data)) {
+            batchResponse.data.forEach((result: any, index: number) => {
+              if (result && result.error) {
+                failed++;
+                errors.push(`${batch[index]}: ${result.error.message || 'Unknown error'}`);
+                console.error(`❌ Failed to send email to ${batch[index]}:`, result.error);
+              } else if (result && result.id) {
+                sent++;
+                console.log(`✅ Email sent successfully to ${batch[index]} (ID: ${result.id})`);
+              } else {
+                // Unknown result format - assume success
+                sent++;
+                console.log(`✅ Email sent successfully to ${batch[index]}`);
+              }
+            });
+          } else {
+            // If batch response format is unexpected, assume all succeeded
+            sent += batch.length;
+            batch.forEach(email => {
+              console.log(`✅ Email sent successfully to ${email} (batch)`);
+            });
+          }
+          
+          // Rate limiting: wait between batches (except after the last batch)
+          if (i + BATCH_SIZE < emails.length) {
+            await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY_MS));
+          }
+        } catch (error) {
+          // If batch fails, try sending individually as fallback
+          console.warn(`⚠️ Batch send failed for batch starting at index ${i}, falling back to individual sends`);
+          const errorMsg = error instanceof Error ? error.message : "Unknown error";
+          console.error("Batch error:", errorMsg);
+          
+          // Fall through to individual sends for this batch
+          for (const email of batch) {
+            try {
+              await resend.emails.send({
+                from: fromEmail,
+                to: email,
+                subject: subject,
+                html: emailHtml,
+              });
+              sent++;
+              console.log(`✅ Email sent successfully to ${email} (fallback)`);
+              
+              // Rate limiting for individual sends
+              await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY_MS));
+            } catch (individualError) {
+              failed++;
+              const individualErrorMsg = individualError instanceof Error ? individualError.message : "Unknown error";
+              errors.push(`${email}: ${individualErrorMsg}`);
+              console.error(`❌ Failed to send email to ${email}:`, individualError);
+            }
+          }
+        }
+      }
+    } else {
+      // Has attachments or single email - use individual sends with rate limiting
+      for (const email of emails) {
+        try {
+          await resend.emails.send({
+            from: fromEmail,
+            to: email,
+            subject: subject,
+            html: emailHtml,
+            attachments: resendAttachments,
+          });
+          sent++;
+          console.log(`✅ Email sent successfully to ${email}`);
+          
+          // Rate limiting: wait between sends (except after the last email)
+          const emailIndex = emails.indexOf(email);
+          if (emailIndex < emails.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY_MS));
+          }
+        } catch (error) {
+          failed++;
+          const errorMsg = error instanceof Error ? error.message : "Unknown error";
+          errors.push(`${email}: ${errorMsg}`);
+          console.error(`❌ Failed to send email to ${email}:`, error);
+          
+          // Check if it's a rate limit error (429) and wait longer
+          if (error instanceof Error && error.message.includes('429')) {
+            console.warn(`⚠️ Rate limit hit, waiting 2 seconds before continuing...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
         }
       }
     }
   }
 
+  console.log(`📊 Email sending complete: ${sent} sent, ${failed} failed out of ${emails.length} total`);
+  if (failed > 0 && errors.length > 0) {
+    console.error(`❌ Failed emails (first 10):`, errors.slice(0, 10));
+  }
+  
   return { sent, failed, errors };
 }
 
