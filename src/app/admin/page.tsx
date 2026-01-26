@@ -1378,7 +1378,9 @@ export default function AdminPage() {
                     emailEditorRef.current.focus();
                     const selection = window.getSelection();
                     
-                    if (!selection || selection.rangeCount === 0) {
+                    if (!selection) return;
+                    
+                    if (selection.rangeCount === 0) {
                       // No selection - create range at cursor or end of content
                       const range = document.createRange();
                       if (emailEditorRef.current.lastChild) {
