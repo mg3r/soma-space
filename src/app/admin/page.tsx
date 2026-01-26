@@ -1558,7 +1558,11 @@ export default function AdminPage() {
                 id="email-body-editor"
                 ref={emailEditorRef}
                 contentEditable
-                style={{ fontSize: emailFontSize === "small" ? "14px" : emailFontSize === "medium" ? "15px" : "16px" }}
+                style={{ 
+                  fontSize: emailFontSize === "small" ? "14px" : emailFontSize === "medium" ? "15px" : "16px",
+                  minHeight: '200px', 
+                  color: 'rgba(255, 255, 255, 0.8)' 
+                }}
                 onInput={(e) => {
                   const target = e.target as HTMLDivElement;
                   setEmailBody(target.innerHTML);
@@ -1599,7 +1603,6 @@ export default function AdminPage() {
                     setEmailBody(emailEditorRef.current.innerHTML);
                   }
                 }}
-                style={{ minHeight: '200px', color: 'rgba(255, 255, 255, 0.8)' }}
                 className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
                 onFocus={(e) => e.target.style.borderColor = primaryColor}
                 data-placeholder="Email body (use toolbar above for formatting)"
