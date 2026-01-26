@@ -307,7 +307,7 @@ export async function sendEmailToRegistrations(
           
           // Count successful and failed sends from batch response
           if (batchResponse.data && Array.isArray(batchResponse.data)) {
-            batchResponse.data.forEach((result: any, index: number) => {
+            batchResponse.data.forEach((result: { id?: string; error?: { message?: string } }, index: number) => {
               if (result && result.error) {
                 failed++;
                 errors.push(`${batch[index]}: ${result.error.message || 'Unknown error'}`);
