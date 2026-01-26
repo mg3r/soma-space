@@ -77,7 +77,6 @@ export default function AdminPage() {
   const [isSavingEventConfig, setIsSavingEventConfig] = useState(false);
   const [isSavingAsNewEvent, setIsSavingAsNewEvent] = useState(false);
   const [allEventConfigs, setAllEventConfigs] = useState<EventConfig[]>([]);
-  const [isLoadingAllConfigs, setIsLoadingAllConfigs] = useState(false);
   // Active event config (for colors) - separate from selected event config (for editing)
   const [activeEventConfig, setActiveEventConfig] = useState<EventConfig | null>(null);
   // Track if we've initialized the selected event from active event
@@ -127,7 +126,6 @@ export default function AdminPage() {
   }, []);
 
   const loadAllEventConfigs = useCallback(async () => {
-    setIsLoadingAllConfigs(true);
     try {
       const res = await fetch("/api/admin/event-config");
       if (res.ok) {
@@ -136,8 +134,6 @@ export default function AdminPage() {
       }
     } catch (error) {
       console.error("Error loading all event configs:", error);
-    } finally {
-      setIsLoadingAllConfigs(false);
     }
   }, []);
 
@@ -1496,7 +1492,8 @@ export default function AdminPage() {
                   const target = e.target as HTMLDivElement;
                   setEmailBody(target.innerHTML);
                 }}
-                onBlur={() => {
+                onBlur={(e) => {
+                  e.target.style.borderColor = "rgba(255, 255, 255, 0.2)";
                   if (emailEditorRef.current) {
                     setEmailBody(emailEditorRef.current.innerHTML);
                   }
@@ -1534,7 +1531,6 @@ export default function AdminPage() {
                 style={{ minHeight: '200px', color: 'rgba(255, 255, 255, 0.8)' }}
                 className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
                 onFocus={(e) => e.target.style.borderColor = primaryColor}
-                onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                 data-placeholder="Email body (use toolbar above for formatting)"
                 suppressContentEditableWarning
               />
