@@ -75,6 +75,13 @@ export default function AdminPage() {
   const [eventConfig, setEventConfig] = useState<EventConfig | null>(null);
   const [isLoadingEventConfig, setIsLoadingEventConfig] = useState(false);
   const [isSavingEventConfig, setIsSavingEventConfig] = useState(false);
+  const [isSavingAsNewEvent, setIsSavingAsNewEvent] = useState(false);
+  const [allEventConfigs, setAllEventConfigs] = useState<EventConfig[]>([]);
+  const [isLoadingAllConfigs, setIsLoadingAllConfigs] = useState(false);
+  // Active event config (for colors) - separate from selected event config (for editing)
+  const [activeEventConfig, setActiveEventConfig] = useState<EventConfig | null>(null);
+  // Track if we've initialized the selected event from active event
+  const hasInitializedEvent = useRef(false);
 
   const loadEmailTemplates = useCallback(async () => {
     setIsLoadingTemplates(true);
@@ -106,6 +113,50 @@ export default function AdminPage() {
     }
   }, []);
 
+  // Load active event config separately (for colors)
+  const loadActiveEventConfig = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/event-config?active=true");
+      if (res.ok) {
+        const data = await res.json();
+        setActiveEventConfig(data.config);
+      }
+    } catch (error) {
+      console.error("Error loading active event config:", error);
+    }
+  }, []);
+
+  const loadAllEventConfigs = useCallback(async () => {
+    setIsLoadingAllConfigs(true);
+    try {
+      const res = await fetch("/api/admin/event-config");
+      if (res.ok) {
+        const data = await res.json();
+        setAllEventConfigs(data.configs || []);
+      }
+    } catch (error) {
+      console.error("Error loading all event configs:", error);
+    } finally {
+      setIsLoadingAllConfigs(false);
+    }
+  }, []);
+
+  const loadEventConfigById = async (id: string) => {
+    setIsLoadingEventConfig(true);
+    try {
+      const res = await fetch(`/api/admin/event-config?id=${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setEventConfig(data.config);
+        // Don't update activeEventConfig here - colors should always come from active event
+      }
+    } catch (error) {
+      console.error("Error loading event config:", error);
+    } finally {
+      setIsLoadingEventConfig(false);
+    }
+  };
+
   const saveEventConfig = async () => {
     if (!eventConfig) return;
     
@@ -121,16 +172,93 @@ export default function AdminPage() {
       if (res.ok) {
         const data = await res.json();
         setEventConfig(data.config);
-        alert("Event config saved successfully");
+        await loadAllEventConfigs();
+        // Reload active event config in case the active event changed
+        await loadActiveEventConfig();
+        // Update selected event to the newly saved one
+        if (data.config?.event_id) {
+          setSelectedEvent(data.config.event_id);
+        }
+        alert("Event configuration saved successfully");
       } else {
         const errorData = await res.json().catch(() => ({}));
-        alert(errorData.error || "Failed to save event config");
+        alert(errorData.error || "Failed to save event configuration");
       }
     } catch (error) {
       console.error("Error saving event config:", error);
-      alert("An error occurred while saving the event config");
+      alert("An error occurred while saving the event configuration");
     } finally {
       setIsSavingEventConfig(false);
+    }
+  };
+
+  const saveAsNewEvent = async () => {
+    if (!eventConfig) return;
+
+    // Confirmation dialog with clear warning
+    const confirmMessage = `Are you sure you want to create a NEW event configuration based on "${eventConfig.event_name || eventConfig.event_id}"?\n\nThis will:\n- Create a copy of the current configuration\n- Not modify the existing event\n- Set the new event as inactive by default\n\nEnter the new event ID (e.g., "SPRING2025"):`;
+    
+    const newEventId = prompt(confirmMessage);
+    if (!newEventId || !newEventId.trim()) {
+      return; // User cancelled or entered nothing
+    }
+
+    const trimmedEventId = newEventId.trim();
+    
+    // Validate event ID format (alphanumeric, underscores, hyphens)
+    if (!/^[A-Za-z0-9_-]+$/.test(trimmedEventId)) {
+      alert("Event ID can only contain letters, numbers, underscores, and hyphens.");
+      return;
+    }
+
+    // Check if event ID already exists
+    const existingConfig = allEventConfigs.find(
+      (config) => config.event_id?.toLowerCase() === trimmedEventId.toLowerCase()
+    );
+    if (existingConfig) {
+      const overwrite = confirm(
+        `An event with ID "${trimmedEventId}" already exists.\n\nDo you want to overwrite it?`
+      );
+      if (!overwrite) {
+        return;
+      }
+    }
+
+    setIsSavingAsNewEvent(true);
+    try {
+      // Create a copy without the ID, with new event_id and name
+      const newConfig: EventConfig = {
+        ...eventConfig,
+        id: undefined, // Clear ID to create new record
+        event_id: trimmedEventId,
+        event_name: eventConfig.event_name ? `${eventConfig.event_name} (copy)` : trimmedEventId,
+        is_active: false, // New events are inactive by default
+      };
+
+      const res = await fetch("/api/admin/event-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newConfig),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setEventConfig(data.config);
+        await loadAllEventConfigs();
+        // Update selected event to the newly created one
+        if (data.config?.event_id) {
+          setSelectedEvent(data.config.event_id);
+        }
+        alert(`New event configuration "${trimmedEventId}" created successfully!`);
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(errorData.error || "Failed to create new event configuration");
+      }
+    } catch (error) {
+      console.error("Error saving as new event:", error);
+      alert("An error occurred while creating the new event configuration");
+    } finally {
+      setIsSavingAsNewEvent(false);
     }
   };
 
@@ -355,11 +483,57 @@ export default function AdminPage() {
     }
   }, [isAuthenticated, loadData, loadEmailTemplates]);
 
+  // Reload data when selected event changes
   useEffect(() => {
-    if (activeTab === "event-config" && isAuthenticated) {
+    if (isAuthenticated && selectedEvent) {
+      loadData();
+    }
+  }, [selectedEvent, isAuthenticated, loadData]);
+
+  // Load active event config immediately when authenticated (for colors)
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadActiveEventConfig();
+      loadAllEventConfigs(); // Load all configs for the dropdown
+    }
+  }, [isAuthenticated, loadActiveEventConfig, loadAllEventConfigs]);
+
+  // Set initial selected event to active event when configs are first loaded
+  useEffect(() => {
+    if (isAuthenticated && allEventConfigs.length > 0 && activeEventConfig && !hasInitializedEvent.current) {
+      const activeEventId = activeEventConfig.event_id;
+      if (activeEventId) {
+        setSelectedEvent(activeEventId);
+        hasInitializedEvent.current = true;
+      }
+    }
+  }, [isAuthenticated, allEventConfigs, activeEventConfig]);
+
+  // Load event config when event-config tab is opened (for editing)
+  useEffect(() => {
+    if (isAuthenticated && activeTab === "event-config") {
       loadEventConfig();
     }
-  }, [activeTab, isAuthenticated, loadEventConfig]);
+  }, [isAuthenticated, activeTab, loadEventConfig]);
+
+  // Load all configs when event-config tab is active (refresh the list)
+  useEffect(() => {
+    if (activeTab === "event-config" && isAuthenticated) {
+      loadAllEventConfigs();
+    }
+  }, [activeTab, isAuthenticated, loadAllEventConfigs]);
+
+  // Get primary color from active event config (with fallback) - always use active event for colors
+  const primaryColor = activeEventConfig?.primary_color || "#05fd00";
+  const backgroundColor = activeEventConfig?.background_color || "#111111";
+
+  // Apply dynamic colors from event config
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.style.setProperty("--primary-color", primaryColor);
+      document.documentElement.style.setProperty("--background-color", backgroundColor);
+    }
+  }, [primaryColor, backgroundColor]);
 
   // Reset email selection when event changes
   useEffect(() => {
@@ -601,7 +775,9 @@ export default function AdminPage() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="bg-white/5 border-b border-white/20 text-white/80 text-base focus:outline-none focus:border-[#05fd00] w-full px-2 py-1"
+                  className="bg-white/5 border-b border-white/20 text-white/80 text-base focus:outline-none w-full px-2 py-1"
+                  onFocus={(e) => e.target.style.borderColor = primaryColor}
+                  onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                   placeholder="password"
                   autoFocus
                 />
@@ -618,7 +794,7 @@ export default function AdminPage() {
 
   // Show dashboard after authentication
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#111111] text-white">
+    <main className="relative min-h-screen overflow-hidden text-white" style={{ backgroundColor }}>
       <div className="relative mx-auto max-w-6xl px-6 py-10">
         <div className="mb-8 flex items-center justify-between">
           <div>
@@ -657,10 +833,29 @@ export default function AdminPage() {
           <select
             value={selectedEvent}
             onChange={(e) => setSelectedEvent(e.target.value)}
-            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] px-3 py-2"
+            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none px-3 py-2"
+            onFocus={(e) => e.target.style.borderColor = primaryColor}
+            onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
           >
-            <option value="RENEWAL">RENEWAL</option>
-            {/* Add more events here as needed */}
+            {allEventConfigs.length > 0 ? (
+              allEventConfigs
+                .filter((config) => config.event_id && config.event_id.trim() !== "")
+                .sort((a, b) => {
+                  // Sort: active first, then by updated_at (most recent first)
+                  if (a.is_active && !b.is_active) return -1;
+                  if (!a.is_active && b.is_active) return 1;
+                  const aDate = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+                  const bDate = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+                  return bDate - aDate;
+                })
+                .map((config) => (
+                  <option key={config.id || config.event_id} value={config.event_id}>
+                    {config.event_name || config.event_id} {config.is_active ? "(active)" : ""}
+                  </option>
+                ))
+            ) : (
+              <option value="RENEWAL">RENEWAL</option>
+            )}
           </select>
         </div>
 
@@ -671,9 +866,10 @@ export default function AdminPage() {
               onClick={() => setActiveTab("overview")}
               className={`pb-3 text-sm transition-colors ${
                 activeTab === "overview"
-                  ? "text-[#05fd00] border-b-2 border-[#05fd00]"
+                  ? "border-b-2"
                   : "text-white/50 hover:text-white/80"
               }`}
+              style={activeTab === "overview" ? { color: primaryColor, borderColor: primaryColor } : undefined}
             >
               overview
             </button>
@@ -681,9 +877,10 @@ export default function AdminPage() {
               onClick={() => setActiveTab("email")}
               className={`pb-3 text-sm transition-colors ${
                 activeTab === "email"
-                  ? "text-[#05fd00] border-b-2 border-[#05fd00]"
+                  ? "border-b-2"
                   : "text-white/50 hover:text-white/80"
               }`}
+              style={activeTab === "email" ? { color: primaryColor, borderColor: primaryColor } : undefined}
             >
               email
             </button>
@@ -691,11 +888,12 @@ export default function AdminPage() {
               onClick={() => setActiveTab("event-config")}
               className={`pb-3 text-sm transition-colors ${
                 activeTab === "event-config"
-                  ? "text-[#05fd00] border-b-2 border-[#05fd00]"
+                  ? "border-b-2"
                   : "text-white/50 hover:text-white/80"
               }`}
+              style={activeTab === "event-config" ? { color: primaryColor, borderColor: primaryColor } : undefined}
             >
-              event config
+              event configuration
             </button>
           </div>
         </div>
@@ -719,7 +917,7 @@ export default function AdminPage() {
             </div>
             <div className="bg-white/5 border border-white/10 p-4">
               <p className="text-xs text-white/50">remaining</p>
-              <p className="mt-1 text-2xl text-[#05fd00]">{stats.remainingSpots}</p>
+              <p className="mt-1 text-2xl" style={{ color: primaryColor }}>{stats.remainingSpots}</p>
             </div>
             <div className="bg-white/5 border border-white/10 p-4">
               <p className="text-xs text-white/50">total revenue</p>
@@ -734,7 +932,7 @@ export default function AdminPage() {
 
             {/* Capacity Management */}
         <div className="mb-8 bg-white/5 border border-white/10 p-6">
-          <h2 className="mb-4 text-sm text-[#05fd00]">capacity management</h2>
+          <h2 className="mb-4 text-sm" style={{ color: primaryColor }}>capacity management</h2>
           <div className="flex items-center gap-4">
             <div>
               <label className="mb-2 block text-xs text-white/70">
@@ -745,13 +943,18 @@ export default function AdminPage() {
                 value={newCapacity}
                 onChange={(e) => setNewCapacity(e.target.value)}
                 min="0"
-                className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-24 px-3 py-2"
+                className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-24 px-3 py-2"
+                onFocus={(e) => e.target.style.borderColor = primaryColor}
+                onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
               />
             </div>
             <button
               onClick={updateCapacity}
               disabled={isUpdatingCapacity}
-              className="mt-6 rounded border border-[#05fd00] bg-transparent px-4 py-2 text-sm text-[#05fd00] hover:bg-[#05fd00]/10 disabled:opacity-50"
+              className="mt-6 rounded border bg-transparent px-4 py-2 text-sm hover:opacity-80 disabled:opacity-50"
+              style={{ borderColor: primaryColor, color: primaryColor }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${primaryColor}10`}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
             >
               {isUpdatingCapacity ? "updating..." : "update capacity"}
             </button>
@@ -764,7 +967,7 @@ export default function AdminPage() {
         {/* Registrations Table */}
         <div className="bg-white/5 border border-white/10">
           <div className="border-b border-white/10 p-4">
-            <h2 className="text-sm text-[#05fd00]">
+            <h2 className="text-sm" style={{ color: primaryColor }}>
               registrations ({registrations.length})
             </h2>
           </div>
@@ -919,7 +1122,7 @@ export default function AdminPage() {
         {/* Waitlist Table */}
         <div className="mt-8 bg-white/5 border border-white/10">
           <div className="border-b border-white/10 p-4">
-            <h2 className="text-sm text-[#05fd00]">
+            <h2 className="text-sm" style={{ color: primaryColor }}>
               waitlist ({waitlist.length})
             </h2>
           </div>
@@ -983,7 +1186,7 @@ export default function AdminPage() {
             {/* Registrations Table for Email Tab */}
             <div className="mb-8 bg-white/5 border border-white/10">
               <div className="border-b border-white/10 p-4 flex items-center justify-between">
-                <h2 className="text-sm text-[#05fd00]">
+                <h2 className="text-sm" style={{ color: primaryColor }}>
                   registered attendees ({registrations.length})
                 </h2>
                 {registrations.length > 0 && (
@@ -1091,7 +1294,7 @@ export default function AdminPage() {
             {/* Email Form */}
             <div className="bg-white/5 border border-white/10 p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-sm text-[#05fd00]">send email</h2>
+            <h2 className="text-sm" style={{ color: primaryColor }}>send email</h2>
             <div className="flex gap-2">
               <button
                 onClick={() => setShowTemplateModal(true)}
@@ -1123,7 +1326,9 @@ export default function AdminPage() {
                 value={emailSubject}
                 onChange={(e) => setEmailSubject(e.target.value)}
                 placeholder="Email subject"
-                className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
+                onFocus={(e) => e.target.style.borderColor = primaryColor}
+                onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
               />
             </div>
             <div>
@@ -1169,6 +1374,94 @@ export default function AdminPage() {
                   <u>U</u>
                 </button>
                 <div className="w-px bg-white/20" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!emailEditorRef.current) return;
+                    
+                    emailEditorRef.current.focus();
+                    const selection = window.getSelection();
+                    
+                    if (!selection || selection.rangeCount === 0) {
+                      // No selection - create range at cursor or end of content
+                      const range = document.createRange();
+                      if (emailEditorRef.current.lastChild) {
+                        range.setStartAfter(emailEditorRef.current.lastChild);
+                        range.collapse(true);
+                      } else {
+                        range.selectNodeContents(emailEditorRef.current);
+                        range.collapse(false);
+                      }
+                      selection.removeAllRanges();
+                      selection.addRange(range);
+                    }
+                    
+                    const selectedText = selection.toString().trim();
+                    
+                    if (selectedText) {
+                      // Text is selected - create link with selected text
+                      const url = prompt("Enter URL for the link:", "https://");
+                      if (url && url.trim()) {
+                        // Ensure URL has protocol
+                        let finalUrl = url.trim();
+                        if (!finalUrl.match(/^https?:\/\//i)) {
+                          finalUrl = 'https://' + finalUrl;
+                        }
+                        
+                        // Use execCommand to create link
+                        document.execCommand('createLink', false, finalUrl);
+                        
+                        // Update state immediately
+                        if (emailEditorRef.current) {
+                          // Find and style any links that were just created
+                          const links = emailEditorRef.current.querySelectorAll('a');
+                          links.forEach((link) => {
+                            if (!link.style.color || link.style.color === '') {
+                              link.style.color = primaryColor;
+                              link.style.textDecoration = 'underline';
+                            }
+                          });
+                          setEmailBody(emailEditorRef.current.innerHTML);
+                        }
+                      }
+                    } else {
+                      // No text selected - prompt for both text and URL
+                      const linkText = prompt("Enter link text:", "");
+                      if (linkText && linkText.trim()) {
+                        const url = prompt("Enter URL:", "https://");
+                        if (url && url.trim()) {
+                          // Ensure URL has protocol
+                          let finalUrl = url.trim();
+                          if (!finalUrl.match(/^https?:\/\//i)) {
+                            finalUrl = 'https://' + finalUrl;
+                          }
+                          
+                          // Insert link at cursor position
+                          const range = selection.getRangeAt(0);
+                          const link = document.createElement('a');
+                          link.href = finalUrl;
+                          link.textContent = linkText.trim();
+                          link.style.color = primaryColor;
+                          link.style.textDecoration = 'underline';
+                          range.deleteContents();
+                          range.insertNode(link);
+                          
+                          // Move cursor after the link
+                          range.setStartAfter(link);
+                          range.collapse(true);
+                          selection.removeAllRanges();
+                          selection.addRange(range);
+                          
+                          if (emailEditorRef.current) setEmailBody(emailEditorRef.current.innerHTML);
+                        }
+                      }
+                    }
+                  }}
+                  className="px-2 py-1 text-xs text-white/70 hover:text-white hover:bg-white/10 border border-white/10"
+                  title="Insert Link"
+                >
+                  🔗
+                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -1239,7 +1532,9 @@ export default function AdminPage() {
                   }
                 }}
                 style={{ minHeight: '200px', color: 'rgba(255, 255, 255, 0.8)' }}
-                className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
+                onFocus={(e) => e.target.style.borderColor = primaryColor}
+                onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                 data-placeholder="Email body (use toolbar above for formatting)"
                 suppressContentEditableWarning
               />
@@ -1259,7 +1554,9 @@ export default function AdminPage() {
                 onChange={(e) => setCustomEmails(e.target.value)}
                 placeholder="email1@example.com, email2@example.com"
                 rows={3}
-                className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
+                onFocus={(e) => e.target.style.borderColor = primaryColor}
+                onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
               />
             </div>
             <div>
@@ -1270,7 +1567,14 @@ export default function AdminPage() {
                 type="file"
                 multiple
                 onChange={handleAttachmentChange}
-                className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-[#05fd00]/20 file:text-[#05fd00] hover:file:bg-[#05fd00]/30"
+                              className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium hover:file:opacity-80"
+                              style={{ 
+                                "--file-bg": `${primaryColor}20`,
+                                "--file-color": primaryColor,
+                                "--file-hover-bg": `${primaryColor}30`
+                              } as React.CSSProperties}
+                              onFocus={(e) => e.target.style.borderColor = primaryColor}
+                              onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                 accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
               />
               {attachments.length > 0 && (
@@ -1302,7 +1606,7 @@ export default function AdminPage() {
             </div>
             <div className="pt-2 border-t border-white/10">
               <p className="text-xs text-white/50 mb-2">
-                recipients: <span className="text-[#05fd00]">{getEmailRecipients().length}</span>
+                recipients: <span style={{ color: primaryColor }}>{getEmailRecipients().length}</span>
                 {selectedSessionIds.size > 0 && (
                   <span className="ml-2">
                     ({selectedSessionIds.size} selected from registrations)
@@ -1330,7 +1634,10 @@ export default function AdminPage() {
                 <button
                   onClick={sendEmailToRegistrations}
                   disabled={isSendingEmail || !emailSubject.trim() || !emailBody.trim() || getEmailRecipients().length === 0}
-                  className="rounded border border-[#05fd00] bg-transparent px-4 py-2 text-sm text-[#05fd00] hover:bg-[#05fd00]/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded border bg-transparent px-4 py-2 text-sm hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ borderColor: primaryColor, color: primaryColor }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${primaryColor}10`}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
                 >
                   {isSendingEmail ? "sending..." : `send to ${getEmailRecipients().length} recipient${getEmailRecipients().length !== 1 ? "s" : ""}`}
                 </button>
@@ -1345,7 +1652,7 @@ export default function AdminPage() {
               </div>
               {emailResult && (
                 <p className="mt-2 text-xs text-white/50">
-                  sent: <span className="text-[#05fd00]">{emailResult.sent}</span> | 
+                  sent: <span style={{ color: primaryColor }}>{emailResult.sent}</span> | 
                   failed: <span className="text-red-500">{emailResult.failed}</span>
                 </p>
               )}
@@ -1360,7 +1667,7 @@ export default function AdminPage() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-[#111111] border border-white/20 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm text-[#05fd00]">email templates</h3>
+                <h3 className="text-sm" style={{ color: primaryColor }}>email templates</h3>
                 <button
                   onClick={() => {
                     setShowTemplateModal(false);
@@ -1381,12 +1688,17 @@ export default function AdminPage() {
                     value={templateName}
                     onChange={(e) => setTemplateName(e.target.value)}
                     placeholder="Template name"
-                    className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                    className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
+                onFocus={(e) => e.target.style.borderColor = primaryColor}
+                onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                   />
                   <button
                     onClick={saveEmailTemplate}
                     disabled={!templateName.trim() || !emailSubject.trim() || !emailBody.trim()}
-                    className="w-full rounded border border-[#05fd00] bg-transparent px-4 py-2 text-sm text-[#05fd00] hover:bg-[#05fd00]/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full rounded border bg-transparent px-4 py-2 text-sm hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ borderColor: primaryColor, color: primaryColor }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${primaryColor}10`}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
                   >
                     save template
                   </button>
@@ -1417,7 +1729,8 @@ export default function AdminPage() {
                         <div className="flex gap-2 ml-4">
                           <button
                             onClick={() => loadEmailTemplate(template)}
-                            className="text-xs text-[#05fd00] hover:text-[#05fd00]/80 border border-[#05fd00] px-3 py-1 rounded"
+                            className="text-xs hover:opacity-80 border px-3 py-1 rounded"
+                          style={{ color: primaryColor, borderColor: primaryColor }}
                           >
                             load
                           </button>
@@ -1439,14 +1752,89 @@ export default function AdminPage() {
 
         {activeTab === "event-config" && (
           <div className="space-y-8">
-            <h2 className="text-sm text-[#05fd00]">event configuration</h2>
+            <h2 className="text-sm" style={{ color: primaryColor }}>event configuration</h2>
+            
+            {/* List of all event configs */}
+            {allEventConfigs.length > 0 && (
+              <div className="bg-white/5 border border-white/10 p-4">
+                <h3 className="text-xs text-white/70 uppercase mb-3">previous event configurations</h3>
+                <div className="space-y-2">
+                  {allEventConfigs.map((config) => (
+                    <button
+                      key={config.id}
+                      onClick={() => loadEventConfigById(config.id!)}
+                      className={`w-full text-left px-3 py-2 text-sm rounded border transition-colors ${
+                        eventConfig?.id === config.id
+                          ? "bg-opacity-10"
+                          : "border-white/20 bg-white/5 text-white/70 hover:border-white/40 hover:text-white/90"
+                      }`}
+                      style={eventConfig?.id === config.id ? {
+                        borderColor: primaryColor,
+                        backgroundColor: `${primaryColor}10`,
+                        color: primaryColor
+                      } : undefined}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{config.event_name || config.event_id}</span>
+                        <div className="flex items-center gap-2">
+                          {config.is_active && (
+                            <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }}>
+                              active
+                            </span>
+                          )}
+                          <span className="text-xs text-white/40">
+                            {config.event_date || "No date"}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => {
+                    setEventConfig({
+                      event_id: "",
+                      event_name: "",
+                      event_date: "",
+                      event_time: "",
+                      event_place: "",
+                      event_address: "",
+                      event_note: "",
+                      event_description: "",
+                      chat_welcome_message: "",
+                      chat_intro_message: "",
+                      chat_password_prompt: "",
+                      chat_access_granted_message: "",
+                      chat_event_announcement: "",
+                      chat_event_description: "",
+                      chat_location_message: "",
+                      chat_contribution_message: "",
+                      chat_full_message: "",
+                      chat_waitlist_message: "",
+                      primary_color: "#05fd00",
+                      background_color: "#111111",
+                      stripe_product_name: "",
+                      stripe_product_description: "",
+                      stripe_image_url: "",
+                      stripe_min_amount: 2200,
+                      stripe_max_amount: 4400,
+                      capacity: 25,
+                      is_active: false,
+                    });
+                  }}
+                  className="mt-3 w-full rounded border border-white/20 bg-transparent px-4 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white/90"
+                >
+                  + create new event configuration
+                </button>
+              </div>
+            )}
             
             {isLoadingEventConfig ? (
               <p className="text-sm text-white/50">Loading event config...</p>
             ) : (
               <div className="space-y-6">
                 {/* Initialize config if none exists */}
-                {!eventConfig && (
+                {!eventConfig && allEventConfigs.length === 0 && (
                   <div className="bg-white/5 border border-white/10 p-4">
                     <p className="text-sm text-white/70 mb-4">
                       No event config found. Create one to get started.
@@ -1483,7 +1871,10 @@ export default function AdminPage() {
                           is_active: true,
                         });
                       }}
-                      className="rounded border border-[#05fd00] bg-transparent px-4 py-2 text-sm text-[#05fd00] hover:bg-[#05fd00]/10"
+                      className="rounded border bg-transparent px-4 py-2 text-sm hover:opacity-80"
+                      style={{ borderColor: primaryColor, color: primaryColor }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${primaryColor}10`}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
                     >
                       initialize with defaults
                     </button>
@@ -1502,7 +1893,9 @@ export default function AdminPage() {
                             type="text"
                             value={eventConfig.event_id || ""}
                             onChange={(e) => setEventConfig({ ...eventConfig, event_id: e.target.value })}
-                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
+                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
                         <div>
@@ -1511,7 +1904,9 @@ export default function AdminPage() {
                             type="text"
                             value={eventConfig.event_name || ""}
                             onChange={(e) => setEventConfig({ ...eventConfig, event_name: e.target.value })}
-                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
+                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
                         <div>
@@ -1520,7 +1915,9 @@ export default function AdminPage() {
                             type="text"
                             value={eventConfig.event_date || ""}
                             onChange={(e) => setEventConfig({ ...eventConfig, event_date: e.target.value })}
-                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
+                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
                         <div>
@@ -1529,7 +1926,9 @@ export default function AdminPage() {
                             type="text"
                             value={eventConfig.event_time || ""}
                             onChange={(e) => setEventConfig({ ...eventConfig, event_time: e.target.value })}
-                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
+                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
                         <div>
@@ -1538,7 +1937,9 @@ export default function AdminPage() {
                             type="text"
                             value={eventConfig.event_place || ""}
                             onChange={(e) => setEventConfig({ ...eventConfig, event_place: e.target.value })}
-                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
+                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
                         <div>
@@ -1547,7 +1948,9 @@ export default function AdminPage() {
                             type="text"
                             value={eventConfig.event_address || ""}
                             onChange={(e) => setEventConfig({ ...eventConfig, event_address: e.target.value })}
-                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
+                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
                         <div className="md:col-span-2">
@@ -1556,7 +1959,9 @@ export default function AdminPage() {
                             type="text"
                             value={eventConfig.event_note || ""}
                             onChange={(e) => setEventConfig({ ...eventConfig, event_note: e.target.value })}
-                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
+                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
                         <div className="md:col-span-2">
@@ -1564,7 +1969,9 @@ export default function AdminPage() {
                           <textarea
                             value={eventConfig.event_description || ""}
                             onChange={(e) => setEventConfig({ ...eventConfig, event_description: e.target.value })}
-                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
+                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                             rows={3}
                           />
                         </div>
@@ -1588,7 +1995,9 @@ export default function AdminPage() {
                               type="text"
                               value={eventConfig.primary_color || "#05fd00"}
                               onChange={(e) => setEventConfig({ ...eventConfig, primary_color: e.target.value })}
-                              className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] flex-1 px-3 py-2"
+                              className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none flex-1 px-3 py-2"
+                              onFocus={(e) => e.target.style.borderColor = primaryColor}
+                              onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                             />
                           </div>
                         </div>
@@ -1605,7 +2014,9 @@ export default function AdminPage() {
                               type="text"
                               value={eventConfig.background_color || "#111111"}
                               onChange={(e) => setEventConfig({ ...eventConfig, background_color: e.target.value })}
-                              className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] flex-1 px-3 py-2"
+                              className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none flex-1 px-3 py-2"
+                              onFocus={(e) => e.target.style.borderColor = primaryColor}
+                              onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                             />
                           </div>
                         </div>
@@ -1622,7 +2033,9 @@ export default function AdminPage() {
                             type="text"
                             value={eventConfig.stripe_product_name || ""}
                             onChange={(e) => setEventConfig({ ...eventConfig, stripe_product_name: e.target.value })}
-                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
+                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
                         <div className="md:col-span-2">
@@ -1630,7 +2043,9 @@ export default function AdminPage() {
                           <textarea
                             value={eventConfig.stripe_product_description || ""}
                             onChange={(e) => setEventConfig({ ...eventConfig, stripe_product_description: e.target.value })}
-                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
+                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                             rows={4}
                           />
                         </div>
@@ -1640,7 +2055,9 @@ export default function AdminPage() {
                             type="text"
                             value={eventConfig.stripe_image_url || ""}
                             onChange={(e) => setEventConfig({ ...eventConfig, stripe_image_url: e.target.value })}
-                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
+                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
                         <div>
@@ -1649,7 +2066,9 @@ export default function AdminPage() {
                             type="number"
                             value={eventConfig.capacity || 25}
                             onChange={(e) => setEventConfig({ ...eventConfig, capacity: parseInt(e.target.value) || 25 })}
-                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
+                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
                         <div>
@@ -1658,7 +2077,9 @@ export default function AdminPage() {
                             type="number"
                             value={eventConfig.stripe_min_amount || 2200}
                             onChange={(e) => setEventConfig({ ...eventConfig, stripe_min_amount: parseInt(e.target.value) || 2200 })}
-                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
+                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
                         <div>
@@ -1667,7 +2088,9 @@ export default function AdminPage() {
                             type="number"
                             value={eventConfig.stripe_max_amount || 4400}
                             onChange={(e) => setEventConfig({ ...eventConfig, stripe_max_amount: parseInt(e.target.value) || 4400 })}
-                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
+                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
                       </div>
@@ -1694,7 +2117,9 @@ export default function AdminPage() {
                             <textarea
                               value={(eventConfig[key] as string | undefined) || ""}
                               onChange={(e) => setEventConfig({ ...eventConfig, [key]: e.target.value } as EventConfig)}
-                              className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                              className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
+                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                               rows={2}
                             />
                           </div>
@@ -1711,7 +2136,9 @@ export default function AdminPage() {
                           type="password"
                           value={eventConfig.event_password || ""}
                           onChange={(e) => setEventConfig({ ...eventConfig, event_password: e.target.value })}
-                          className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none focus:border-[#05fd00] w-full px-3 py-2"
+                          className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
+                onFocus={(e) => e.target.style.borderColor = primaryColor}
+                onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           placeholder="Leave empty to use EVENT_PASSWORD env var"
                         />
                       </div>
@@ -1733,10 +2160,35 @@ export default function AdminPage() {
                     {/* Save Button */}
                     <button
                       onClick={saveEventConfig}
-                      disabled={isSavingEventConfig || !eventConfig.event_id || !eventConfig.event_name}
-                      className="w-full rounded border border-[#05fd00] bg-transparent px-4 py-2 text-sm text-[#05fd00] hover:bg-[#05fd00]/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={isSavingEventConfig || isSavingAsNewEvent || !eventConfig.event_id || !eventConfig.event_name}
+                      className="w-full rounded border bg-transparent px-4 py-2 text-sm hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ borderColor: primaryColor, color: primaryColor }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${primaryColor}10`}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
                     >
-                      {isSavingEventConfig ? "Saving..." : "Save Event Config"}
+                      {isSavingEventConfig ? "Saving..." : "Save Event Configuration"}
+                    </button>
+
+                    {/* Save as New Event Button */}
+                    <button
+                      onClick={saveAsNewEvent}
+                      disabled={isSavingEventConfig || isSavingAsNewEvent || !eventConfig.event_id || !eventConfig.event_name}
+                      className="w-full rounded border-2 border-dashed bg-transparent px-4 py-2 text-sm font-medium hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed mt-3"
+                      style={{ 
+                        borderColor: primaryColor + "80", 
+                        color: primaryColor,
+                        backgroundColor: "transparent"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = `${primaryColor}15`;
+                        e.currentTarget.style.borderColor = primaryColor;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                        e.currentTarget.style.borderColor = primaryColor + "80";
+                      }}
+                    >
+                      {isSavingAsNewEvent ? "Creating..." : "Save as New Event"}
                     </button>
                   </div>
                 )}

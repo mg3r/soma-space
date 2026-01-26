@@ -57,7 +57,7 @@ export async function sendCapacityReachedNotification(
 /**
  * Generate branded email HTML template
  */
-function getEmailTemplate(htmlBody: string): string {
+function getEmailTemplate(htmlBody: string, primaryColor: string = "#05fd00"): string {
   return `
     <!DOCTYPE html>
     <html>
@@ -167,7 +167,7 @@ function getEmailTemplate(htmlBody: string): string {
                           <h1 style="margin: 0; padding: 0; color: #ffffff; font-size: 20px; font-weight: 400; font-family: 'Avenir', 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; letter-spacing: -0.5px; text-transform: lowercase; line-height: 1.1;">soma space</h1>
                           <table role="presentation" style="margin: 6px auto 0 auto; border-collapse: collapse;">
                             <tr>
-                              <td style="width: 60px; height: 2px; background: linear-gradient(90deg, transparent, #05fd00, transparent); box-shadow: 0 0 10px rgba(5, 253, 0, 0.7), 0 0 20px rgba(5, 253, 0, 0.4); border-radius: 1px;"></td>
+                              <td style="width: 60px; height: 2px; background: linear-gradient(90deg, transparent, ${primaryColor}, transparent); box-shadow: 0 0 10px ${primaryColor}80, 0 0 20px ${primaryColor}40; border-radius: 1px;"></td>
                             </tr>
                           </table>
                         </td>
@@ -184,6 +184,8 @@ function getEmailTemplate(htmlBody: string): string {
                         p:last-child { margin-bottom: 0 !important; }
                         div { margin: 0 0 10px 0 !important; }
                         div:last-child { margin-bottom: 0 !important; }
+                        a { color: ${primaryColor} !important; text-decoration: underline !important; }
+                        a:hover { opacity: 0.8 !important; }
                       </style>
                       ${htmlBody}
                     </div>
@@ -225,7 +227,8 @@ export async function sendEmailToRegistrations(
   subject: string,
   htmlBody: string,
   useBcc: boolean = false,
-  attachments?: Attachment[]
+  attachments?: Attachment[],
+  primaryColor: string = "#05fd00"
 ): Promise<{ sent: number; failed: number; errors: string[] }> {
   const resendApiKey = process.env.RESEND_API_KEY;
   
@@ -242,7 +245,7 @@ export async function sendEmailToRegistrations(
 
   const resend = new Resend(resendApiKey);
   const fromEmail = process.env.RESEND_FROM_EMAIL || "noreply@entersoma.space";
-  const emailHtml = getEmailTemplate(htmlBody);
+  const emailHtml = getEmailTemplate(htmlBody, primaryColor);
   
   let sent = 0;
   let failed = 0;
@@ -312,7 +315,8 @@ function getRegistrationConfirmationEmail(
   eventDate: string,
   eventTime: string,
   eventPlace: string,
-  eventAddress: string
+  eventAddress: string,
+  primaryColor: string = "#05fd00"
 ): string {
   const htmlBody = `
     <p style="margin: 0 0 20px 0; font-size: 16px; font-weight: 600;">you're in.</p>
@@ -328,13 +332,13 @@ function getRegistrationConfirmationEmail(
     </div>
     
     <div style="margin: 20px 0;">
-      <a href="https://entersoma.space/manifesto" style="color: #05fd00; text-decoration: none; font-weight: 500;">read the manifesto →</a>
+      <a href="https://entersoma.space/manifesto" style="color: ${primaryColor}; text-decoration: none; font-weight: 500;">read the manifesto →</a>
     </div>
     
     <p style="margin: 20px 0 0 0; color: #666666;">see you there.</p>
   `;
   
-  return getEmailTemplate(htmlBody);
+  return getEmailTemplate(htmlBody, primaryColor);
 }
 
 /**
@@ -347,7 +351,8 @@ export async function sendRegistrationConfirmationEmail(
   eventDate: string,
   eventTime: string,
   eventPlace: string,
-  eventAddress: string
+  eventAddress: string,
+  primaryColor: string = "#05fd00"
 ): Promise<void> {
   const resendApiKey = process.env.RESEND_API_KEY;
   
@@ -369,7 +374,8 @@ export async function sendRegistrationConfirmationEmail(
       eventDate,
       eventTime,
       eventPlace,
-      eventAddress
+      eventAddress,
+      primaryColor
     );
     
     await resend.emails.send({
@@ -385,4 +391,3 @@ export async function sendRegistrationConfirmationEmail(
     // Don't throw - we don't want email failures to break the booking flow
   }
 }
-
