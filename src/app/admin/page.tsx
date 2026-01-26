@@ -65,6 +65,7 @@ export default function AdminPage() {
   const [emailResult, setEmailResult] = useState<{ sent: number; failed: number } | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
   const emailEditorRef = useRef<HTMLDivElement>(null);
+  const [emailFontSize, setEmailFontSize] = useState<"small" | "medium" | "large">("small");
   const [activeTab, setActiveTab] = useState<"overview" | "email" | "event-config">("overview");
   const [emailTemplates, setEmailTemplates] = useState<Array<{ id: string; name: string; subject: string; body: string; attachments?: Array<{ filename: string; content: string; content_type?: string }>; updated_at: string }>>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
@@ -310,6 +311,9 @@ export default function AdminPage() {
     // Set the editor content directly to preserve HTML formatting
     if (emailEditorRef.current) {
       emailEditorRef.current.innerHTML = template.body;
+      // Apply current font size to the editor
+      const fontSize = emailFontSize === "small" ? "14px" : emailFontSize === "medium" ? "15px" : "16px";
+      emailEditorRef.current.style.fontSize = fontSize;
     }
     
     // Load attachments if they exist
@@ -539,10 +543,20 @@ export default function AdminPage() {
     setCustomEmails("");
     setEmailResult(null);
     setAttachments([]);
+    setEmailFontSize("small");
     if (emailEditorRef.current) {
       emailEditorRef.current.innerHTML = "";
+      emailEditorRef.current.style.fontSize = "14px";
     }
   }, [selectedEvent]);
+
+  // Apply font size to editor when font size changes
+  useEffect(() => {
+    if (emailEditorRef.current) {
+      const fontSize = emailFontSize === "small" ? "14px" : emailFontSize === "medium" ? "15px" : "16px";
+      emailEditorRef.current.style.fontSize = fontSize;
+    }
+  }, [emailFontSize]);
 
   // Sync emailBody to editor when it changes externally
   useEffect(() => {
@@ -632,6 +646,10 @@ export default function AdminPage() {
     setEmailResult(null);
     
     try {
+      // Wrap email body with font size
+      const fontSize = emailFontSize === "small" ? "14px" : emailFontSize === "medium" ? "15px" : "16px";
+      const wrappedHtmlBody = `<div style="font-size: ${fontSize};">${emailBody}</div>`;
+      
       // Use FormData if there are attachments, otherwise use JSON
       let body: FormData | string;
       const headers: Record<string, string> = {};
@@ -641,7 +659,7 @@ export default function AdminPage() {
         const formData = new FormData();
         formData.append("eventId", selectedEvent);
         formData.append("subject", emailSubject);
-        formData.append("htmlBody", emailBody);
+        formData.append("htmlBody", wrappedHtmlBody);
         if (selectedSessionIds.size > 0) {
           formData.append("selectedSessionIds", JSON.stringify(Array.from(selectedSessionIds)));
         }
@@ -664,7 +682,7 @@ export default function AdminPage() {
         body = JSON.stringify({
           eventId: selectedEvent,
           subject: emailSubject,
-          htmlBody: emailBody,
+          htmlBody: wrappedHtmlBody,
           selectedSessionIds: selectedSessionIds.size > 0 ? Array.from(selectedSessionIds) : undefined,
           customEmails: customEmails.trim() ? customEmails.split(/[,\n]/).map(e => e.trim()).filter(e => e) : undefined,
           excludeExcluded: true,
@@ -1460,6 +1478,56 @@ export default function AdminPage() {
                 >
                   🔗
                 </button>
+                <div className="w-px bg-white/20" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmailFontSize("small");
+                    if (emailEditorRef.current) {
+                      emailEditorRef.current.style.fontSize = "14px";
+                      setEmailBody(emailEditorRef.current.innerHTML);
+                    }
+                  }}
+                  className={`px-2 py-1 text-xs hover:text-white hover:bg-white/10 border border-white/10 ${
+                    emailFontSize === "small" ? "text-white bg-white/20" : "text-white/70"
+                  }`}
+                  title="Small Font (14px)"
+                >
+                  S
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmailFontSize("medium");
+                    if (emailEditorRef.current) {
+                      emailEditorRef.current.style.fontSize = "15px";
+                      setEmailBody(emailEditorRef.current.innerHTML);
+                    }
+                  }}
+                  className={`px-2 py-1 text-xs hover:text-white hover:bg-white/10 border border-white/10 ${
+                    emailFontSize === "medium" ? "text-white bg-white/20" : "text-white/70"
+                  }`}
+                  title="Medium Font (15px)"
+                >
+                  M
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmailFontSize("large");
+                    if (emailEditorRef.current) {
+                      emailEditorRef.current.style.fontSize = "16px";
+                      setEmailBody(emailEditorRef.current.innerHTML);
+                    }
+                  }}
+                  className={`px-2 py-1 text-xs hover:text-white hover:bg-white/10 border border-white/10 ${
+                    emailFontSize === "large" ? "text-white bg-white/20" : "text-white/70"
+                  }`}
+                  title="Large Font (16px)"
+                >
+                  L
+                </button>
+                <div className="w-px bg-white/20" />
                 <button
                   type="button"
                   onClick={() => {
@@ -1490,6 +1558,7 @@ export default function AdminPage() {
                 id="email-body-editor"
                 ref={emailEditorRef}
                 contentEditable
+                style={{ fontSize: emailFontSize === "small" ? "14px" : emailFontSize === "medium" ? "15px" : "16px" }}
                 onInput={(e) => {
                   const target = e.target as HTMLDivElement;
                   setEmailBody(target.innerHTML);
