@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
-import { nextEvent } from "@/config/event";
+import { useEventConfig } from "@/hooks/useEventConfig";
 
 // Generate spiral path points (clockwise from center, starting right)
 function generateSpiralPath(turns = 4, maxRadius = 120) {
@@ -23,6 +23,7 @@ function generateSpiralPath(turns = 4, maxRadius = 120) {
 }
 
 function ReserveContent() {
+  const { event, config, isLoading: isLoadingConfig, primaryColor, backgroundColor } = useEventConfig();
   const searchParams = useSearchParams();
   const router = useRouter();
   const sessionId = searchParams.get("session_id");
@@ -84,10 +85,19 @@ function ReserveContent() {
     verifyPayment();
   }, [sessionId, router]);
 
+  // Apply dynamic colors from event config (body + CSS vars so whole page matches)
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.style.setProperty("--primary-color", primaryColor);
+      document.documentElement.style.setProperty("--background-color", backgroundColor);
+      document.body.style.backgroundColor = backgroundColor;
+    }
+  }, [primaryColor, backgroundColor]);
+
   // Show loading state while verifying
-  if (isVerified === null) {
+  if (isVerified === null || isLoadingConfig || !event) {
     return (
-      <main className="relative h-screen overflow-hidden bg-[#111111] text-white">
+      <main className="relative h-screen overflow-hidden text-white" style={{ backgroundColor }}>
         <div className="relative mx-auto flex h-screen max-w-full md:max-w-2xl flex-col px-6 pt-20 pb-10">
           <div className="flex flex-1 items-center justify-between">
             <div className="opacity-0">
@@ -108,54 +118,55 @@ function ReserveContent() {
   const spiralPath = generateSpiralPath(4, 120);
   
   return (
-    <main className="relative h-screen overflow-hidden bg-[#111111] text-white">
-      <div className="relative mx-auto flex h-screen max-w-full md:max-w-2xl flex-col px-6 pt-20 pb-10">
-        <div className="flex flex-1 items-center justify-between gap-4 md:gap-0">
-          <div
-            className={[
-              "transition-opacity duration-1000 flex-1",
-              showContent ? "opacity-100" : "opacity-0",
-            ].join(" ")}
-          >
-            <h1 className="text-sm">you&apos;re in.</h1>
-
-            <p className="mt-6 text-sm text-white/70">
-              thank you for reserving your spot at RENEWAL.
-            </p>
-
-            <p className="mt-6 text-sm text-white/70 leading-relaxed">
-              an evening of movement, music, connection, gentle guidance, and embodied presence.
-            </p>
-
-            <div className="mt-8 space-y-1">
-              <p className="text-sm text-white/90">
-                {nextEvent.date} • {nextEvent.time}
-              </p>
-              <p className="text-sm text-white/90">{nextEvent.place}</p>
-              <p className="text-sm text-white/90">{nextEvent.address}</p>
-            </div>
-
-            <div className="mt-8">
-              <Link
-                href="/manifesto"
-                className="text-sm text-[#05fd00] hover:text-[#05fd00]/80"
+<main className="relative h-screen overflow-hidden text-white" style={{ backgroundColor }}>
+          <div className="relative mx-auto flex h-screen max-w-full md:max-w-2xl flex-col px-6 pt-20 pb-10">
+            <div className="flex flex-1 items-center justify-between gap-4 md:gap-0">
+              <div
+                className={[
+                  "transition-opacity duration-1000 flex-1",
+                  showContent ? "opacity-100" : "opacity-0",
+                ].join(" ")}
               >
-                read the manifesto →
-              </Link>
-            </div>
+                <h1 className="text-sm">you&apos;re in.</h1>
 
-            <p className="mt-8 text-sm text-white/50">
-              see you there.
-            </p>
-          </div>
+                <p className="mt-6 text-sm text-white/70">
+                  thank you for reserving your spot at {event.name}.
+                </p>
 
-          {/* Spiral */}
-          <div className="pointer-events-none flex-shrink-0">
+                <p className="mt-6 text-sm text-white/70 leading-relaxed">
+                  {config?.event_description || "a gathering of movement, music, connection, gentle guidance, and embodied presence."}
+                </p>
+
+                <div className="mt-8 space-y-1">
+                  <p className="text-sm text-white/90">
+                    {event.date} • {event.time}
+                  </p>
+                  <p className="text-sm text-white/90">{event.place}</p>
+                  <p className="text-sm text-white/90">{event.address}</p>
+                </div>
+
+                <div className="mt-8">
+                  <Link
+                    href="/manifesto"
+                    className="text-sm hover:opacity-80"
+                    style={{ color: primaryColor }}
+                  >
+                    read the manifesto →
+                  </Link>
+                </div>
+
+                <p className="mt-8 text-sm text-white/50">
+                  see you there.
+                </p>
+              </div>
+
+          {/* Spiral - primary color from admin (no darkening) */}
+          <div className="pointer-events-none flex-shrink-0" style={{ color: primaryColor }}>
             <svg
               width="200"
               height="200"
               viewBox="0 0 300 300"
-              className="text-white/15 md:w-[300px] md:h-[300px]"
+              className="md:w-[300px] md:h-[300px]"
             >
               <defs>
                 <style>{`
@@ -193,7 +204,10 @@ function ReserveContent() {
 export default function Page() {
   return (
     <Suspense fallback={
-      <main className="relative h-screen overflow-hidden bg-[#111111] text-white">
+      <main
+        className="relative h-screen overflow-hidden text-white"
+        style={{ backgroundColor: "var(--background-color, #111111)" }}
+      >
         <div className="relative mx-auto flex h-screen max-w-full md:max-w-2xl flex-col px-6 pt-20 pb-10">
           <div className="flex flex-1 items-center justify-between">
             <div className="opacity-0">

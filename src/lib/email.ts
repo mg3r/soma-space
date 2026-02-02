@@ -151,6 +151,9 @@ function getEmailTemplate(htmlBody: string, primaryColor: string = "#05fd00"): s
           p:last-child {
             margin-bottom: 0 !important;
           }
+          .footer-accent {
+            color: ${primaryColor} !important;
+          }
         </style>
       </head>
       <body style="margin: 0; padding: 0; font-family: 'Avenir', 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; background-color: transparent !important; color-scheme: light !important;">
@@ -191,11 +194,11 @@ function getEmailTemplate(htmlBody: string, primaryColor: string = "#05fd00"): s
                     </div>
                   </td>
                 </tr>
-                <!-- Footer -->
+                <!-- Footer: use active event color only (no fallback green) so web/mobile clients show same color -->
                 <tr>
                   <td class="footer-padding" style="padding: 20px 40px 20px; padding-top: 20px; padding-bottom: 20px; padding-left: 40px; padding-right: 40px; background: #111111 !important; text-align: center; position: relative; height: auto; border: none !important; outline: none !important;">
                     <p style="margin: 0; padding: 0; font-size: 13px; line-height: 1.3;">
-                      <a href="https://entersoma.space" style="color: #05fd00; text-decoration: none; font-weight: 600; letter-spacing: 0.5px; text-transform: lowercase;">entersoma.space</a>
+                      <span class="footer-accent" style="color: ${primaryColor} !important;"><a class="footer-accent" href="https://entersoma.space" style="color: ${primaryColor} !important; text-decoration: none; font-weight: 600; letter-spacing: 0.5px; text-transform: lowercase;">entersoma.space</a></span>
                     </p>
                     <p style="margin: 5px 0 0; padding: 0; color: #aaaaaa !important; font-size: 10px; line-height: 1.3;">
                       connect. accept. discover.
@@ -421,7 +424,7 @@ function getRegistrationConfirmationEmail(
     
     <p style="margin: 0 0 20px 0;">thank you for reserving your spot at ${eventName}.</p>
     
-    <p style="margin: 0 0 20px 0;">an evening of movement, music, connection, gentle guidance, and embodied presence.</p>
+    <p style="margin: 0 0 20px 0;">a gathering of movement, music, connection, gentle guidance, and embodied presence.</p>
     
     <div style="margin: 20px 0;">
       <p style="margin: 5px 0; font-weight: 500;">${eventDate} • ${eventTime}</p>
@@ -440,7 +443,8 @@ function getRegistrationConfirmationEmail(
 }
 
 /**
- * Send registration confirmation email to customer
+ * Email 1 — Primary payer only: "you're in" (no waiver link).
+ * Payer signs the waiver on site before checkout.
  */
 export async function sendRegistrationConfirmationEmail(
   customerEmail: string,
@@ -455,12 +459,12 @@ export async function sendRegistrationConfirmationEmail(
   const resendApiKey = process.env.RESEND_API_KEY;
   
   if (!resendApiKey) {
-    console.log("RESEND_API_KEY not set, skipping registration confirmation email");
+    console.error("[email] RESEND_API_KEY not set – add it to .env.local to receive confirmation emails");
     return;
   }
 
   if (!customerEmail || customerEmail === "N/A") {
-    console.log("No valid customer email, skipping registration confirmation email");
+    console.log("[email] No valid customer email, skipping");
     return;
   }
 
@@ -475,17 +479,112 @@ export async function sendRegistrationConfirmationEmail(
       eventAddress,
       primaryColor
     );
-    
-    await resend.emails.send({
+
+    console.log(`[email] Sending confirmation to ${customerEmail} (from: ${fromEmail})`);
+    const { data, error } = await resend.emails.send({
       from: fromEmail,
       to: customerEmail,
       subject: `you're in. ${eventName} confirmation`,
       html: emailHtml,
     });
 
-    console.log(`✅ Registration confirmation email sent to ${customerEmail}`);
+    if (error) {
+      console.error("[email] Resend API error:", error);
+      console.error("[email] If testing locally: Resend may only deliver to verified addresses or to test addresses like delivered@resend.dev. See https://resend.com/docs/knowledge-base/what-email-addresses-to-use-for-testing");
+      return;
+    }
+    console.log(`[email] ✅ Confirmation sent to ${customerEmail}`, data?.id ? `(id: ${data.id})` : "");
   } catch (error) {
-    console.error("Error sending registration confirmation email:", error);
-    // Don't throw - we don't want email failures to break the booking flow
+    console.error("[email] Error sending confirmation:", error);
+    console.error("[email] If testing locally: use delivered@resend.dev as the checkout email, or verify your domain in Resend.");
+  }
+}
+
+/**
+ * Email 2 — Guest (multi-ticket): "you're in" + link to sign the waiver.
+ * Sent automatically when payment completes (webhook). Admin resend uses Email 3.
+ */
+export async function sendGuestWaiverEmail(
+  guestEmail: string,
+  guestName: string,
+  eventName: string,
+  eventDate: string,
+  eventTime: string,
+  eventPlace: string,
+  eventAddress: string,
+  waiverLink: string,
+  primaryColor: string = "#05fd00"
+): Promise<void> {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (!resendApiKey || !guestEmail?.trim()) return;
+  try {
+    const resend = new Resend(resendApiKey);
+    const fromEmail = process.env.RESEND_FROM_EMAIL || "ovi@entersoma.space";
+    const htmlBody = `
+    <p style="margin: 0 0 20px 0; font-size: 16px; font-weight: 600;">you're in.</p>
+    <p style="margin: 0 0 20px 0;">someone reserved a spot for you at ${eventName}.</p>
+    <p style="margin: 0 0 20px 0;">a gathering of movement, music, connection, gentle guidance, and embodied presence.</p>
+    <div style="margin: 20px 0;">
+      <p style="margin: 5px 0; font-weight: 500;">${eventDate} • ${eventTime}</p>
+      <p style="margin: 5px 0; font-weight: 500;">${eventPlace}</p>
+      <p style="margin: 5px 0; font-weight: 500;">${eventAddress}</p>
+    </div>
+    <div style="margin: 20px 0;">
+      <a href="${waiverLink}" style="color: ${primaryColor}; text-decoration: none; font-weight: 500;">sign the participation agreement →</a>
+    </div>
+    <p style="margin: 20px 0 0 0; color: #666666;">see you there.</p>
+    `;
+    const emailHtml = getEmailTemplate(htmlBody, primaryColor);
+    const { data, error } = await resend.emails.send({
+      from: fromEmail,
+      to: guestEmail.trim(),
+      subject: `you're in. ${eventName} – please sign the agreement`,
+      html: emailHtml,
+    });
+    if (error) {
+      console.error("[email] Guest waiver email Resend error:", error);
+      throw error;
+    }
+    console.log(`[email] ✅ Guest waiver email sent to ${guestEmail}`, data?.id ? `(Resend id: ${data.id})` : "");
+  } catch (e) {
+    console.error("[email] Guest waiver email failed:", e);
+    throw e;
+  }
+}
+
+/**
+ * Email 3 — Waiver only (admin "resend waiver").
+ * No event copy; just "please sign the participation agreement" + link.
+ */
+export async function sendGuestWaiverReminderEmail(
+  guestEmail: string,
+  guestName: string,
+  waiverLink: string,
+  primaryColor: string = "#05fd00"
+): Promise<void> {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (!resendApiKey || !guestEmail?.trim()) return;
+  try {
+    const resend = new Resend(resendApiKey);
+    const fromEmail = process.env.RESEND_FROM_EMAIL || "ovi@entersoma.space";
+    const htmlBody = `
+    <p style="margin: 0 0 20px 0; font-size: 16px; font-weight: 600;">please sign the participation agreement</p>
+    <p style="margin: 0 0 20px 0;">hi ${guestName ? guestName.trim() : "there"} — you're registered for an upcoming soma space gathering. we still need your signed agreement.</p>
+    <div style="margin: 20px 0;">
+      <a href="${waiverLink}" style="color: ${primaryColor}; text-decoration: none; font-weight: 500;">sign the participation agreement →</a>
+    </div>
+    <p style="margin: 20px 0 0 0; color: #666666;">see you there.</p>
+    `;
+    const emailHtml = getEmailTemplate(htmlBody, primaryColor);
+    await resend.emails.send({
+      from: fromEmail,
+      to: guestEmail.trim(),
+      subject: "soma space — please sign the participation agreement",
+      html: emailHtml,
+    });
+    console.log(`[email] ✅ Guest waiver reminder sent to ${guestEmail}`);
+  } catch (e) {
+    console.error("[email] Guest waiver reminder failed:", e);
+    throw e;
   }
 }

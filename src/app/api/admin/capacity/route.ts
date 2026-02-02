@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getEventCapacity, setEventCapacity } from "@/lib/admin";
+import { supabase } from "@/lib/supabase";
 
 export async function GET(req: Request) {
   try {
@@ -44,9 +45,16 @@ export async function PUT(req: Request) {
     }
 
     try {
-      // Update capacity in Supabase
+      // Update capacity in event_capacities (used by create-checkout and stats)
       await setEventCapacity(eventId, capacity);
-      
+      // Keep event_config in sync so Event Configuration tab shows the same value
+      if (supabase) {
+        await supabase
+          .from("event_config")
+          .update({ capacity, updated_at: new Date().toISOString() })
+          .eq("event_id", eventId);
+      }
+
       return NextResponse.json(
         {
           eventId,

@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "stripe:listen": "./bin/stripe-cli listen --forward-to localhost:3000/api/webhooks/stripe",
+    "stripe:listen:3001": "./bin/stripe-cli listen --forward-to localhost:3001/api/webhooks/stripe"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.90.0",

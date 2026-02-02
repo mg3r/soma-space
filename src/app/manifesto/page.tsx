@@ -1,8 +1,23 @@
+"use client";
+
 import Link from "next/link";
+import { useEventConfig } from "@/hooks/useEventConfig";
 
 export default function page() {
+  const { primaryColor, backgroundColor, isLoading } = useEventConfig();
+
+  if (isLoading) {
+    return (
+      <main className="min-h-screen text-white" style={{ backgroundColor: "#111111" }}>
+        <div className="mx-auto max-w-2xl px-6 py-10">
+          <p className="text-sm text-white/50">Loading...</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <main className="min-h-screen bg-[#111111] text-white">
+    <main className="min-h-screen text-white" style={{ backgroundColor }}>
       <div className="mx-auto max-w-2xl px-6 py-10">
         <header className="mb-10">
           <Link href="/" className="text-xs text-white/50 hover:text-white/80">
@@ -17,7 +32,7 @@ export default function page() {
             soma space is a guided movement gathering where people explore free movement, music, and embodied presence together.
           </p>
 
-          <p className="text-[#05fd00]">connect. accept. discover.</p>
+          <p style={{ color: primaryColor }}>connect. accept. discover.</p>
 
           <p>
             a space where movement is freedom. release. connection. expression.
@@ -39,7 +54,7 @@ export default function page() {
           </p>
 
           <div className="pt-4 space-y-4">
-            <p className="text-[#05fd00]">the flow.</p>
+            <p style={{ color: primaryColor }}>the flow.</p>
 
             <div className="space-y-0">
               <p>arrive.</p>
@@ -82,7 +97,7 @@ export default function page() {
           </div>
 
           <div className="pt-4 space-y-4">
-            <p className="text-[#05fd00]">the agreement.</p>
+            <p style={{ color: primaryColor }}>the agreement.</p>
 
             <p>
               this gathering is held as a non violent, respectful, substance free, and consensual space.
@@ -128,7 +143,7 @@ export default function page() {
           </div>
 
           <div className="pt-4 space-y-4">
-            <p className="text-[#05fd00]">shared contribution.</p>
+            <p style={{ color: primaryColor }}>shared contribution.</p>
 
             <p>
               we offer a sliding scale and trust each person to give what they are able. no one is ever turned away for lack of funds.

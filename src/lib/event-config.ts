@@ -30,6 +30,10 @@ export type EventConfig = {
   event_password?: string;
   capacity?: number;
   is_active?: boolean;
+  /** Allow purchaser to buy multiple tickets (1 + guests); max tickets = max_guests_per_order + 1 */
+  multi_ticket_enabled?: boolean;
+  /** Max additional guests per order (default 3 → max 4 tickets total) */
+  max_guests_per_order?: number;
   created_at?: string;
   updated_at?: string;
 };
@@ -58,10 +62,12 @@ const defaultEventConfig: EventConfig = {
   background_color: "#111111",
   stripe_product_name: "soma space",
   stripe_product_description: "soma space is a guided movement gathering rooted in presence, free expression, and connection. participants are invited to move with music and explore embodied awareness. no prior movement or dance experience is required.\n\nno one is ever turned away for not having enough. if you need financial support, please reach out to us directly.",
-  stripe_image_url: "/renewal-checkout.jpg",
+  stripe_image_url: "",
   stripe_min_amount: 2200,
   stripe_max_amount: 4400,
   capacity: 25,
+  multi_ticket_enabled: false,
+  max_guests_per_order: 3,
 };
 
 /**

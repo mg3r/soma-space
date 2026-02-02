@@ -1,23 +1,39 @@
 import { getStripeClient } from "./stripe";
 import { supabase } from "./supabase";
 import { sendCapacityReachedNotification } from "./email";
+import { getWaiverStatusForEmails } from "./waiver";
 import Stripe from "stripe";
 
 /**
- * Get the capacity for a specific event from Supabase (with fallback to env vars)
+ * Get the capacity for a specific event.
+ * Source of truth: event_config.capacity, then event_capacities, then env vars.
  */
 export async function getEventCapacity(eventId: string): Promise<number> {
-  // Try to get from Supabase first (if configured)
   if (supabase) {
     try {
-      const { data, error } = await supabase
+      // Prefer event config capacity (set in Event Configuration tab)
+      const { data: configData } = await supabase
+        .from("event_config")
+        .select("capacity")
+        .eq("event_id", eventId)
+        .not("capacity", "is", null)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (configData?.capacity != null) {
+        return configData.capacity;
+      }
+
+      // Fallback to event_capacities (updated from overview or by event-config save)
+      const { data: capData, error } = await supabase
         .from("event_capacities")
         .select("capacity")
         .eq("event_id", eventId)
         .single();
 
-      if (!error && data) {
-        return data.capacity;
+      if (!error && capData) {
+        return capData.capacity;
       }
     } catch (error) {
       console.log("Supabase query failed, falling back to env vars:", error);
@@ -171,9 +187,9 @@ async function getExcludedRegistrationsWithReasons(eventId: string): Promise<Map
 }
 
 /**
- * Count the number of paid registrations for a specific event
+ * Count the number of attendees (payer + guests) for a specific event
  * Uses Supabase if available, falls back to Stripe
- * Excludes excluded registrations
+ * Excludes excluded registrations; counts main registrations + registration_guests
  */
 export async function countEventRegistrations(eventId: string): Promise<number> {
   // Try Supabase first (faster)
@@ -181,22 +197,37 @@ export async function countEventRegistrations(eventId: string): Promise<number> 
     try {
       const excludedIds = await getExcludedSessionIds(eventId);
 
-      const { count, error } = await supabase
+      const { data: regs, error: regError } = await supabase
         .from("registrations")
-        .select("*", { count: "exact", head: true })
+        .select("session_id")
         .eq("event_id", eventId);
 
-      if (!error && count !== null) {
-        // Subtract excluded registrations
-        const excludedCount = excludedIds.size;
-        return Math.max(0, count - excludedCount);
+      if (!regError && regs) {
+        const activeSessionIds = regs
+          .filter((r) => !excludedIds.has(r.session_id))
+          .map((r) => r.session_id);
+        const mainCount = activeSessionIds.length;
+
+        if (activeSessionIds.length === 0) return 0;
+
+        const { count: guestCount, error: guestError } = await supabase
+          .from("registration_guests")
+          .select("*", { count: "exact", head: true })
+          .eq("event_id", eventId)
+          .in("session_id", activeSessionIds)
+          .or("is_excluded.is.null,is_excluded.eq.false");
+
+        if (!guestError && guestCount !== null) {
+          return mainCount + guestCount;
+        }
+        return mainCount;
       }
     } catch (error) {
       console.log("Supabase count failed, falling back to Stripe:", error);
     }
   }
 
-  // Fallback to Stripe
+  // Fallback to Stripe (no guest table; count sessions only)
   const stripe = getStripeClient();
   const excludedIds = await getExcludedSessionIds(eventId);
 
@@ -205,7 +236,6 @@ export async function countEventRegistrations(eventId: string): Promise<number> 
     let hasMore = true;
     let startingAfter: string | undefined = undefined;
 
-    // Paginate through all sessions to get accurate count
     while (hasMore) {
       const sessions: Stripe.Response<Stripe.ApiList<Stripe.Checkout.Session>> =
         await stripe.checkout.sessions.list({
@@ -213,7 +243,6 @@ export async function countEventRegistrations(eventId: string): Promise<number> 
           starting_after: startingAfter,
         });
 
-      // Filter for soma space registrations (with metadata or legacy)
       const eventSessions = sessions.data.filter(
         (session: Stripe.Checkout.Session) =>
           isSomaSpaceRegistration(session, eventId) &&
@@ -240,6 +269,7 @@ type RegistrationData = {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  preWaiverEmail?: string;
   amountPaid: number;
   paymentDate: string;
   eventId: string;
@@ -247,12 +277,32 @@ type RegistrationData = {
   isExcluded?: boolean;
   isRefunded?: boolean;
   exclusionReason?: string;
+  waiverSigned?: boolean;
+  isGuest?: boolean;
+  /** Set only for guest rows; used for resend waiver */
+  guestIndex?: number;
 };
+
+/** Add waiver-signed status to each registration (batch lookup). */
+async function addWaiverStatus(
+  list: RegistrationData[]
+): Promise<RegistrationData[]> {
+  const emails = list.map((r) =>
+    (r.preWaiverEmail || r.customerEmail || "").trim().toLowerCase()
+  ).filter(Boolean);
+  if (emails.length === 0) return list;
+  const statusMap = await getWaiverStatusForEmails(emails);
+  return list.map((r) => {
+    const primary = (r.preWaiverEmail || r.customerEmail || "").trim().toLowerCase();
+    return { ...r, waiverSigned: primary ? (statusMap[primary] ?? false) : false };
+  });
+}
 
 /**
  * Get all registrations for a specific event
  * Uses Supabase if available, falls back to Stripe
  * Includes excluded registrations (marked with isExcluded flag)
+ * Includes waiverSigned (batch check against waiver_signatures)
  */
 export async function getEventRegistrations(
   eventId: string
@@ -270,7 +320,7 @@ export async function getEventRegistrations(
         .order("payment_date", { ascending: false });
 
       if (!error && data) {
-        return data.map((row) => {
+        const list = data.map((row) => {
           const isExcluded = row.is_excluded || excludedIds.has(row.session_id);
           const exclusionInfo = excludedWithReasons.get(row.session_id);
           const isRefunded = exclusionInfo?.isRefunded || false;
@@ -280,6 +330,7 @@ export async function getEventRegistrations(
             customerName: row.customer_name,
             customerEmail: row.customer_email,
             customerPhone: row.customer_phone || "N/A",
+            preWaiverEmail: row.pre_waiver_email || undefined,
             amountPaid: parseFloat(row.amount_paid),
             paymentDate: row.payment_date,
             eventId: row.event_id,
@@ -289,6 +340,34 @@ export async function getEventRegistrations(
             exclusionReason: exclusionInfo?.reason || undefined,
           };
         });
+        const listWithWaiver = await addWaiverStatus(list);
+        const sessionMap = new Map(listWithWaiver.map((r) => [r.sessionId, r]));
+        const { data: guests } = await supabase
+          .from("registration_guests")
+          .select("session_id, guest_index, name, email, amount_paid, waiver_signed_at, is_excluded")
+          .eq("event_id", eventId);
+        if (guests?.length) {
+          const guestRows: RegistrationData[] = guests.map((g: { session_id: string; guest_index: number; name: string; email: string; amount_paid: number; waiver_signed_at: string | null; is_excluded?: boolean | null }) => {
+            const main = sessionMap.get(g.session_id);
+            return {
+              sessionId: g.session_id,
+              guestIndex: g.guest_index,
+              customerName: (g.name || "").trim() || "Guest",
+              customerEmail: (g.email || "").trim(),
+              customerPhone: "N/A",
+              preWaiverEmail: (g.email || "").trim() || undefined,
+              amountPaid: Number(g.amount_paid) || 0,
+              paymentDate: main?.paymentDate || new Date().toISOString(),
+              eventId,
+              isExcluded: g.is_excluded === true,
+              isRefunded: main?.isRefunded ?? false,
+              waiverSigned: !!g.waiver_signed_at,
+              isGuest: true,
+            };
+          });
+          return [...listWithWaiver, ...guestRows];
+        }
+        return listWithWaiver;
       }
     } catch (error) {
       console.log("Supabase query failed, falling back to Stripe:", error);
@@ -331,6 +410,7 @@ export async function getEventRegistrations(
             customerName: session.customer_details?.name || "N/A",
             customerEmail: session.customer_details?.email || "N/A",
             customerPhone: session.customer_details?.phone || "N/A",
+            preWaiverEmail: (session.metadata?.pre_waiver_email as string) || undefined,
             amountPaid: amountPaid,
             paymentDate: new Date(session.created * 1000).toISOString(),
             eventId: session.metadata?.event_id || eventId,
@@ -348,11 +428,12 @@ export async function getEventRegistrations(
       }
     }
 
-    // Sort by payment date (newest first)
-    return allEventSessions.sort(
+    // Sort by payment date (newest first), then add waiver status
+    const sorted = allEventSessions.sort(
       (a, b) =>
         new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime()
     );
+    return addWaiverStatus(sorted);
   } catch (error) {
     console.error(`Error getting registrations for event ${eventId}:`, error);
     throw error;
@@ -583,6 +664,36 @@ export async function unexcludeRegistration(sessionId: string): Promise<void> {
     console.error("Error un-excluding registration:", error);
     throw error;
   }
+}
+
+/**
+ * Exclude a guest from capacity count (e.g. can't attend). Does not mark as refunded.
+ */
+export async function excludeGuest(sessionId: string, guestIndex: number): Promise<void> {
+  if (!supabase) {
+    throw new Error("Supabase is not configured. Cannot exclude guest.");
+  }
+  const { error } = await supabase
+    .from("registration_guests")
+    .update({ is_excluded: true })
+    .eq("session_id", sessionId)
+    .eq("guest_index", guestIndex);
+  if (error) throw error;
+}
+
+/**
+ * Remove a guest from the exclusion list (un-exclude)
+ */
+export async function unexcludeGuest(sessionId: string, guestIndex: number): Promise<void> {
+  if (!supabase) {
+    throw new Error("Supabase is not configured. Cannot un-exclude guest.");
+  }
+  const { error } = await supabase
+    .from("registration_guests")
+    .update({ is_excluded: false })
+    .eq("session_id", sessionId)
+    .eq("guest_index", guestIndex);
+  if (error) throw error;
 }
 
 /**

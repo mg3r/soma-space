@@ -87,6 +87,36 @@ The email includes:
 - Set `RESEND_FROM_EMAIL=onboarding@resend.dev` (or another Resend default)
 - Note: This is for testing only - verify your domain for production
 
+**Guest "you're in" + waiver email: Resend shows sent but guest never received it**
+
+Resend marks an email as "sent" when they accept it; delivery to the inbox can still fail or be filtered.
+
+1. **Check spam/junk** – Have the guest check their spam and "Promotions" (Gmail) folders.
+2. **Resend delivery status** – In Resend dashboard, open the email and check status: Delivered, Bounced, or Complained. If it bounced, the address may be wrong or the provider rejected it.
+3. **Unverified domain** – If `RESEND_FROM_EMAIL` uses your own domain (e.g. `ovi@entersoma.space`) and that domain is **not verified** in Resend, many providers (Gmail, etc.) will reject or spam the message. Verify the domain in Resend (Domains → Add Domain → add the DNS records they give you).
+4. **Testing with a guaranteed inbox** – Use **`delivered@resend.dev`** as the **guest email** when testing multi-ticket. Resend delivers that to their test inbox so you can confirm the automated "you're in" + waiver email and link work. Your dev server logs will show `Guest 'you're in' + waiver email sent to delivered@resend.dev` and you can open it in Resend’s test view.
+
+## Testing confirmation emails locally (Stripe test mode)
+
+When testing the full flow (register → waiver → checkout) locally with Stripe test mode:
+
+1. **Webhook must reach your app**  
+   Run `npm run stripe:listen` in a second terminal and set `STRIPE_WEBHOOK_SECRET` in `.env.local` (see [LOCAL_WEBHOOK_SETUP.md](LOCAL_WEBHOOK_SETUP.md)).
+
+2. **Resend recipient in test**  
+   If your **sending domain is not verified** in Resend, they only deliver to:
+   - **`delivered@resend.dev`** (recommended for testing)
+   - Your Resend account email  
+
+   So when testing checkout, use **`delivered@resend.dev`** (or your verified email) as the customer email. If you use a random Gmail and the domain isn’t verified, Resend may reject the send or not deliver.
+
+3. **Check dev server logs**  
+   After completing a test payment, look for:
+   - `[webhook] checkout.session.completed received` – webhook hit
+   - `[webhook] Sending confirmation emails to: [...]` – about to send
+   - `[email] ✅ Confirmation sent to ...` – Resend accepted
+   - `[email] Resend API error:` – Resend rejected (e.g. unverified domain / recipient)
+
 ## Free Tier Limits
 
 Resend free tier includes:

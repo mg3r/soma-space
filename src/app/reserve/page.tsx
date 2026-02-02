@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
-import { nextEvent } from "@/config/event";
+import { useEventConfig } from "@/hooks/useEventConfig";
 
 export default function Page() {
+  const { event, config, isLoading: isLoadingConfig, primaryColor, backgroundColor } = useEventConfig();
   const [contributionAmount, setContributionAmount] = useState("33");
   const [isCreatingCheckout, setIsCreatingCheckout] = useState(false);
   const [password, setPassword] = useState("");
@@ -56,8 +57,9 @@ export default function Page() {
   }
 
   const loadEventStatus = useCallback(async () => {
+    if (!event) return;
     try {
-      const res = await fetch(`/api/event-status?eventId=${nextEvent.id}`);
+      const res = await fetch(`/api/event-status?eventId=${event.id}`);
       if (res.ok) {
         const data = await res.json();
         const stats = data.stats;
@@ -67,7 +69,7 @@ export default function Page() {
     } catch {
       console.error("Error loading event status");
     }
-  }, []);
+  }, [event]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -131,7 +133,7 @@ export default function Page() {
           name: waitlistName,
           email: waitlistEmail,
           phone: waitlistPhone,
-          eventId: nextEvent.id,
+          eventId: event?.id || "",
         }),
       });
 
@@ -157,10 +159,28 @@ export default function Page() {
     checkPassword();
   };
 
+  // Apply dynamic colors
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.style.setProperty("--primary-color", primaryColor);
+      document.documentElement.style.setProperty("--background-color", backgroundColor);
+    }
+  }, [primaryColor, backgroundColor]);
+
+  if (isLoadingConfig || !event) {
+    return (
+      <main className="relative h-screen overflow-hidden text-white" style={{ backgroundColor }}>
+        <div className="relative mx-auto flex h-screen max-w-4xl flex-col px-6 pt-20 pb-10 items-center justify-center">
+          <p className="text-sm text-white/50">Loading...</p>
+        </div>
+      </main>
+    );
+  }
+
   // Show password form if not authenticated
   if (!isAuthenticated) {
     return (
-      <main className="relative h-screen overflow-hidden bg-[#111111] text-white">
+      <main className="relative h-screen overflow-hidden text-white" style={{ backgroundColor }}>
         <div className="relative mx-auto flex h-screen max-w-4xl flex-col px-6 pt-20 pb-10">
           <div className="flex flex-1 items-center">
             <div className="flex-1">
@@ -175,7 +195,10 @@ export default function Page() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="bg-white/5 border-b border-white/20 text-white/80 text-base focus:outline-none focus:border-[#05fd00] w-full px-2 py-1"
+                  className="bg-white/5 border-b border-white/20 text-white/80 text-base focus:outline-none w-full px-2 py-1"
+                  style={{ "--focus-border-color": primaryColor } as React.CSSProperties}
+                  onFocus={(e) => e.target.style.borderColor = primaryColor}
+                  onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                   placeholder="password"
                   autoFocus
                 />
@@ -192,34 +215,35 @@ export default function Page() {
 
   // Show booking form after authentication
   return (
-    <main className="relative h-screen overflow-hidden bg-[#111111] text-white">
+    <main className="relative h-screen overflow-hidden text-white" style={{ backgroundColor }}>
       <div className="relative mx-auto flex h-screen max-w-4xl flex-col px-6 pt-20 pb-10">
         <div className="flex flex-1 items-center">
           <div className="flex-1">
-            <h1 className="text-sm">join us for RENEWAL</h1>
+            <h1 className="text-sm">join us for {event.name}</h1>
 
             <p className="mt-6 text-sm text-white/70 leading-relaxed">
-              an evening of guided movement, music, and embodied presence — held in a quiet farm setting with mountain views. come to move freely, unwind, and connect as you are.
+              {config?.event_description || "a gathering of guided movement, music, and embodied presence — held in a quiet farm setting with mountain views. come to move freely, unwind, and connect as you are."}
             </p>
 
             <div className="mt-8 space-y-1">
               <p className="text-sm text-white/90">
-                friday, 1/23 • 7:00–9:30 pm
+                {event.date} • {event.time}
               </p>
               <p className="text-sm text-white/90">
-                mountain views, earth home, farm setting, cacao, live dj set
+                {config?.event_description || event.place}
               </p>
             </div>
 
             <p className="mt-6 text-sm text-white/70">
-              location shared after reserving (~25 minutes west of downtown mall)
+              {config?.chat_location_message || event.note || "location shared after reserving (~25 minutes west of downtown mall)"}
             </p>
 
             <p className="mt-6 text-sm text-white/70 leading-relaxed">
               soma space is held as a respectful, non violent, and consensual container where all bodies are welcome.{" "}
               <Link
                 href="/manifesto"
-                className="text-[#05fd00] hover:text-[#05fd00]/80"
+                className="hover:opacity-80"
+                style={{ color: primaryColor }}
               >
                 read our full manifesto here
               </Link>
@@ -230,7 +254,7 @@ export default function Page() {
             {remainingSpots !== null && remainingSpots <= 10 && remainingSpots > 0 && (
               <div className="mt-8">
                 <p className="text-sm text-white/70">
-                  <span className="text-[#05fd00]">{remainingSpots}</span> spot{remainingSpots !== 1 ? "s" : ""} remaining
+                  <span style={{ color: primaryColor }}>{remainingSpots}</span> spot{remainingSpots !== 1 ? "s" : ""} remaining
                 </p>
               </div>
             )}
@@ -238,7 +262,7 @@ export default function Page() {
             {/* Waitlist form (shown when full or after failed booking) */}
             {showWaitlist && (
               <div className="mt-8 space-y-4 bg-white/5 border border-white/10 p-6">
-                <h2 className="text-sm text-[#05fd00]">join the waitlist</h2>
+                <h2 className="text-sm" style={{ color: primaryColor }}>join the waitlist</h2>
                 {waitlistSuccess ? (
                   <p className="text-sm text-white/70">
                     you&apos;ve been added to the waitlist. we&apos;ll reach out if a spot becomes available.
@@ -250,7 +274,10 @@ export default function Page() {
                         type="text"
                         value={waitlistName}
                         onChange={(e) => setWaitlistName(e.target.value)}
-                        className="bg-white/5 border-b border-white/20 text-white/80 text-base focus:outline-none focus:border-[#05fd00] w-full px-2 py-1"
+                        className="bg-white/5 border-b border-white/20 text-white/80 text-base focus:outline-none w-full px-2 py-1"
+                        style={{ "--focus-border-color": primaryColor } as React.CSSProperties}
+                        onFocus={(e) => e.target.style.borderColor = primaryColor}
+                        onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                         placeholder="name"
                         required
                       />
@@ -260,7 +287,10 @@ export default function Page() {
                         type="email"
                         value={waitlistEmail}
                         onChange={(e) => setWaitlistEmail(e.target.value)}
-                        className="bg-white/5 border-b border-white/20 text-white/80 text-base focus:outline-none focus:border-[#05fd00] w-full px-2 py-1"
+                        className="bg-white/5 border-b border-white/20 text-white/80 text-base focus:outline-none w-full px-2 py-1"
+                        style={{ "--focus-border-color": primaryColor } as React.CSSProperties}
+                        onFocus={(e) => e.target.style.borderColor = primaryColor}
+                        onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                         placeholder="email"
                         required
                       />
@@ -270,14 +300,18 @@ export default function Page() {
                         type="tel"
                         value={waitlistPhone}
                         onChange={(e) => setWaitlistPhone(e.target.value)}
-                        className="bg-white/5 border-b border-white/20 text-white/80 text-base focus:outline-none focus:border-[#05fd00] w-full px-2 py-1"
+                        className="bg-white/5 border-b border-white/20 text-white/80 text-base focus:outline-none w-full px-2 py-1"
+                        style={{ "--focus-border-color": primaryColor } as React.CSSProperties}
+                        onFocus={(e) => e.target.style.borderColor = primaryColor}
+                        onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                         placeholder="phone (optional)"
                       />
                     </div>
                     <button
                       type="submit"
                       disabled={isSubmittingWaitlist}
-                      className="text-sm text-[#05fd00] hover:text-[#05fd00]/80 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="text-sm hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ color: primaryColor }}
                     >
                       {isSubmittingWaitlist ? "adding..." : "join waitlist →"}
                     </button>
@@ -305,13 +339,17 @@ export default function Page() {
                     step="1"
                     value={contributionAmount}
                     onChange={(e) => setContributionAmount(e.target.value)}
-                    className="bg-transparent border-b border-white/20 text-white/80 text-base focus:outline-none focus:border-[#05fd00] w-20 px-2"
+                    className="bg-transparent border-b border-white/20 text-white/80 text-base focus:outline-none w-20 px-2"
+                    style={{ "--focus-border-color": primaryColor } as React.CSSProperties}
+                    onFocus={(e) => e.target.style.borderColor = primaryColor}
+                    onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                     placeholder="33"
                   />
                   <button
                     onClick={createCheckoutSession}
                     disabled={isCreatingCheckout}
-                    className="text-sm text-[#05fd00] hover:text-[#05fd00]/80 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="text-sm hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ color: primaryColor }}
                   >
                     {isCreatingCheckout ? "creating checkout..." : "reserve your spot →"}
                   </button>
@@ -330,7 +368,8 @@ export default function Page() {
                 </p>
                 <button
                   onClick={() => setShowWaitlist(true)}
-                  className="text-sm text-[#05fd00] hover:text-[#05fd00]/80"
+                  className="text-sm hover:opacity-80"
+                  style={{ color: primaryColor }}
                 >
                   join the waitlist →
                 </button>

@@ -10,6 +10,7 @@ type Registration = {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  preWaiverEmail?: string;
   amountPaid: number;
   paymentDate: string;
   eventId: string;
@@ -17,6 +18,9 @@ type Registration = {
   isExcluded?: boolean;
   isRefunded?: boolean;
   exclusionReason?: string;
+  waiverSigned?: boolean;
+  isGuest?: boolean;
+  guestIndex?: number;
 };
 
 type Stats = {
@@ -55,6 +59,8 @@ export default function AdminPage() {
   const [excludingSessionId, setExcludingSessionId] = useState<string | null>(
     null
   );
+  const [excludingGuestKey, setExcludingGuestKey] = useState<string | null>(null);
+  const [resendingWaiverKey, setResendingWaiverKey] = useState<string | null>(null);
   // Email state
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
@@ -82,6 +88,8 @@ export default function AdminPage() {
   const [activeEventConfig, setActiveEventConfig] = useState<EventConfig | null>(null);
   // Track if we've initialized the selected event from active event
   const hasInitializedEvent = useRef(false);
+  // Track which event we're loading so stale responses don't overwrite (race fix)
+  const loadEventIdRef = useRef<string | null>(null);
 
   const loadEmailTemplates = useCallback(async () => {
     setIsLoadingTemplates(true);
@@ -176,6 +184,8 @@ export default function AdminPage() {
         if (data.config?.event_id) {
           setSelectedEvent(data.config.event_id);
         }
+        // Refresh overview so capacity and stats reflect the saved config (use saved event id in case it changed)
+        await loadData(data.config?.event_id);
         alert("Event configuration saved successfully");
       } else {
         const errorData = await res.json().catch(() => ({}));
@@ -223,12 +233,12 @@ export default function AdminPage() {
 
     setIsSavingAsNewEvent(true);
     try {
-      // Create a copy without the ID, with new event_id and name
+      // Create a copy without the ID, with new event_id and name (default name = new event ID)
       const newConfig: EventConfig = {
         ...eventConfig,
         id: undefined, // Clear ID to create new record
         event_id: trimmedEventId,
-        event_name: eventConfig.event_name ? `${eventConfig.event_name} (copy)` : trimmedEventId,
+        event_name: trimmedEventId,
         is_active: false, // New events are inactive by default
       };
 
@@ -249,7 +259,8 @@ export default function AdminPage() {
         alert(`New event configuration "${trimmedEventId}" created successfully!`);
       } else {
         const errorData = await res.json().catch(() => ({}));
-        alert(errorData.error || "Failed to create new event configuration");
+        const details = errorData.details ? `\n\n${errorData.details}` : "";
+        alert((errorData.error || "Failed to create new event configuration") + details);
       }
     } catch (error) {
       console.error("Error saving as new event:", error);
@@ -413,34 +424,46 @@ export default function AdminPage() {
     }
   }
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (eventIdOverride?: string) => {
+    const eventId = eventIdOverride ?? selectedEvent;
+    loadEventIdRef.current = eventId;
     setIsLoading(true);
     try {
       // Load registrations
-      const regRes = await fetch(`/api/admin/registrations?eventId=${selectedEvent}`);
+      const regRes = await fetch(`/api/admin/registrations?eventId=${eventId}`);
       if (regRes.ok) {
         const regData = await regRes.json();
-        setRegistrations(regData.registrations || []);
+        const regs = regData.registrations || [];
+        if (loadEventIdRef.current === eventId) {
+          setRegistrations(regs);
+        }
       }
 
       // Load waitlist
-      const waitlistRes = await fetch(`/api/admin/waitlist?eventId=${selectedEvent}`);
+      const waitlistRes = await fetch(`/api/admin/waitlist?eventId=${eventId}`);
       if (waitlistRes.ok) {
         const waitlistData = await waitlistRes.json();
-        setWaitlist(waitlistData.waitlist || []);
+        if (loadEventIdRef.current === eventId) {
+          setWaitlist(waitlistData.waitlist || []);
+        }
       }
 
       // Load stats
-      const statsRes = await fetch(`/api/admin/stats?eventId=${selectedEvent}`);
+      const statsRes = await fetch(`/api/admin/stats?eventId=${eventId}`);
       if (statsRes.ok) {
         const statsData = await statsRes.json();
-        setStats(statsData.stats);
-        setNewCapacity(statsData.stats.capacity.toString());
+        const st = statsData.stats;
+        if (loadEventIdRef.current === eventId) {
+          setStats(st);
+          setNewCapacity(st?.capacity?.toString() ?? "");
+        }
       }
     } catch {
       console.error("Error loading data");
     } finally {
-      setIsLoading(false);
+      if (loadEventIdRef.current === eventId) {
+        setIsLoading(false);
+      }
     }
   }, [selectedEvent]);
 
@@ -523,17 +546,18 @@ export default function AdminPage() {
     }
   }, [activeTab, isAuthenticated, loadAllEventConfigs]);
 
-  // Get primary color from active event config (with fallback) - always use active event for colors
-  const primaryColor = activeEventConfig?.primary_color || "#05fd00";
+  // Admin uses neutral black/white/gray only (no event colors)
+  const adminAccent = "rgba(255,255,255,0.85)";
+  const adminAccentHoverBg = "rgba(255,255,255,0.08)";
+  const adminAccentMuted = "rgba(255,255,255,0.12)";
+  const adminBorderFocus = "rgba(255,255,255,0.4)";
   const backgroundColor = activeEventConfig?.background_color || "#111111";
 
-  // Apply dynamic colors from event config
   useEffect(() => {
     if (typeof document !== "undefined") {
-      document.documentElement.style.setProperty("--primary-color", primaryColor);
       document.documentElement.style.setProperty("--background-color", backgroundColor);
     }
-  }, [primaryColor, backgroundColor]);
+  }, [backgroundColor]);
 
   // Reset email selection when event changes
   useEffect(() => {
@@ -600,24 +624,24 @@ export default function AdminPage() {
     // Only include registrations if custom emails field is empty
     const hasCustomEmailInput = customEmails.trim().length > 0;
     
-    // Include selected registrations (including excluded ones)
+    // Include selected registrations (Stripe + chat email when different; one name = up to 2 emails)
+    const addRegEmails = (reg: Registration) => {
+      const stripeEmail = reg.customerEmail?.trim();
+      const chatEmail = reg.preWaiverEmail?.trim()?.toLowerCase();
+      // Chat email is primary; checkout (Stripe) is secondary when different
+      if (chatEmail && chatEmail !== "N/A") emails.push(reg.preWaiverEmail!.trim());
+      if (stripeEmail && stripeEmail !== "N/A" && stripeEmail.toLowerCase() !== chatEmail) {
+        emails.push(stripeEmail);
+      }
+    };
     if (selectedSessionIds.size > 0) {
       registrations
         .filter(reg => selectedSessionIds.has(reg.sessionId))
-        .forEach(reg => {
-          if (reg.customerEmail && reg.customerEmail !== "N/A") {
-            emails.push(reg.customerEmail);
-          }
-        });
+        .forEach(addRegEmails);
     } else if (!hasCustomEmailInput) {
-      // Only include all registrations if no custom email input AND no selection
       registrations
         .filter(reg => !reg.isExcluded)
-        .forEach(reg => {
-          if (reg.customerEmail && reg.customerEmail !== "N/A") {
-            emails.push(reg.customerEmail);
-          }
-        });
+        .forEach(addRegEmails);
     }
 
     // Add custom emails to the list (if registrations are also selected)
@@ -790,7 +814,7 @@ export default function AdminPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="bg-white/5 border-b border-white/20 text-white/80 text-base focus:outline-none w-full px-2 py-1"
-                  onFocus={(e) => e.target.style.borderColor = primaryColor}
+                  onFocus={(e) => e.target.style.borderColor = adminAccent}
                   onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                   placeholder="password"
                   autoFocus
@@ -848,7 +872,7 @@ export default function AdminPage() {
             value={selectedEvent}
             onChange={(e) => setSelectedEvent(e.target.value)}
             className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none px-3 py-2"
-            onFocus={(e) => e.target.style.borderColor = primaryColor}
+            onFocus={(e) => e.target.style.borderColor = adminAccent}
             onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
           >
             {allEventConfigs.length > 0 ? (
@@ -883,7 +907,7 @@ export default function AdminPage() {
                   ? "border-b-2"
                   : "text-white/50 hover:text-white/80"
               }`}
-              style={activeTab === "overview" ? { color: primaryColor, borderColor: primaryColor } : undefined}
+              style={activeTab === "overview" ? { color: adminAccent, borderColor: adminAccent } : undefined}
             >
               overview
             </button>
@@ -894,7 +918,7 @@ export default function AdminPage() {
                   ? "border-b-2"
                   : "text-white/50 hover:text-white/80"
               }`}
-              style={activeTab === "email" ? { color: primaryColor, borderColor: primaryColor } : undefined}
+              style={activeTab === "email" ? { color: adminAccent, borderColor: adminAccent } : undefined}
             >
               email
             </button>
@@ -905,7 +929,7 @@ export default function AdminPage() {
                   ? "border-b-2"
                   : "text-white/50 hover:text-white/80"
               }`}
-              style={activeTab === "event-config" ? { color: primaryColor, borderColor: primaryColor } : undefined}
+              style={activeTab === "event-config" ? { color: adminAccent, borderColor: adminAccent } : undefined}
             >
               event configuration
             </button>
@@ -923,7 +947,7 @@ export default function AdminPage() {
             </div>
             <div className="bg-white/5 border border-white/10 p-4">
               <p className="text-xs text-white/50">excluded</p>
-              <p className="mt-1 text-2xl text-yellow-500">{stats.excluded}</p>
+              <p className="mt-1 text-2xl text-white/60">{stats.excluded}</p>
             </div>
             <div className="bg-white/5 border border-white/10 p-4">
               <p className="text-xs text-white/50">capacity</p>
@@ -931,7 +955,7 @@ export default function AdminPage() {
             </div>
             <div className="bg-white/5 border border-white/10 p-4">
               <p className="text-xs text-white/50">remaining</p>
-              <p className="mt-1 text-2xl" style={{ color: primaryColor }}>{stats.remainingSpots}</p>
+              <p className="mt-1 text-2xl" style={{ color: adminAccent }}>{stats.remainingSpots}</p>
             </div>
             <div className="bg-white/5 border border-white/10 p-4">
               <p className="text-xs text-white/50">total revenue</p>
@@ -939,14 +963,14 @@ export default function AdminPage() {
             </div>
             <div className="bg-white/5 border border-white/10 p-4">
               <p className="text-xs text-white/50">refunded</p>
-              <p className="mt-1 text-2xl text-red-500">${stats.refundedAmount.toFixed(2)}</p>
+              <p className="mt-1 text-2xl text-white/50">${stats.refundedAmount.toFixed(2)}</p>
             </div>
           </div>
         )}
 
             {/* Capacity Management */}
         <div className="mb-8 bg-white/5 border border-white/10 p-6">
-          <h2 className="mb-4 text-sm" style={{ color: primaryColor }}>capacity management</h2>
+          <h2 className="mb-4 text-sm" style={{ color: adminAccent }}>capacity management</h2>
           <div className="flex items-center gap-4">
             <div>
               <label className="mb-2 block text-xs text-white/70">
@@ -958,7 +982,7 @@ export default function AdminPage() {
                 onChange={(e) => setNewCapacity(e.target.value)}
                 min="0"
                 className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-24 px-3 py-2"
-                onFocus={(e) => e.target.style.borderColor = primaryColor}
+                onFocus={(e) => e.target.style.borderColor = adminAccent}
                 onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
               />
             </div>
@@ -966,32 +990,41 @@ export default function AdminPage() {
               onClick={updateCapacity}
               disabled={isUpdatingCapacity}
               className="mt-6 rounded border bg-transparent px-4 py-2 text-sm hover:opacity-80 disabled:opacity-50"
-              style={{ borderColor: primaryColor, color: primaryColor }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${primaryColor}10`}
+              style={{ borderColor: adminAccent, color: adminAccent }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = adminAccentHoverBg}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
             >
               {isUpdatingCapacity ? "updating..." : "update capacity"}
             </button>
           </div>
           <p className="mt-4 text-xs text-white/50">
-            capacity is stored in Supabase and updates immediately
+            capacity comes from event configuration; you can adjust it here and it stays in sync.
           </p>
         </div>
 
         {/* Registrations Table */}
         <div className="bg-white/5 border border-white/10">
           <div className="border-b border-white/10 p-4">
-            <h2 className="text-sm" style={{ color: primaryColor }}>
+            <h2 className="text-sm" style={{ color: adminAccent }}>
               registrations ({registrations.length})
             </h2>
+            <p className="mt-1 text-xs text-white/50">
+              shown for the selected event. checkout uses the <strong>active</strong> event—set your event as active before testing to see registrations here.
+            </p>
+            <p className="mt-1 text-xs text-white/50">
+              emails: <strong>chat</strong> is primary; <strong>checkout</strong> (Stripe) shown when different. bulk send includes both. waiver: ✓ signed, — not signed.
+            </p>
           </div>
           {isLoading ? (
             <div className="p-8 text-center text-sm text-white/50">
               loading...
             </div>
           ) : registrations.length === 0 ? (
-            <div className="p-8 text-center text-sm text-white/50">
-              no registrations yet
+            <div className="p-8 text-center text-sm text-white/50 space-y-2">
+              <p>no registrations yet</p>
+              <p className="text-xs text-white/40 max-w-md mx-auto">
+                Testing on localhost? Registrations only sync when Stripe sends a webhook. Run <code className="bg-white/10 px-1 rounded">npm run stripe:listen</code> in a second terminal and set <code className="bg-white/10 px-1 rounded">STRIPE_WEBHOOK_SECRET</code> in .env.local (see LOCAL_WEBHOOK_SETUP.md).
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -1000,6 +1033,9 @@ export default function AdminPage() {
                   <tr className="border-b border-white/10">
                     <th className="px-4 py-3 text-left text-xs text-white/50">
                       name
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs text-white/50">
+                      waiver
                     </th>
                     <th className="px-4 py-3 text-left text-xs text-white/50">
                       email
@@ -1021,26 +1057,80 @@ export default function AdminPage() {
                 <tbody>
                   {registrations.map((reg) => (
                     <tr
-                      key={reg.sessionId}
+                      key={reg.isGuest && reg.guestIndex != null ? `${reg.sessionId}-guest-${reg.guestIndex}` : reg.sessionId}
                       className={`border-b border-white/5 hover:bg-white/5 ${
                         reg.isExcluded ? "opacity-50" : ""
                       }`}
                     >
                       <td className="px-4 py-3 text-sm text-white/80">
                         {reg.customerName}
+                        {reg.isGuest && (
+                          <span className="ml-2 text-xs text-white/50">(guest)</span>
+                        )}
                         {reg.isRefunded && (
-                          <span className="ml-2 text-xs text-red-500">
+                          <span className="ml-2 text-xs text-white/50">
                             (refunded)
                           </span>
                         )}
                         {reg.isExcluded && !reg.isRefunded && (
-                          <span className="ml-2 text-xs text-yellow-500">
+                          <span className="ml-2 text-xs text-white/60">
                             (excluded)
                           </span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-white/80">
-                        {reg.customerEmail}
+                        {reg.waiverSigned === true ? (
+                          <span className="text-white/70" title="Waiver signed">✓</span>
+                        ) : (
+                          <span className="flex items-center gap-2">
+                            <span className="text-white/40" title="Waiver not signed">—</span>
+                            {reg.isGuest && reg.guestIndex != null && (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const key = `${reg.sessionId}-${reg.guestIndex}`;
+                                  setResendingWaiverKey(key);
+                                  try {
+                                    const res = await fetch("/api/admin/resend-waiver", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ sessionId: reg.sessionId, guestIndex: reg.guestIndex }),
+                                    });
+                                    if (res.ok) {
+                                      const data = await res.json();
+                                      if (data.success) alert("Waiver reminder sent.");
+                                    } else {
+                                      const err = await res.json().catch(() => ({}));
+                                      alert(err?.error || "Failed to resend waiver.");
+                                    }
+                                  } catch {
+                                    alert("An error occurred.");
+                                  } finally {
+                                    setResendingWaiverKey(null);
+                                  }
+                                }}
+                                disabled={resendingWaiverKey !== null}
+                                className="text-xs text-white/50 hover:text-white/80 disabled:opacity-50"
+                              >
+                                {resendingWaiverKey === `${reg.sessionId}-${reg.guestIndex}` ? "sending…" : "resend waiver"}
+                              </button>
+                            )}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-white/80">
+                        <div>
+                          {reg.preWaiverEmail ? (
+                            <>
+                              <span className="text-white/40 text-xs">chat: </span>{reg.preWaiverEmail}
+                              {reg.customerEmail && reg.customerEmail.trim().toLowerCase() !== reg.preWaiverEmail.trim().toLowerCase() && (
+                                <div className="text-xs text-white/50 mt-0.5">checkout: {reg.customerEmail}</div>
+                              )}
+                            </>
+                          ) : (
+                            reg.customerEmail
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-white/80">
                         {reg.customerPhone}
@@ -1052,7 +1142,62 @@ export default function AdminPage() {
                         {new Date(reg.paymentDate).toLocaleDateString()}
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        {reg.isExcluded ? (
+                        {reg.isGuest && reg.guestIndex != null ? (
+                          reg.isExcluded ? (
+                            <button
+                              onClick={async () => {
+                                if (!confirm("Un-exclude this guest from capacity count?")) return;
+                                const key = `${reg.sessionId}-${reg.guestIndex}`;
+                                setExcludingGuestKey(key);
+                                try {
+                                  const res = await fetch(
+                                    `/api/admin/exclude-guest?sessionId=${encodeURIComponent(reg.sessionId)}&guestIndex=${reg.guestIndex}`,
+                                    { method: "DELETE" }
+                                  );
+                                  if (res.ok) await loadData();
+                                  else alert("Failed to un-exclude guest");
+                                } catch {
+                                  alert("An error occurred");
+                                } finally {
+                                  setExcludingGuestKey(null);
+                                }
+                              }}
+                              disabled={excludingGuestKey !== null}
+                              className="text-xs text-white/60 hover:text-white/70 disabled:opacity-50"
+                            >
+                              {excludingGuestKey === `${reg.sessionId}-${reg.guestIndex}` ? "un-excluding…" : "un-exclude"}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={async () => {
+                                if (!confirm("Exclude this guest from capacity count? (e.g. they can't make it)")) return;
+                                const key = `${reg.sessionId}-${reg.guestIndex}`;
+                                setExcludingGuestKey(key);
+                                try {
+                                  const res = await fetch("/api/admin/exclude-guest", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      sessionId: reg.sessionId,
+                                      guestIndex: reg.guestIndex,
+                                      eventId: selectedEvent,
+                                    }),
+                                  });
+                                  if (res.ok) await loadData();
+                                  else alert("Failed to exclude guest");
+                                } catch {
+                                  alert("An error occurred");
+                                } finally {
+                                  setExcludingGuestKey(null);
+                                }
+                              }}
+                              disabled={excludingGuestKey !== null}
+                              className="text-xs text-white/50 hover:text-white/70 disabled:opacity-50"
+                            >
+                              {excludingGuestKey === `${reg.sessionId}-${reg.guestIndex}` ? "excluding…" : "exclude"}
+                            </button>
+                          )
+                        ) : !reg.isGuest && (reg.isExcluded ? (
                           <button
                             onClick={async () => {
                               if (
@@ -1079,7 +1224,7 @@ export default function AdminPage() {
                               }
                             }}
                             disabled={excludingSessionId === reg.sessionId}
-                            className="text-xs text-yellow-500 hover:text-yellow-400 disabled:opacity-50"
+                            className="text-xs text-white/60 hover:text-white/70 disabled:opacity-50"
                           >
                             {excludingSessionId === reg.sessionId
                               ? "un-excluding..."
@@ -1117,13 +1262,13 @@ export default function AdminPage() {
                               }
                             }}
                             disabled={excludingSessionId === reg.sessionId}
-                            className="text-xs text-red-500 hover:text-red-400 disabled:opacity-50"
+                            className="text-xs text-white/50 hover:text-white/70 disabled:opacity-50"
                           >
                             {excludingSessionId === reg.sessionId
                               ? "excluding..."
                               : "exclude"}
                           </button>
-                        )}
+                        ))}
                       </td>
                     </tr>
                   ))}
@@ -1136,7 +1281,7 @@ export default function AdminPage() {
         {/* Waitlist Table */}
         <div className="mt-8 bg-white/5 border border-white/10">
           <div className="border-b border-white/10 p-4">
-            <h2 className="text-sm" style={{ color: primaryColor }}>
+            <h2 className="text-sm" style={{ color: adminAccent }}>
               waitlist ({waitlist.length})
             </h2>
           </div>
@@ -1200,7 +1345,7 @@ export default function AdminPage() {
             {/* Registrations Table for Email Tab */}
             <div className="mb-8 bg-white/5 border border-white/10">
               <div className="border-b border-white/10 p-4 flex items-center justify-between">
-                <h2 className="text-sm" style={{ color: primaryColor }}>
+                <h2 className="text-sm" style={{ color: adminAccent }}>
                   registered attendees ({registrations.length})
                 </h2>
                 {registrations.length > 0 && (
@@ -1243,6 +1388,9 @@ export default function AdminPage() {
                           name
                         </th>
                         <th className="px-4 py-3 text-left text-xs text-white/50">
+                          waiver
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs text-white/50">
                           email
                         </th>
                         <th className="px-4 py-3 text-left text-xs text-white/50">
@@ -1259,7 +1407,7 @@ export default function AdminPage() {
                     <tbody>
                       {registrations.map((reg) => (
                         <tr
-                          key={reg.sessionId}
+                          key={reg.isGuest && reg.guestIndex != null ? `${reg.sessionId}-guest-${reg.guestIndex}` : reg.sessionId}
                           className={`border-b border-white/5 hover:bg-white/5 ${
                             reg.isExcluded ? "opacity-50" : ""
                           }`}
@@ -1274,19 +1422,73 @@ export default function AdminPage() {
                           </td>
                           <td className="px-4 py-3 text-sm text-white/80">
                             {reg.customerName}
+                            {reg.isGuest && (
+                              <span className="ml-2 text-xs text-white/50">(guest)</span>
+                            )}
                             {reg.isRefunded && (
-                              <span className="ml-2 text-xs text-red-500">
+                              <span className="ml-2 text-xs text-white/50">
                                 (refunded)
                               </span>
                             )}
                             {reg.isExcluded && !reg.isRefunded && (
-                              <span className="ml-2 text-xs text-yellow-500">
+                              <span className="ml-2 text-xs text-white/60">
                                 (excluded)
                               </span>
                             )}
                           </td>
                           <td className="px-4 py-3 text-sm text-white/80">
-                            {reg.customerEmail}
+                            {reg.waiverSigned === true ? (
+                              <span className="text-white/70" title="Waiver signed">✓</span>
+                            ) : (
+                              <span className="flex items-center gap-2">
+                                <span className="text-white/40" title="Waiver not signed">—</span>
+                                {reg.isGuest && reg.guestIndex != null && (
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      const key = `${reg.sessionId}-${reg.guestIndex}`;
+                                      setResendingWaiverKey(key);
+                                      try {
+                                        const res = await fetch("/api/admin/resend-waiver", {
+                                          method: "POST",
+                                          headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({ sessionId: reg.sessionId, guestIndex: reg.guestIndex }),
+                                        });
+                                        if (res.ok) {
+                                          const data = await res.json();
+                                          if (data.success) alert("Waiver reminder sent.");
+                                        } else {
+                                          const err = await res.json().catch(() => ({}));
+                                          alert(err?.error || "Failed to resend waiver.");
+                                        }
+                                      } catch {
+                                        alert("An error occurred.");
+                                      } finally {
+                                        setResendingWaiverKey(null);
+                                      }
+                                    }}
+                                    disabled={resendingWaiverKey !== null}
+                                    className="text-xs text-white/50 hover:text-white/80 disabled:opacity-50"
+                                  >
+                                    {resendingWaiverKey === `${reg.sessionId}-${reg.guestIndex}` ? "sending…" : "resend waiver"}
+                                  </button>
+                                )}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-white/80">
+                            <div>
+                              {reg.preWaiverEmail ? (
+                                <>
+                                  <span className="text-white/40 text-xs">chat: </span>{reg.preWaiverEmail}
+                                  {reg.customerEmail && reg.customerEmail.trim().toLowerCase() !== reg.preWaiverEmail.trim().toLowerCase() && (
+                                    <div className="text-xs text-white/50 mt-0.5">checkout: {reg.customerEmail}</div>
+                                  )}
+                                </>
+                              ) : (
+                                reg.customerEmail
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3 text-sm text-white/80">
                             {reg.customerPhone}
@@ -1308,7 +1510,7 @@ export default function AdminPage() {
             {/* Email Form */}
             <div className="bg-white/5 border border-white/10 p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-sm" style={{ color: primaryColor }}>send email</h2>
+            <h2 className="text-sm" style={{ color: adminAccent }}>send email</h2>
             <div className="flex gap-2">
               <button
                 onClick={() => setShowTemplateModal(true)}
@@ -1341,7 +1543,7 @@ export default function AdminPage() {
                 onChange={(e) => setEmailSubject(e.target.value)}
                 placeholder="Email subject"
                 className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
-                onFocus={(e) => e.target.style.borderColor = primaryColor}
+                onFocus={(e) => e.target.style.borderColor = adminAccent}
                 onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
               />
             </div>
@@ -1433,7 +1635,7 @@ export default function AdminPage() {
                           const links = emailEditorRef.current.querySelectorAll('a');
                           links.forEach((link) => {
                             if (!link.style.color || link.style.color === '') {
-                              link.style.color = primaryColor;
+                              link.style.color = adminAccent;
                               link.style.textDecoration = 'underline';
                             }
                           });
@@ -1457,7 +1659,7 @@ export default function AdminPage() {
                           const link = document.createElement('a');
                           link.href = finalUrl;
                           link.textContent = linkText.trim();
-                          link.style.color = primaryColor;
+                          link.style.color = adminAccent;
                           link.style.textDecoration = 'underline';
                           range.deleteContents();
                           range.insertNode(link);
@@ -1604,7 +1806,7 @@ export default function AdminPage() {
                   }
                 }}
                 className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
-                onFocus={(e) => e.target.style.borderColor = primaryColor}
+                onFocus={(e) => e.target.style.borderColor = adminAccent}
                 data-placeholder="Email body (use toolbar above for formatting)"
                 suppressContentEditableWarning
               />
@@ -1625,7 +1827,7 @@ export default function AdminPage() {
                 placeholder="email1@example.com, email2@example.com"
                 rows={3}
                 className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
-                onFocus={(e) => e.target.style.borderColor = primaryColor}
+                onFocus={(e) => e.target.style.borderColor = adminAccent}
                 onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
               />
             </div>
@@ -1639,11 +1841,11 @@ export default function AdminPage() {
                 onChange={handleAttachmentChange}
                               className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium hover:file:opacity-80"
                               style={{ 
-                                "--file-bg": `${primaryColor}20`,
-                                "--file-color": primaryColor,
-                                "--file-hover-bg": `${primaryColor}30`
+                                "--file-bg": adminAccentMuted,
+                                "--file-color": adminAccent,
+                                "--file-hover-bg": "rgba(255,255,255,0.15)"
                               } as React.CSSProperties}
-                              onFocus={(e) => e.target.style.borderColor = primaryColor}
+                              onFocus={(e) => e.target.style.borderColor = adminAccent}
                               onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                 accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
               />
@@ -1654,7 +1856,7 @@ export default function AdminPage() {
                       <span>{file.name} ({(file.size / 1024).toFixed(1)} KB)</span>
                       <button
                         onClick={() => removeAttachment(index)}
-                        className="text-red-500 hover:text-red-400"
+                        className="text-white/50 hover:text-white/70"
                       >
                         remove
                       </button>
@@ -1676,7 +1878,7 @@ export default function AdminPage() {
             </div>
             <div className="pt-2 border-t border-white/10">
               <p className="text-xs text-white/50 mb-2">
-                recipients: <span style={{ color: primaryColor }}>{getEmailRecipients().length}</span>
+                recipients: <span style={{ color: adminAccent }}>{getEmailRecipients().length}</span>
                 {selectedSessionIds.size > 0 && (
                   <span className="ml-2">
                     ({selectedSessionIds.size} selected from registrations)
@@ -1705,8 +1907,8 @@ export default function AdminPage() {
                   onClick={sendEmailToRegistrations}
                   disabled={isSendingEmail || !emailSubject.trim() || !emailBody.trim() || getEmailRecipients().length === 0}
                   className="rounded border bg-transparent px-4 py-2 text-sm hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ borderColor: primaryColor, color: primaryColor }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${primaryColor}10`}
+                  style={{ borderColor: adminAccent, color: adminAccent }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = adminAccentHoverBg}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
                 >
                   {isSendingEmail ? "sending..." : `send to ${getEmailRecipients().length} recipient${getEmailRecipients().length !== 1 ? "s" : ""}`}
@@ -1722,8 +1924,8 @@ export default function AdminPage() {
               </div>
               {emailResult && (
                 <p className="mt-2 text-xs text-white/50">
-                  sent: <span style={{ color: primaryColor }}>{emailResult.sent}</span> | 
-                  failed: <span className="text-red-500">{emailResult.failed}</span>
+                  sent: <span style={{ color: adminAccent }}>{emailResult.sent}</span> | 
+                  failed: <span className="text-white/50">{emailResult.failed}</span>
                 </p>
               )}
             </div>
@@ -1737,7 +1939,7 @@ export default function AdminPage() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-[#111111] border border-white/20 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm" style={{ color: primaryColor }}>email templates</h3>
+                <h3 className="text-sm" style={{ color: adminAccent }}>email templates</h3>
                 <button
                   onClick={() => {
                     setShowTemplateModal(false);
@@ -1759,15 +1961,15 @@ export default function AdminPage() {
                     onChange={(e) => setTemplateName(e.target.value)}
                     placeholder="Template name"
                     className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
-                onFocus={(e) => e.target.style.borderColor = primaryColor}
+                onFocus={(e) => e.target.style.borderColor = adminAccent}
                 onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                   />
                   <button
                     onClick={saveEmailTemplate}
                     disabled={!templateName.trim() || !emailSubject.trim() || !emailBody.trim()}
                     className="w-full rounded border bg-transparent px-4 py-2 text-sm hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ borderColor: primaryColor, color: primaryColor }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${primaryColor}10`}
+                    style={{ borderColor: adminAccent, color: adminAccent }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = adminAccentHoverBg}
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
                   >
                     save template
@@ -1800,13 +2002,13 @@ export default function AdminPage() {
                           <button
                             onClick={() => loadEmailTemplate(template)}
                             className="text-xs hover:opacity-80 border px-3 py-1 rounded"
-                          style={{ color: primaryColor, borderColor: primaryColor }}
+                          style={{ color: adminAccent, borderColor: adminAccent }}
                           >
                             load
                           </button>
                           <button
                             onClick={() => deleteEmailTemplate(template.id)}
-                            className="text-xs text-red-500 hover:text-red-400 border border-red-500/50 px-3 py-1 rounded"
+                            className="text-xs text-white/50 hover:text-white/70 border border-white/20 px-3 py-1 rounded"
                           >
                             delete
                           </button>
@@ -1822,7 +2024,7 @@ export default function AdminPage() {
 
         {activeTab === "event-config" && (
           <div className="space-y-8">
-            <h2 className="text-sm" style={{ color: primaryColor }}>event configuration</h2>
+            <h2 className="text-sm" style={{ color: adminAccent }}>event configuration</h2>
             
             {/* List of all event configs */}
             {allEventConfigs.length > 0 && (
@@ -1839,16 +2041,16 @@ export default function AdminPage() {
                           : "border-white/20 bg-white/5 text-white/70 hover:border-white/40 hover:text-white/90"
                       }`}
                       style={eventConfig?.id === config.id ? {
-                        borderColor: primaryColor,
-                        backgroundColor: `${primaryColor}10`,
-                        color: primaryColor
+                        borderColor: adminAccent,
+                        backgroundColor: adminAccentHoverBg,
+                        color: adminAccent
                       } : undefined}
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-medium">{config.event_name || config.event_id}</span>
                         <div className="flex items-center gap-2">
                           {config.is_active && (
-                            <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }}>
+                            <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: adminAccentMuted, color: adminAccent }}>
                               active
                             </span>
                           )}
@@ -1934,7 +2136,7 @@ export default function AdminPage() {
                           background_color: "#111111",
                           stripe_product_name: "soma space",
                           stripe_product_description: "soma space is a guided movement gathering rooted in presence, free expression, and connection. participants are invited to move with music and explore embodied awareness. no prior movement or dance experience is required.\n\nno one is ever turned away for not having enough. if you need financial support, please reach out to us directly.",
-                          stripe_image_url: "/renewal-checkout.jpg",
+                          stripe_image_url: "",
                           stripe_min_amount: 2200,
                           stripe_max_amount: 4400,
                           capacity: 25,
@@ -1942,8 +2144,8 @@ export default function AdminPage() {
                         });
                       }}
                       className="rounded border bg-transparent px-4 py-2 text-sm hover:opacity-80"
-                      style={{ borderColor: primaryColor, color: primaryColor }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${primaryColor}10`}
+                      style={{ borderColor: adminAccent, color: adminAccent }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = adminAccentHoverBg}
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
                     >
                       initialize with defaults
@@ -1964,7 +2166,7 @@ export default function AdminPage() {
                             value={eventConfig.event_id || ""}
                             onChange={(e) => setEventConfig({ ...eventConfig, event_id: e.target.value })}
                             className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
-                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onFocus={(e) => e.target.style.borderColor = adminAccent}
                             onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
@@ -1975,7 +2177,7 @@ export default function AdminPage() {
                             value={eventConfig.event_name || ""}
                             onChange={(e) => setEventConfig({ ...eventConfig, event_name: e.target.value })}
                             className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
-                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onFocus={(e) => e.target.style.borderColor = adminAccent}
                             onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
@@ -1986,7 +2188,7 @@ export default function AdminPage() {
                             value={eventConfig.event_date || ""}
                             onChange={(e) => setEventConfig({ ...eventConfig, event_date: e.target.value })}
                             className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
-                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onFocus={(e) => e.target.style.borderColor = adminAccent}
                             onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
@@ -1997,7 +2199,7 @@ export default function AdminPage() {
                             value={eventConfig.event_time || ""}
                             onChange={(e) => setEventConfig({ ...eventConfig, event_time: e.target.value })}
                             className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
-                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onFocus={(e) => e.target.style.borderColor = adminAccent}
                             onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
@@ -2008,7 +2210,7 @@ export default function AdminPage() {
                             value={eventConfig.event_place || ""}
                             onChange={(e) => setEventConfig({ ...eventConfig, event_place: e.target.value })}
                             className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
-                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onFocus={(e) => e.target.style.borderColor = adminAccent}
                             onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
@@ -2019,7 +2221,7 @@ export default function AdminPage() {
                             value={eventConfig.event_address || ""}
                             onChange={(e) => setEventConfig({ ...eventConfig, event_address: e.target.value })}
                             className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
-                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onFocus={(e) => e.target.style.borderColor = adminAccent}
                             onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
@@ -2030,7 +2232,7 @@ export default function AdminPage() {
                             value={eventConfig.event_note || ""}
                             onChange={(e) => setEventConfig({ ...eventConfig, event_note: e.target.value })}
                             className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
-                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onFocus={(e) => e.target.style.borderColor = adminAccent}
                             onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
@@ -2040,12 +2242,53 @@ export default function AdminPage() {
                             value={eventConfig.event_description || ""}
                             onChange={(e) => setEventConfig({ ...eventConfig, event_description: e.target.value })}
                             className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
-                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onFocus={(e) => e.target.style.borderColor = adminAccent}
                             onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                             rows={3}
                           />
                         </div>
+                        <div>
+                          <label className="block text-xs text-white/50 mb-1">Capacity</label>
+                          <input
+                            type="number"
+                            value={eventConfig.capacity || 25}
+                            onChange={(e) => setEventConfig({ ...eventConfig, capacity: parseInt(e.target.value) || 25 })}
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
+                            onFocus={(e) => e.target.style.borderColor = adminAccent}
+                            onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
+                          />
+                        </div>
                       </div>
+                    </div>
+
+                    {/* Multi-ticket */}
+                    <div className="bg-white/5 border border-white/10 p-4 space-y-4">
+                      <h3 className="text-xs text-white/70 uppercase">multi-ticket</h3>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={eventConfig.multi_ticket_enabled || false}
+                          onChange={(e) => setEventConfig({ ...eventConfig, multi_ticket_enabled: e.target.checked })}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-xs text-white/70">Allow multiple tickets per order (purchaser + guests)</span>
+                      </label>
+                      {eventConfig.multi_ticket_enabled && (
+                        <div>
+                          <label className="block text-xs text-white/50 mb-1">Max guests per order (max tickets = guests + 1)</label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={5}
+                            value={eventConfig.max_guests_per_order ?? 3}
+                            onChange={(e) => setEventConfig({ ...eventConfig, max_guests_per_order: Math.min(5, Math.max(1, parseInt(e.target.value) || 3)) })}
+                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-24 px-3 py-2"
+                            onFocus={(e) => e.target.style.borderColor = adminAccent}
+                            onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
+                          />
+                          <span className="ml-2 text-xs text-white/50">→ max {(eventConfig.max_guests_per_order ?? 3) + 1} tickets</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Colors */}
@@ -2066,7 +2309,7 @@ export default function AdminPage() {
                               value={eventConfig.primary_color || "#05fd00"}
                               onChange={(e) => setEventConfig({ ...eventConfig, primary_color: e.target.value })}
                               className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none flex-1 px-3 py-2"
-                              onFocus={(e) => e.target.style.borderColor = primaryColor}
+                              onFocus={(e) => e.target.style.borderColor = adminAccent}
                               onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                             />
                           </div>
@@ -2085,7 +2328,7 @@ export default function AdminPage() {
                               value={eventConfig.background_color || "#111111"}
                               onChange={(e) => setEventConfig({ ...eventConfig, background_color: e.target.value })}
                               className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none flex-1 px-3 py-2"
-                              onFocus={(e) => e.target.style.borderColor = primaryColor}
+                              onFocus={(e) => e.target.style.borderColor = adminAccent}
                               onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                             />
                           </div>
@@ -2104,7 +2347,7 @@ export default function AdminPage() {
                             value={eventConfig.stripe_product_name || ""}
                             onChange={(e) => setEventConfig({ ...eventConfig, stripe_product_name: e.target.value })}
                             className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
-                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onFocus={(e) => e.target.style.borderColor = adminAccent}
                             onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
@@ -2114,7 +2357,7 @@ export default function AdminPage() {
                             value={eventConfig.stripe_product_description || ""}
                             onChange={(e) => setEventConfig({ ...eventConfig, stripe_product_description: e.target.value })}
                             className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
-                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onFocus={(e) => e.target.style.borderColor = adminAccent}
                             onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                             rows={4}
                           />
@@ -2125,19 +2368,9 @@ export default function AdminPage() {
                             type="text"
                             value={eventConfig.stripe_image_url || ""}
                             onChange={(e) => setEventConfig({ ...eventConfig, stripe_image_url: e.target.value })}
+                            placeholder="Leave empty for auto-generated: “soma space presents [event name]” in your event color. Or set e.g. /checkout.jpg or full URL."
                             className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
-                            onFocus={(e) => e.target.style.borderColor = primaryColor}
-                            onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-white/50 mb-1">Capacity</label>
-                          <input
-                            type="number"
-                            value={eventConfig.capacity || 25}
-                            onChange={(e) => setEventConfig({ ...eventConfig, capacity: parseInt(e.target.value) || 25 })}
-                            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
-                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onFocus={(e) => e.target.style.borderColor = adminAccent}
                             onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
@@ -2148,7 +2381,7 @@ export default function AdminPage() {
                             value={eventConfig.stripe_min_amount || 2200}
                             onChange={(e) => setEventConfig({ ...eventConfig, stripe_min_amount: parseInt(e.target.value) || 2200 })}
                             className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
-                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onFocus={(e) => e.target.style.borderColor = adminAccent}
                             onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
@@ -2159,7 +2392,7 @@ export default function AdminPage() {
                             value={eventConfig.stripe_max_amount || 4400}
                             onChange={(e) => setEventConfig({ ...eventConfig, stripe_max_amount: parseInt(e.target.value) || 4400 })}
                             className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
-                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onFocus={(e) => e.target.style.borderColor = adminAccent}
                             onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           />
                         </div>
@@ -2188,7 +2421,7 @@ export default function AdminPage() {
                               value={(eventConfig[key] as string | undefined) || ""}
                               onChange={(e) => setEventConfig({ ...eventConfig, [key]: e.target.value } as EventConfig)}
                               className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
-                            onFocus={(e) => e.target.style.borderColor = primaryColor}
+                            onFocus={(e) => e.target.style.borderColor = adminAccent}
                             onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                               rows={2}
                             />
@@ -2207,7 +2440,7 @@ export default function AdminPage() {
                           value={eventConfig.event_password || ""}
                           onChange={(e) => setEventConfig({ ...eventConfig, event_password: e.target.value })}
                           className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
-                onFocus={(e) => e.target.style.borderColor = primaryColor}
+                onFocus={(e) => e.target.style.borderColor = adminAccent}
                 onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                           placeholder="Leave empty to use EVENT_PASSWORD env var"
                         />
@@ -2232,8 +2465,8 @@ export default function AdminPage() {
                       onClick={saveEventConfig}
                       disabled={isSavingEventConfig || isSavingAsNewEvent || !eventConfig.event_id || !eventConfig.event_name}
                       className="w-full rounded border bg-transparent px-4 py-2 text-sm hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ borderColor: primaryColor, color: primaryColor }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${primaryColor}10`}
+                    style={{ borderColor: adminAccent, color: adminAccent }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = adminAccentHoverBg}
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
                     >
                       {isSavingEventConfig ? "Saving..." : "Save Event Configuration"}
@@ -2245,17 +2478,17 @@ export default function AdminPage() {
                       disabled={isSavingEventConfig || isSavingAsNewEvent || !eventConfig.event_id || !eventConfig.event_name}
                       className="w-full rounded border-2 border-dashed bg-transparent px-4 py-2 text-sm font-medium hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed mt-3"
                       style={{ 
-                        borderColor: primaryColor + "80", 
-                        color: primaryColor,
+                        borderColor: "rgba(255,255,255,0.5)", 
+                        color: adminAccent,
                         backgroundColor: "transparent"
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = `${primaryColor}15`;
-                        e.currentTarget.style.borderColor = primaryColor;
+                        e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.1)";
+                        e.currentTarget.style.borderColor = adminAccent;
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.backgroundColor = "transparent";
-                        e.currentTarget.style.borderColor = primaryColor + "80";
+                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.5)";
                       }}
                     >
                       {isSavingAsNewEvent ? "Creating..." : "Save as New Event"}

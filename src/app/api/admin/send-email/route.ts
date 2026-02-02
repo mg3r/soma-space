@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getEventRegistrations } from "@/lib/admin";
 import { sendEmailToRegistrations } from "@/lib/email";
+import { getActiveEventConfig } from "@/lib/event-config";
 
 export async function POST(req: Request) {
   try {
@@ -114,8 +115,12 @@ export async function POST(req: Request) {
           selectedSessionIds.includes(reg.sessionId)
         );
         selectedRegistrations.forEach(reg => {
-          if (reg.customerEmail && reg.customerEmail !== "N/A") {
-            emails.push(reg.customerEmail);
+          const stripeEmail = reg.customerEmail?.trim();
+          const chatEmail = reg.preWaiverEmail?.trim()?.toLowerCase();
+          // Chat email is primary; checkout (Stripe) is secondary when different
+          if (chatEmail && chatEmail !== "N/A") emails.push(reg.preWaiverEmail!.trim());
+          if (stripeEmail && stripeEmail !== "N/A" && stripeEmail.toLowerCase() !== chatEmail) {
+            emails.push(stripeEmail);
           }
         });
       } else if (!hasCustomEmailInput) {
@@ -126,8 +131,12 @@ export async function POST(req: Request) {
           : registrations;
         
         activeRegistrations.forEach(reg => {
-          if (reg.customerEmail && reg.customerEmail !== "N/A") {
-            emails.push(reg.customerEmail);
+          const stripeEmail = reg.customerEmail?.trim();
+          const chatEmail = reg.preWaiverEmail?.trim()?.toLowerCase();
+          // Chat email is primary; checkout (Stripe) is secondary when different
+          if (chatEmail && chatEmail !== "N/A") emails.push(reg.preWaiverEmail!.trim());
+          if (stripeEmail && stripeEmail !== "N/A" && stripeEmail.toLowerCase() !== chatEmail) {
+            emails.push(stripeEmail);
           }
         });
       }
@@ -146,13 +155,18 @@ export async function POST(req: Request) {
       );
     }
 
+    // Get event config for dynamic colors
+    const eventConfig = await getActiveEventConfig();
+    const primaryColor = eventConfig.primary_color || "#05fd00";
+
     // Send emails with attachments
     const result = await sendEmailToRegistrations(
       uniqueEmails, 
       subject, 
       htmlBody, 
       useBcc,
-      attachments.length > 0 ? attachments : undefined
+      attachments.length > 0 ? attachments : undefined,
+      primaryColor
     );
 
     return NextResponse.json({
