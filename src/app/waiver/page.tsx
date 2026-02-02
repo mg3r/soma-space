@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useEventConfig } from "@/hooks/useEventConfig";
 
 const WAIVER_TITLE = "soma space – All Events & Gatherings";
@@ -16,7 +16,7 @@ const WAIVER_PARAGRAPHS = [
   "By signing below, I acknowledge that this waiver applies to all current and future soma space events that I attend, regardless of location or date, and that I have read, understood, and voluntarily agreed to these terms.",
 ];
 
-export default function WaiverPage() {
+function WaiverPageContent() {
   const searchParams = useSearchParams();
   const { primaryColor, backgroundColor, isLoading } = useEventConfig();
 
@@ -242,5 +242,19 @@ export default function WaiverPage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function WaiverPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen text-white" style={{ backgroundColor: "#111111" }}>
+        <div className="mx-auto max-w-2xl px-6 py-10">
+          <p className="text-sm text-white/50">loading...</p>
+        </div>
+      </main>
+    }>
+      <WaiverPageContent />
+    </Suspense>
   );
 }

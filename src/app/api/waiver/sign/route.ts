@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       String(email).trim(),
       String(firstName).trim(),
       String(lastName).trim(),
-      { ipAddress: ip, userAgent, waiverVersion: "1" }
+      { ipAddress: ip ?? undefined, userAgent: userAgent ?? undefined, waiverVersion: "1" }
     );
 
     if (!result.success) {

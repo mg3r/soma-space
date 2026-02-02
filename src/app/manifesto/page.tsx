@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEventConfig } from "@/hooks/useEventConfig";
 
-export default function page() {
+export default function ManifestoPage() {
   const { primaryColor, backgroundColor, isLoading } = useEventConfig();
 
   if (isLoading) {

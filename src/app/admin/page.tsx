@@ -550,7 +550,6 @@ export default function AdminPage() {
   const adminAccent = "rgba(255,255,255,0.85)";
   const adminAccentHoverBg = "rgba(255,255,255,0.08)";
   const adminAccentMuted = "rgba(255,255,255,0.12)";
-  const adminBorderFocus = "rgba(255,255,255,0.4)";
   const backgroundColor = activeEventConfig?.background_color || "#111111";
 
   useEffect(() => {

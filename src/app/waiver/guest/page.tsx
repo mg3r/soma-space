@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useEventConfig } from "@/hooks/useEventConfig";
 
 const WAIVER_TITLE = "soma space – All Events & Gatherings";
@@ -16,14 +16,14 @@ const WAIVER_PARAGRAPHS = [
   "By signing below, I acknowledge that this waiver applies to all current and future soma space events that I attend, regardless of location or date, and that I have read, understood, and voluntarily agreed to these terms.",
 ];
 
-export default function WaiverGuestPage() {
+function WaiverGuestContent() {
   const searchParams = useSearchParams();
   const { primaryColor, backgroundColor, isLoading } = useEventConfig();
   const token = searchParams.get("token") ?? "";
   const emailParam = searchParams.get("email") ?? "";
 
   const [valid, setValid] = useState<boolean | null>(null);
-  const [guestName, setGuestName] = useState("");
+  const [, setGuestName] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [agree, setAgree] = useState(false);
@@ -200,5 +200,19 @@ export default function WaiverGuestPage() {
         {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
       </div>
     </main>
+  );
+}
+
+export default function WaiverGuestPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen text-white" style={{ backgroundColor: "#111111" }}>
+        <div className="mx-auto max-w-2xl px-6 py-10">
+          <p className="text-sm text-white/50">verifying link...</p>
+        </div>
+      </main>
+    }>
+      <WaiverGuestContent />
+    </Suspense>
   );
 }
