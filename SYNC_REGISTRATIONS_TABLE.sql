@@ -12,7 +12,8 @@
 -- =============================================================================
 ALTER TABLE registrations
   ADD COLUMN IF NOT EXISTS pre_waiver_email TEXT,
-  ADD COLUMN IF NOT EXISTS is_excluded BOOLEAN DEFAULT FALSE;
+  ADD COLUMN IF NOT EXISTS is_excluded BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS refunded_at TIMESTAMP WITH TIME ZONE;
 
 -- =============================================================================
 -- 2. Indexes (create only if not present)

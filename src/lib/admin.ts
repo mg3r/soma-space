@@ -323,7 +323,7 @@ export async function getEventRegistrations(
         const list = data.map((row) => {
           const isExcluded = row.is_excluded || excludedIds.has(row.session_id);
           const exclusionInfo = excludedWithReasons.get(row.session_id);
-          const isRefunded = exclusionInfo?.isRefunded || false;
+          const isRefunded = row.refunded_at != null || exclusionInfo?.isRefunded || false;
           
           return {
             sessionId: row.session_id,
