@@ -1005,10 +1005,10 @@ export default function AdminPage() {
         <div className="bg-white/5 border border-white/10">
           <div className="border-b border-white/10 p-4">
             <h2 className="text-sm" style={{ color: adminAccent }}>
-              registrations ({registrations.length})
+              registrations for {selectedEvent} ({registrations.length})
             </h2>
             <p className="mt-1 text-xs text-white/50">
-              shown for the selected event. checkout uses the <strong>active</strong> event—set your event as active before testing to see registrations here.
+              event is selected in the dropdown above. checkout uses the <strong>active</strong> event—set your event as active before testing so new registrations appear here.
             </p>
             <p className="mt-1 text-xs text-white/50">
               emails: <strong>chat</strong> is primary; <strong>checkout</strong> (Stripe) shown when different. bulk send includes both. waiver: ✓ signed, — not signed.
@@ -1020,9 +1020,9 @@ export default function AdminPage() {
             </div>
           ) : registrations.length === 0 ? (
             <div className="p-8 text-center text-sm text-white/50 space-y-2">
-              <p>no registrations yet</p>
+              <p>no registrations yet for {selectedEvent}</p>
               <p className="text-xs text-white/40 max-w-md mx-auto">
-                Testing on localhost? Registrations only sync when Stripe sends a webhook. Run <code className="bg-white/10 px-1 rounded">npm run stripe:listen</code> in a second terminal and set <code className="bg-white/10 px-1 rounded">STRIPE_WEBHOOK_SECRET</code> in .env.local (see LOCAL_WEBHOOK_SETUP.md).
+                Confirm the dropdown above is set to the event you paid for (e.g. BELONGING). Registrations sync when Stripe sends a webhook after checkout—on localhost run <code className="bg-white/10 px-1 rounded">npm run stripe:listen</code> and set <code className="bg-white/10 px-1 rounded">STRIPE_WEBHOOK_SECRET</code>; in production check Stripe Dashboard → Webhooks → your endpoint → Recent deliveries.
               </p>
             </div>
           ) : (

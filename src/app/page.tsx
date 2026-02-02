@@ -472,7 +472,7 @@ export default function Page() {
         return;
       }
       setMultiTicketGuests([]);
-      await botSay({ type: "bot", text: "what's your first guest's first name?" });
+      await botSay({ type: "bot", text: "what's your guest's first name?" });
       setPhase("register_guest_first_name");
       return;
     }

@@ -91,7 +91,13 @@ export async function POST(req: Request) {
         const customerEmail =
           (chargePayerEmail || sessionContact) || "N/A";
 
-        console.log("[webhook] Syncing registration to Supabase, eventId:", finalEventId);
+        // Log which Supabase we're using (APP_MODE must be "live" to use _LIVE URL/key; else we use default = test project)
+        const appMode = process.env.APP_MODE?.toLowerCase();
+        const supabaseUrlUsed = appMode === "live"
+          ? process.env.NEXT_PUBLIC_SUPABASE_URL_LIVE
+          : process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseHost = supabaseUrlUsed ? new URL(supabaseUrlUsed).hostname : "(none)";
+        console.log("[webhook] APP_MODE=", process.env.APP_MODE ?? "(unset)", "Supabase host=", supabaseHost, "eventId=", finalEventId);
         await syncRegistrationToSupabase(sessionToSync, finalEventId, customerEmail);
 
         // Get the correct event config for this specific event (not the active one)
@@ -252,58 +258,68 @@ async function syncRegistrationToSupabase(
   session: Stripe.Checkout.Session,
   eventId: string,
   customerEmailOverride?: string
-) {
+): Promise<void> {
   if (!supabase) {
-    console.warn("Supabase not configured, skipping registration sync");
-    return;
+    const msg =
+      "Supabase not configured. When APP_MODE=live set NEXT_PUBLIC_SUPABASE_URL_LIVE and SUPABASE_SERVICE_ROLE_KEY_LIVE in Vercel.";
+    console.error("[webhook]", msg);
+    throw new Error(msg);
   }
 
-  try {
-    const amountPaid = (session.amount_total || 0) / 100;
-    const paymentDate = new Date((session.created || 0) * 1000).toISOString();
+  const amountPaid = (session.amount_total || 0) / 100;
+  const paymentDate = new Date((session.created || 0) * 1000).toISOString();
 
-    const customerEmailToWrite =
-      customerEmailOverride?.trim() ||
-      session.customer_details?.email?.trim() ||
-      "N/A";
-    const sessionContactEmail = session.customer_details?.email?.trim()?.toLowerCase() ?? null;
+  const customerEmailToWrite =
+    customerEmailOverride?.trim() ||
+    session.customer_details?.email?.trim() ||
+    "N/A";
+  const sessionContactEmail = session.customer_details?.email?.trim()?.toLowerCase() ?? null;
 
-    // Pre-waiver email: from metadata (chat/waiver flow), fallback so column is always set when we have an email
-    const metaPreWaiver = (session.metadata?.pre_waiver_email as string)?.trim()?.toLowerCase() ?? null;
-    const preWaiverEmail = metaPreWaiver || sessionContactEmail || customerEmailToWrite?.toLowerCase() || null;
-    // Prefer chat/waiver name over Stripe checkout name so we store the name they gave in our flow
-    const customerName =
-      (session.metadata?.pre_waiver_name as string)?.trim() ||
-      session.customer_details?.name ||
-      session.customer_details?.email ||
-      "N/A";
+  // Pre-waiver email: from metadata (chat/waiver flow), fallback so column is always set when we have an email
+  const metaPreWaiver = (session.metadata?.pre_waiver_email as string)?.trim()?.toLowerCase() ?? null;
+  const preWaiverEmail = metaPreWaiver || sessionContactEmail || customerEmailToWrite?.toLowerCase() || null;
+  // Prefer chat/waiver name over Stripe checkout name so we store the name they gave in our flow
+  const customerName =
+    (session.metadata?.pre_waiver_name as string)?.trim() ||
+    session.customer_details?.name ||
+    session.customer_details?.email ||
+    "N/A";
 
-    const { error } = await supabase.from("registrations").upsert(
-      {
-        session_id: session.id,
-        event_id: eventId,
-        customer_name: customerName,
-        customer_email: customerEmailToWrite,
-        customer_phone: session.customer_details?.phone || null,
-        pre_waiver_email: preWaiverEmail,
-        amount_paid: amountPaid,
-        payment_date: paymentDate,
-        stripe_customer_id: session.customer || null,
-        is_excluded: false,
-        updated_at: new Date().toISOString(),
-      },
-      {
-        onConflict: "session_id",
-      }
-    );
-
-    if (error) {
-      console.error("Error syncing registration to Supabase:", error);
-    } else {
-      console.log(`✅ Synced registration ${session.id} to Supabase (event_id: ${eventId})`);
+  const { error } = await supabase.from("registrations").upsert(
+    {
+      session_id: session.id,
+      event_id: eventId,
+      customer_name: customerName,
+      customer_email: customerEmailToWrite,
+      customer_phone: session.customer_details?.phone || null,
+      pre_waiver_email: preWaiverEmail,
+      amount_paid: amountPaid,
+      payment_date: paymentDate,
+      stripe_customer_id: session.customer || null,
+      is_excluded: false,
+      updated_at: new Date().toISOString(),
+    },
+    {
+      onConflict: "session_id",
     }
-  } catch (error) {
-    console.error("Error in syncRegistrationToSupabase:", error);
+  );
+
+  if (error) {
+    console.error("[webhook] Error syncing registration to Supabase:", error.message, error.details);
+    throw new Error(`Supabase upsert failed: ${error.message}`);
+  }
+  // Read-after-write: confirm row exists in same project (helps debug "row not showing" when waiver works)
+  const { data: row, error: selectError } = await supabase
+    .from("registrations")
+    .select("session_id, event_id, customer_email")
+    .eq("session_id", session.id)
+    .maybeSingle();
+  if (selectError) {
+    console.warn("[webhook] Read-after-write check failed:", selectError.message);
+  } else if (row) {
+    console.log("[webhook] ✅ Synced registration", session.id, "to Supabase (event_id:", eventId, ") verified row:", row.event_id, row.customer_email);
+  } else {
+    console.warn("[webhook] ✅ Upsert returned no error but row not found by session_id — check table/schema in project", process.env.NEXT_PUBLIC_SUPABASE_URL_LIVE ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL_LIVE).hostname : "");
   }
 }
 
