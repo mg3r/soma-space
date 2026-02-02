@@ -830,7 +830,7 @@ export default function Page() {
                             step="1"
                             value={contributionAmount}
                             onChange={(e) => setContributionAmount(e.target.value)}
-                            className="bg-transparent border-b border-white/20 text-white/80 text-sm focus:outline-none w-20 px-2"
+                            className="bg-transparent border-b border-white/20 text-white/80 text-base md:text-sm focus:outline-none w-20 px-2"
                             onFocus={(e) => e.target.style.borderColor = primaryColor}
                             onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
                             placeholder="33"
@@ -875,7 +875,7 @@ export default function Page() {
             <div className="border-t border-white/10 p-4">
               <div className="flex items-center gap-3">
                 <input
-                  className="w-full bg-transparent px-0 py-2 text-sm text-white/90 placeholder:text-white/30 outline-none"
+                  className="w-full bg-transparent px-0 py-2 text-base md:text-sm text-white/90 placeholder:text-white/30 outline-none"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && submit()}
