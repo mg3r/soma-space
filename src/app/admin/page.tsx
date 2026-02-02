@@ -1901,6 +1901,14 @@ export default function AdminPage() {
                   ) : null;
                 })()}
               </p>
+              {getEmailRecipients().length > 0 && (
+                <p className="text-xs text-white/50 mb-2">
+                  sending to:{" "}
+                  <span className="text-white/70 break-all">
+                    {getEmailRecipients().join(", ")}
+                  </span>
+                </p>
+              )}
               <div className="flex items-center gap-2">
                 <button
                   onClick={sendEmailToRegistrations}
