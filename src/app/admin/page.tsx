@@ -88,6 +88,7 @@ export default function AdminPage() {
   const [peopleSortAsc, setPeopleSortAsc] = useState(true);
   const [funnel, setFunnel] = useState<{ started: number; abandoned: number; completed: number } | null>(null);
   const [registrationsOverTime, setRegistrationsOverTime] = useState<{ series: { date: string; count: number }[]; newThisWeek: number } | null>(null);
+  const [chartHover, setChartHover] = useState<{ date: string; count: number } | null>(null);
   const [newCapacity, setNewCapacity] = useState("");
   const [isUpdatingCapacity, setIsUpdatingCapacity] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -1246,7 +1247,7 @@ export default function AdminPage() {
             </div>
           )}
           {registrationsOverTime !== null && (
-            <div className="mb-8">
+            <div className="mb-8 relative">
               <p className="text-xs text-white/50 mb-2">
                 registrations over time (last 30 days)
                 {registrationsOverTime.newThisWeek !== undefined && (
@@ -1255,6 +1256,16 @@ export default function AdminPage() {
                   </span>
                 )}
               </p>
+              {chartHover && (
+                <div
+                  className="absolute left-0 top-0 z-10 rounded border border-white/20 bg-black/90 px-2 py-1 text-xs text-white shadow"
+                  style={{ borderColor: adminAccent }}
+                >
+                  {new Date(chartHover.date + "Z").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                  {" · "}
+                  {chartHover.count === 1 ? "1 registration" : `${chartHover.count} registrations`}
+                </div>
+              )}
               <div className="flex items-end gap-0.5 h-12 w-full max-w-md">
                 {registrationsOverTime.series.map(({ date, count }) => {
                   const max = Math.max(1, ...registrationsOverTime.series.map((s) => s.count));
@@ -1265,6 +1276,8 @@ export default function AdminPage() {
                       className="flex-1 min-w-0 rounded-t bg-white/20 hover:bg-white/40 transition-colors"
                       style={{ height: `${Math.max(h, 2)}%` }}
                       title={`${date}: ${count}`}
+                      onMouseEnter={() => setChartHover({ date, count })}
+                      onMouseLeave={() => setChartHover(null)}
                     />
                   );
                 })}

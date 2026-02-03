@@ -539,7 +539,11 @@ export async function getRegistrationsOverTime(
       const dateStr = d.toISOString().slice(0, 10);
       series.push({ date: dateStr, count: byDay.get(dateStr) ?? 0 });
     }
-    return { series, newThisWeek };
+    // Trim to first day with activity through today (max 30 days)
+    const firstActiveIdx = series.findIndex((s) => s.count > 0);
+    const trimmed = firstActiveIdx >= 0 ? series.slice(firstActiveIdx) : series;
+    const capped = trimmed.length > days ? trimmed.slice(-days) : trimmed;
+    return { series: capped, newThisWeek };
   } catch (e) {
     console.error("getRegistrationsOverTime error:", e);
     return { series: buildEmptySeries(days), newThisWeek: 0 };
@@ -661,20 +665,23 @@ export type AbandonmentFunnel = {
 };
 
 /**
- * Get sign-up funnel for an event: started (all pending orders), abandoned (never completed), completed (started - abandoned).
+ * Get sign-up funnel for an event.
+ * completed = registration count (source of truth); started = max(pending_orders count, completed); abandoned = pending orders that never registered.
  */
 export async function getAbandonmentFunnel(eventId: string): Promise<AbandonmentFunnel> {
   if (!supabase) return { started: 0, abandoned: 0, completed: 0 };
   try {
-    const { count: started, error: countError } = await supabase
-      .from("pending_orders")
-      .select("id", { count: "exact", head: true })
-      .eq("event_id", eventId);
-    if (countError) return { started: 0, abandoned: 0, completed: 0 };
-    const startedNum = started ?? 0;
+    const [{ count: pendingCount, error: pendingError }, { count: completedCount, error: regError }] = await Promise.all([
+      supabase.from("pending_orders").select("id", { count: "exact", head: true }).eq("event_id", eventId),
+      supabase.from("registrations").select("session_id", { count: "exact", head: true }).eq("event_id", eventId),
+    ]);
+    if (pendingError || regError) return { started: 0, abandoned: 0, completed: 0 };
+    const completed = completedCount ?? 0;
+    const startedNum = pendingCount ?? 0;
+    const started = Math.max(startedNum, completed);
     const abandoned = await getAbandonedPendingOrders(eventId);
     const abandonedNum = abandoned.length;
-    return { started: startedNum, abandoned: abandonedNum, completed: Math.max(0, startedNum - abandonedNum) };
+    return { started, abandoned: abandonedNum, completed };
   } catch (e) {
     console.error("getAbandonmentFunnel error:", e);
     return { started: 0, abandoned: 0, completed: 0 };
