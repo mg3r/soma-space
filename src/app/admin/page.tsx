@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { nextEvent } from "@/config/event";
 import Link from "next/link";
 import type { EventConfig } from "@/lib/event-config";
@@ -51,6 +51,23 @@ type AbandonedPendingOrder = {
   created_at: string;
 };
 
+type AllEventsMetrics = {
+  totalRegistrations: number;
+  totalRevenue: number;
+  totalRefunded: number;
+};
+
+type PersonSummary = {
+  email: string;
+  name: string;
+  phone: string;
+  eventIds: string[];
+  eventCount: number;
+  totalAmount: number;
+};
+
+const ALL_EVENTS_ID = "__all__";
+
 export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -61,6 +78,16 @@ export default function AdminPage() {
   const [pendingOrders, setPendingOrders] = useState<AbandonedPendingOrder[]>([]);
   const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
+  const [allEventsMetrics, setAllEventsMetrics] = useState<AllEventsMetrics | null>(null);
+  const [allEventsPeople, setAllEventsPeople] = useState<PersonSummary[]>([]);
+  const [isLoadingAllEvents, setIsLoadingAllEvents] = useState(false);
+  const [peopleFilterEvent, setPeopleFilterEvent] = useState<string>("");
+  const [peopleFilterMinEvents, setPeopleFilterMinEvents] = useState<string>("");
+  const [peopleFilterMinAmount, setPeopleFilterMinAmount] = useState<string>("");
+  const [peopleSortBy, setPeopleSortBy] = useState<"name" | "email" | "events" | "amount">("name");
+  const [peopleSortAsc, setPeopleSortAsc] = useState(true);
+  const [funnel, setFunnel] = useState<{ started: number; abandoned: number; completed: number } | null>(null);
+  const [registrationsOverTime, setRegistrationsOverTime] = useState<{ series: { date: string; count: number }[]; newThisWeek: number } | null>(null);
   const [newCapacity, setNewCapacity] = useState("");
   const [isUpdatingCapacity, setIsUpdatingCapacity] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -475,6 +502,24 @@ export default function AdminPage() {
           setPendingOrders(pendingData.pendingOrders || []);
         }
       }
+
+      // Load abandonment funnel
+      const funnelRes = await fetch(`/api/admin/funnel?eventId=${eventId}`);
+      if (funnelRes.ok) {
+        const funnelData = await funnelRes.json();
+        if (loadEventIdRef.current === eventId) {
+          setFunnel(funnelData.funnel ?? { started: 0, abandoned: 0, completed: 0 });
+        }
+      }
+
+      // Load registrations over time (last 30 days + new this week)
+      const overTimeRes = await fetch(`/api/admin/registrations-over-time?eventId=${eventId}&days=30`);
+      if (overTimeRes.ok) {
+        const overTimeData = await overTimeRes.json();
+        if (loadEventIdRef.current === eventId) {
+          setRegistrationsOverTime({ series: Array.isArray(overTimeData.series) ? overTimeData.series : [], newThisWeek: overTimeData.newThisWeek ?? 0 });
+        }
+      }
     } catch {
       console.error("Error loading data");
     } finally {
@@ -516,6 +561,58 @@ export default function AdminPage() {
     }
   }
 
+  const loadAllEvents = useCallback(async () => {
+    setIsLoadingAllEvents(true);
+    try {
+      const res = await fetch("/api/admin/all-events");
+      if (res.ok) {
+        const data = await res.json();
+        setAllEventsMetrics(data.metrics ?? null);
+        setAllEventsPeople(data.people ?? []);
+      }
+    } catch (e) {
+      console.error("Error loading all-events:", e);
+    } finally {
+      setIsLoadingAllEvents(false);
+    }
+  }, []);
+
+  const filteredAndSortedPeople = useMemo(() => {
+    let list = [...allEventsPeople];
+    if (peopleFilterEvent) {
+      list = list.filter((p) => p.eventIds.includes(peopleFilterEvent));
+    }
+    if (peopleFilterMinEvents) {
+      const min = parseInt(peopleFilterMinEvents, 10);
+      if (!isNaN(min)) list = list.filter((p) => p.eventCount >= min);
+    }
+    if (peopleFilterMinAmount) {
+      const min = parseFloat(peopleFilterMinAmount);
+      if (!isNaN(min)) list = list.filter((p) => p.totalAmount >= min);
+    }
+    list.sort((a, b) => {
+      let cmp = 0;
+      switch (peopleSortBy) {
+        case "name":
+          cmp = (a.name || "").localeCompare(b.name || "");
+          break;
+        case "email":
+          cmp = a.email.localeCompare(b.email);
+          break;
+        case "events":
+          cmp = a.eventCount - b.eventCount;
+          break;
+        case "amount":
+          cmp = a.totalAmount - b.totalAmount;
+          break;
+        default:
+          cmp = (a.name || "").localeCompare(b.name || "");
+      }
+      return peopleSortAsc ? cmp : -cmp;
+    });
+    return list;
+  }, [allEventsPeople, peopleFilterEvent, peopleFilterMinEvents, peopleFilterMinAmount, peopleSortBy, peopleSortAsc]);
+
   useEffect(() => {
     if (isAuthenticated) {
       loadData();
@@ -523,12 +620,15 @@ export default function AdminPage() {
     }
   }, [isAuthenticated, loadData, loadEmailTemplates]);
 
-  // Reload data when selected event changes
+  // Reload data when selected event changes (All events vs single event)
   useEffect(() => {
-    if (isAuthenticated && selectedEvent) {
+    if (!isAuthenticated) return;
+    if (selectedEvent === ALL_EVENTS_ID) {
+      loadAllEvents();
+    } else if (selectedEvent) {
       loadData();
     }
-  }, [selectedEvent, isAuthenticated, loadData]);
+  }, [selectedEvent, isAuthenticated, loadData, loadAllEvents]);
 
   // Load active event config immediately when authenticated (for colors)
   useEffect(() => {
@@ -618,9 +718,6 @@ export default function AdminPage() {
 
   // Calculate email recipients
   const getEmailRecipients = () => {
-    const emails: string[] = [];
-    
-    // Parse custom emails first
     const customEmailList: string[] = [];
     if (customEmails.trim()) {
       customEmails.split(/[,\n]/).forEach(email => {
@@ -631,20 +728,22 @@ export default function AdminPage() {
       });
     }
 
-    // If custom emails are provided, ONLY send to those (unless registrations are also selected)
+    // All events: send to all people + custom emails
+    if (selectedEvent === ALL_EVENTS_ID) {
+      const peopleEmails = allEventsPeople.map((p) => p.email);
+      return [...new Set([...peopleEmails, ...customEmailList])];
+    }
+
+    const emails: string[] = [];
+    // If custom emails only (no registrations selected), return just custom emails
     if (customEmailList.length > 0 && selectedSessionIds.size === 0) {
       return customEmailList;
     }
 
-    // If user has typed something in custom emails but it's invalid, don't default to all registrations
-    // Only include registrations if custom emails field is empty
     const hasCustomEmailInput = customEmails.trim().length > 0;
-    
-    // Include selected registrations (Stripe + chat email when different; one name = up to 2 emails)
     const addRegEmails = (reg: Registration) => {
       const stripeEmail = reg.customerEmail?.trim();
       const chatEmail = reg.preWaiverEmail?.trim()?.toLowerCase();
-      // Chat email is primary; checkout (Stripe) is secondary when different
       if (chatEmail && chatEmail !== "N/A") emails.push(reg.preWaiverEmail!.trim());
       if (stripeEmail && stripeEmail !== "N/A" && stripeEmail.toLowerCase() !== chatEmail) {
         emails.push(stripeEmail);
@@ -660,9 +759,7 @@ export default function AdminPage() {
         .forEach(addRegEmails);
     }
 
-    // Add custom emails to the list (if registrations are also selected)
     customEmailList.forEach(email => emails.push(email));
-
     return [...new Set(emails)];
   };
 
@@ -891,11 +988,11 @@ export default function AdminPage() {
             onFocus={(e) => e.target.style.borderColor = adminAccent}
             onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
           >
+            <option value={ALL_EVENTS_ID}>all events</option>
             {allEventConfigs.length > 0 ? (
               allEventConfigs
                 .filter((config) => config.event_id && config.event_id.trim() !== "")
                 .sort((a, b) => {
-                  // Sort: active first, then by updated_at (most recent first)
                   if (a.is_active && !b.is_active) return -1;
                   if (!a.is_active && b.is_active) return 1;
                   const aDate = a.updated_at ? new Date(a.updated_at).getTime() : 0;
@@ -939,24 +1036,143 @@ export default function AdminPage() {
               email
             </button>
             <button
-              onClick={() => setActiveTab("event-config")}
-              className={`pb-3 text-sm transition-colors ${
-                activeTab === "event-config"
-                  ? "border-b-2"
-                  : "text-white/50 hover:text-white/80"
-              }`}
-              style={activeTab === "event-config" ? { color: adminAccent, borderColor: adminAccent } : undefined}
-            >
-              event configuration
-            </button>
+                onClick={() => setActiveTab("event-config")}
+                className={`pb-3 text-sm transition-colors ${
+                  activeTab === "event-config"
+                    ? "border-b-2"
+                    : "text-white/50 hover:text-white/80"
+                }`}
+                style={activeTab === "event-config" ? { color: adminAccent, borderColor: adminAccent } : undefined}
+              >
+                event configuration
+              </button>
           </div>
         </div>
 
         {activeTab === "overview" && (
           <>
+        {selectedEvent === ALL_EVENTS_ID ? (
+          /* All-events view: metrics + people table */
+          <div className="space-y-8">
+            {allEventsMetrics && (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="bg-white/5 border border-white/10 p-4">
+                  <p className="text-xs text-white/50">total registrations</p>
+                  <p className="mt-1 text-2xl text-white">{allEventsMetrics.totalRegistrations}</p>
+                </div>
+                <div className="bg-white/5 border border-white/10 p-4">
+                  <p className="text-xs text-white/50">total revenue</p>
+                  <p className="mt-1 text-2xl text-white">${allEventsMetrics.totalRevenue.toFixed(2)}</p>
+                </div>
+                <div className="bg-white/5 border border-white/10 p-4">
+                  <p className="text-xs text-white/50">total refunded</p>
+                  <p className="mt-1 text-2xl text-white/50">${allEventsMetrics.totalRefunded.toFixed(2)}</p>
+                </div>
+              </div>
+            )}
+            <div className="bg-white/5 border border-white/10">
+              <div className="border-b border-white/10 p-4">
+                <h2 className="text-sm" style={{ color: adminAccent }}>
+                  people ({filteredAndSortedPeople.length}{allEventsPeople.length !== filteredAndSortedPeople.length ? ` of ${allEventsPeople.length}` : ""})
+                </h2>
+                <p className="mt-1 text-xs text-white/50">
+                  one row per person (by email). events attended and total amount across all events.
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <span className="text-xs text-white/50">filter:</span>
+                  <select
+                    value={peopleFilterEvent}
+                    onChange={(e) => setPeopleFilterEvent(e.target.value)}
+                    className="bg-white/5 border border-white/20 text-white/80 text-xs focus:outline-none px-2 py-1"
+                  >
+                    <option value="">all events</option>
+                    {allEventConfigs.filter((c) => c.event_id).map((c) => (
+                      <option key={c.event_id} value={c.event_id}>{c.event_name || c.event_id}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={peopleFilterMinEvents}
+                    onChange={(e) => setPeopleFilterMinEvents(e.target.value)}
+                    className="bg-white/5 border border-white/20 text-white/80 text-xs focus:outline-none px-2 py-1"
+                  >
+                    <option value="">any # events</option>
+                    <option value="1">1+</option>
+                    <option value="2">2+</option>
+                    <option value="3">3+</option>
+                  </select>
+                  <select
+                    value={peopleFilterMinAmount}
+                    onChange={(e) => setPeopleFilterMinAmount(e.target.value)}
+                    className="bg-white/5 border border-white/20 text-white/80 text-xs focus:outline-none px-2 py-1"
+                  >
+                    <option value="">any amount</option>
+                    <option value="50">&gt; $50</option>
+                    <option value="100">&gt; $100</option>
+                  </select>
+                  <span className="text-xs text-white/50 ml-2">sort:</span>
+                  <select
+                    value={peopleSortBy}
+                    onChange={(e) => setPeopleSortBy(e.target.value as "name" | "email" | "events" | "amount")}
+                    className="bg-white/5 border border-white/20 text-white/80 text-xs focus:outline-none px-2 py-1"
+                  >
+                    <option value="name">name</option>
+                    <option value="email">email</option>
+                    <option value="events"># events</option>
+                    <option value="amount">amount</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setPeopleSortAsc((a) => !a)}
+                    className="text-xs text-white/50 hover:text-white/80"
+                  >
+                    {peopleSortAsc ? "↑" : "↓"}
+                  </button>
+                </div>
+              </div>
+              {isLoadingAllEvents ? (
+                <div className="p-8 text-center text-sm text-white/50">loading...</div>
+              ) : filteredAndSortedPeople.length === 0 ? (
+                <div className="p-8 text-center text-sm text-white/50">
+                  {allEventsPeople.length === 0 ? "no people yet" : "no people match filters"}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-white/10">
+                        <th className="px-4 py-3 text-left text-xs text-white/50">name</th>
+                        <th className="px-4 py-3 text-left text-xs text-white/50">email</th>
+                        <th className="px-4 py-3 text-left text-xs text-white/50">phone</th>
+                        <th className="px-4 py-3 text-left text-xs text-white/50">events attended</th>
+                        <th className="px-4 py-3 text-right text-xs text-white/50">#</th>
+                        <th className="px-4 py-3 text-right text-xs text-white/50">total amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredAndSortedPeople.map((p) => (
+                        <tr key={p.email} className="border-b border-white/5 hover:bg-white/5">
+                          <td className="px-4 py-3 text-sm text-white/80">{p.name}</td>
+                          <td className="px-4 py-3 text-sm text-white/80">{p.email}</td>
+                          <td className="px-4 py-3 text-sm text-white/80">{p.phone === "—" ? "—" : p.phone}</td>
+                          <td className="px-4 py-3 text-sm text-white/80">
+                            {p.eventIds.map((eid) => allEventConfigs.find((c) => c.event_id === eid)?.event_name || eid).join(", ") || "—"}
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm text-white/80">{p.eventCount}</td>
+                          <td className="px-4 py-3 text-right text-sm text-white/80">${p.totalAmount.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
         {/* Stats Summary */}
         {stats && (
-          <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-6">
+          <>
+          <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-7">
             <div className="bg-white/5 border border-white/10 p-4">
               <p className="text-xs text-white/50">registered</p>
               <p className="mt-1 text-2xl text-white">{stats.registered}</p>
@@ -981,7 +1197,81 @@ export default function AdminPage() {
               <p className="text-xs text-white/50">refunded</p>
               <p className="mt-1 text-2xl text-white/50">${stats.refundedAmount.toFixed(2)}</p>
             </div>
+            <div className="bg-white/5 border border-white/10 p-4">
+              <p className="text-xs text-white/50">avg contribution</p>
+              <p className="mt-1 text-2xl text-white/80">${stats.averageContribution.toFixed(2)}</p>
+            </div>
           </div>
+          <p className="mb-4 text-xs text-white/50">
+            waiver: {registrations.filter((r) => r.waiverSigned).length}/{registrations.length} signed
+            {" · "}
+            last registration: {registrations.length === 0
+              ? "—"
+              : (() => {
+                  const latest = new Date(Math.max(...registrations.map((r) => new Date(r.paymentDate).getTime())));
+                  const now = new Date();
+                  const days = Math.floor((now.getTime() - latest.getTime()) / (24 * 60 * 60 * 1000));
+                  if (days === 0) return "today";
+                  if (days === 1) return "yesterday";
+                  if (days < 7) return `${days} days ago`;
+                  return latest.toLocaleDateString();
+                })()}
+          </p>
+          {funnel !== null && (
+            <div className="mb-8">
+              <p className="text-xs text-white/50 mb-2">sign-up funnel</p>
+              <div className="flex items-center gap-4 text-sm text-white/80">
+                <span>started: <strong>{funnel.started}</strong></span>
+                <span>completed: <strong style={{ color: adminAccent }}>{funnel.completed}</strong></span>
+                <span>abandoned: <strong className="text-white/60">{funnel.abandoned}</strong></span>
+              </div>
+              <div className="mt-2 h-2 w-full max-w-xs bg-white/10 rounded overflow-hidden flex">
+                {funnel.started > 0 ? (
+                  <>
+                    <div
+                      className="h-full rounded-l"
+                      style={{ width: `${(funnel.completed / funnel.started) * 100}%`, backgroundColor: adminAccent }}
+                      title={`completed: ${funnel.completed}`}
+                    />
+                    <div
+                      className="h-full rounded-r"
+                      style={{ width: `${(funnel.abandoned / funnel.started) * 100}%`, backgroundColor: "rgba(255,255,255,0.3)" }}
+                      title={`abandoned: ${funnel.abandoned}`}
+                    />
+                  </>
+                ) : (
+                  <div className="h-full w-full rounded bg-white/5" title="No sign-up activity yet" />
+                )}
+              </div>
+            </div>
+          )}
+          {registrationsOverTime !== null && (
+            <div className="mb-8">
+              <p className="text-xs text-white/50 mb-2">
+                registrations over time (last 30 days)
+                {registrationsOverTime.newThisWeek !== undefined && (
+                  <span className="ml-2" style={{ color: adminAccent }}>
+                    new this week: {registrationsOverTime.newThisWeek}
+                  </span>
+                )}
+              </p>
+              <div className="flex items-end gap-0.5 h-12 w-full max-w-md">
+                {registrationsOverTime.series.map(({ date, count }) => {
+                  const max = Math.max(1, ...registrationsOverTime.series.map((s) => s.count));
+                  const h = max > 0 ? (count / max) * 100 : 0;
+                  return (
+                    <div
+                      key={date}
+                      className="flex-1 min-w-0 rounded-t bg-white/20 hover:bg-white/40 transition-colors"
+                      style={{ height: `${Math.max(h, 2)}%` }}
+                      title={`${date}: ${count}`}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          </>
         )}
 
             {/* Capacity Management */}
@@ -1433,10 +1723,22 @@ export default function AdminPage() {
         </div>
           </>
         )}
+          </>
+        )}
 
         {activeTab === "email" && (
           <>
-            {/* Registrations Table for Email Tab */}
+            {selectedEvent === ALL_EVENTS_ID ? (
+              <div className="mb-8 bg-white/5 border border-white/10 p-4">
+                <h2 className="text-sm" style={{ color: adminAccent }}>
+                  recipients: all people ({allEventsPeople.length})
+                </h2>
+                <p className="mt-1 text-xs text-white/50">
+                  this email will go to everyone who has registered for any event. add custom emails below to include additional addresses.
+                </p>
+              </div>
+            ) : (
+            /* Registrations Table for Email Tab */
             <div className="mb-8 bg-white/5 border border-white/10">
               <div className="border-b border-white/10 p-4 flex items-center justify-between">
                 <h2 className="text-sm" style={{ color: adminAccent }}>
@@ -1600,6 +1902,7 @@ export default function AdminPage() {
                 </div>
               )}
             </div>
+            )}
 
             {/* Email Form */}
             <div className="bg-white/5 border border-white/10 p-6">

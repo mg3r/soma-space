@@ -486,6 +486,66 @@ export async function getEventStats(eventId: string) {
   };
 }
 
+export type RegistrationsOverTimePoint = { date: string; count: number };
+
+function buildEmptySeries(days: number): RegistrationsOverTimePoint[] {
+  const series: RegistrationsOverTimePoint[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    series.push({ date: d.toISOString().slice(0, 10), count: 0 });
+  }
+  return series;
+}
+
+/**
+ * Get registrations over time (by day) for the last N days and count of new this week.
+ * Always returns a full series (30 days) so the chart can render even with no data.
+ */
+export async function getRegistrationsOverTime(
+  eventId: string,
+  days = 30
+): Promise<{ series: RegistrationsOverTimePoint[]; newThisWeek: number }> {
+  if (!supabase) return { series: buildEmptySeries(days), newThisWeek: 0 };
+  try {
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    const sinceStr = since.toISOString().slice(0, 10);
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekAgoStr = weekAgo.toISOString();
+
+    const { data: rows, error } = await supabase
+      .from("registrations")
+      .select("payment_date")
+      .eq("event_id", eventId)
+      .gte("payment_date", sinceStr);
+
+    if (error) return { series: buildEmptySeries(days), newThisWeek: 0 };
+
+    const byDay = new Map<string, number>();
+    let newThisWeek = 0;
+    for (const r of rows ?? []) {
+      const d = (r.payment_date as string)?.slice(0, 10);
+      if (!d) continue;
+      byDay.set(d, (byDay.get(d) ?? 0) + 1);
+      if (r.payment_date >= weekAgoStr) newThisWeek += 1;
+    }
+
+    const series: RegistrationsOverTimePoint[] = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().slice(0, 10);
+      series.push({ date: dateStr, count: byDay.get(dateStr) ?? 0 });
+    }
+    return { series, newThisWeek };
+  } catch (e) {
+    console.error("getRegistrationsOverTime error:", e);
+    return { series: buildEmptySeries(days), newThisWeek: 0 };
+  }
+}
+
 /**
  * Add someone to the waitlist
  */
@@ -591,6 +651,132 @@ export async function getAbandonedPendingOrders(eventId: string): Promise<Abando
   } catch (error) {
     console.error("Error fetching abandoned pending orders:", error);
     return [];
+  }
+}
+
+export type AbandonmentFunnel = {
+  started: number;
+  abandoned: number;
+  completed: number;
+};
+
+/**
+ * Get sign-up funnel for an event: started (all pending orders), abandoned (never completed), completed (started - abandoned).
+ */
+export async function getAbandonmentFunnel(eventId: string): Promise<AbandonmentFunnel> {
+  if (!supabase) return { started: 0, abandoned: 0, completed: 0 };
+  try {
+    const { count: started, error: countError } = await supabase
+      .from("pending_orders")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", eventId);
+    if (countError) return { started: 0, abandoned: 0, completed: 0 };
+    const startedNum = started ?? 0;
+    const abandoned = await getAbandonedPendingOrders(eventId);
+    const abandonedNum = abandoned.length;
+    return { started: startedNum, abandoned: abandonedNum, completed: Math.max(0, startedNum - abandonedNum) };
+  } catch (e) {
+    console.error("getAbandonmentFunnel error:", e);
+    return { started: 0, abandoned: 0, completed: 0 };
+  }
+}
+
+export type AllEventsMetrics = {
+  totalRegistrations: number;
+  totalRevenue: number;
+  totalRefunded: number;
+};
+
+export type PersonSummary = {
+  email: string;
+  name: string;
+  phone: string;
+  eventIds: string[];
+  eventCount: number;
+  totalAmount: number;
+};
+
+/**
+ * Get all-events summary: metrics (totals) and people (one per email, with events attended and totals).
+ * Uses main registrations only (from registrations table); groups by canonical email (pre_waiver_email || customer_email).
+ */
+export async function getAllEventsSummary(): Promise<{
+  metrics: AllEventsMetrics;
+  people: PersonSummary[];
+}> {
+  if (!supabase) {
+    return { metrics: { totalRegistrations: 0, totalRevenue: 0, totalRefunded: 0 }, people: [] };
+  }
+
+  try {
+    const { data: rows, error } = await supabase
+      .from("registrations")
+      .select("event_id, customer_name, customer_email, customer_phone, pre_waiver_email, amount_paid, payment_date, refunded_at")
+      .order("payment_date", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching all registrations:", error);
+      return { metrics: { totalRegistrations: 0, totalRevenue: 0, totalRefunded: 0 }, people: [] };
+    }
+
+    if (!rows?.length) {
+      return { metrics: { totalRegistrations: 0, totalRevenue: 0, totalRefunded: 0 }, people: [] };
+    }
+
+    let totalRevenue = 0;
+    let totalRefunded = 0;
+    const byEmail = new Map<string, { name: string; phone: string; eventIds: Set<string>; totalAmount: number; latestPayment: string }>();
+
+    for (const r of rows) {
+      const refunded = !!r.refunded_at;
+      const amount = parseFloat(r.amount_paid) ?? 0;
+      if (refunded) totalRefunded += amount;
+      else totalRevenue += amount;
+
+      const canonicalEmail = ((r.pre_waiver_email || r.customer_email) ?? "").trim().toLowerCase();
+      if (!canonicalEmail) continue;
+
+      const existing = byEmail.get(canonicalEmail);
+      const eventId = (r.event_id ?? "").trim();
+      if (existing) {
+        existing.eventIds.add(eventId);
+        if (!refunded) existing.totalAmount += amount;
+        if ((r.payment_date ?? "") > existing.latestPayment) {
+          existing.latestPayment = r.payment_date ?? "";
+          existing.name = (r.customer_name ?? "").trim() || existing.name;
+          existing.phone = (r.customer_phone ?? "").trim() || existing.phone;
+        }
+      } else {
+        byEmail.set(canonicalEmail, {
+          name: (r.customer_name ?? "").trim() || "—",
+          phone: (r.customer_phone ?? "").trim() || "—",
+          eventIds: new Set(eventId ? [eventId] : []),
+          totalAmount: refunded ? 0 : amount,
+          latestPayment: r.payment_date ?? "",
+        });
+      }
+    }
+
+    const people: PersonSummary[] = Array.from(byEmail.entries()).map(([email, v]) => ({
+      email,
+      name: v.name,
+      phone: v.phone,
+      eventIds: Array.from(v.eventIds).filter(Boolean).sort(),
+      eventCount: v.eventIds.size,
+      totalAmount: Math.round(v.totalAmount * 100) / 100,
+    }));
+
+    return {
+      metrics: {
+        totalRegistrations: rows.length,
+        totalRevenue: Math.round(totalRevenue * 100) / 100,
+        totalRefunded: Math.round(totalRefunded * 100) / 100,
+      },
+      people,
+    };
+  } catch (err) {
+    console.error("getAllEventsSummary error:", err);
+    return { metrics: { totalRegistrations: 0, totalRevenue: 0, totalRefunded: 0 }, people: [] };
   }
 }
 
