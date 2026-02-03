@@ -518,8 +518,8 @@ export default function AdminPage() {
       try {
         const overTimeRes = await fetch(`/api/admin/registrations-over-time?eventId=${eventId}&days=30`);
         const overTimeData = overTimeRes.ok ? await overTimeRes.json() : { series: [], newThisWeek: 0 };
+        const series = Array.isArray(overTimeData.series) ? overTimeData.series : [];
         if (loadEventIdRef.current === eventId) {
-          const series = Array.isArray(overTimeData.series) ? overTimeData.series : [];
           setRegistrationsOverTime({ series, newThisWeek: overTimeData.newThisWeek ?? 0 });
         }
       } catch {
@@ -1252,7 +1252,10 @@ export default function AdminPage() {
                   </div>
                 </div>
               )}
-              {registrationsOverTime !== null && (
+            </>
+          )}
+          {/* Chart shows when we have over-time data and either registrations list or stats say there are registrations (fixes empty list in prod) */}
+          {(registrationsOverTime !== null && (registrations.length > 0 || (stats && stats.registered > 0))) && (
                 <div className="mb-8">
                   <p className="text-xs text-white/50 mb-2">
                     registrations over time (last 30 days)
@@ -1315,8 +1318,6 @@ export default function AdminPage() {
                   </div>
                 </div>
               )}
-            </>
-          )}
           </>
         )}
 
