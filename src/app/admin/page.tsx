@@ -1259,11 +1259,13 @@ export default function AdminPage() {
                 {registrationsOverTime.series.map(({ date, count }) => {
                   const max = Math.max(1, ...registrationsOverTime.series.map((s) => s.count));
                   const h = max > 0 ? (count / max) * 100 : 0;
+                  const tooltipText = `${new Date(date + "Z").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} · ${count === 1 ? "1 registration" : `${count} registrations`}`;
                   return (
                     <div
                       key={date}
-                      className="shrink-0 rounded-t bg-white/20 hover:bg-white/40 transition-colors"
+                      className="chart-bar-with-tooltip shrink-0 rounded-t bg-white/20 hover:bg-white/40 transition-colors"
                       style={{ width: 6, height: `${Math.max(h, 2)}%` }}
+                      data-tooltip={tooltipText}
                       title={`${date}: ${count}`}
                     />
                   );
