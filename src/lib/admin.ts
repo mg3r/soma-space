@@ -500,14 +500,22 @@ function buildEmptySeries(days: number): RegistrationsOverTimePoint[] {
 
 /**
  * Get registrations over time (by day) for the last N days and count of new this week.
- * Always returns a full series (30 days) so the chart can render even with no data.
+ * Buckets by local calendar date in ADMIN_TIMEZONE (default America/New_York) so the chart
+ * matches the registrations table (which shows local dates).
  */
+const ADMIN_CHART_TIMEZONE = process.env.ADMIN_TIMEZONE || "America/New_York";
+
+function toLocalDateString(isoDate: string, timeZone: string): string {
+  return new Date(isoDate).toLocaleDateString("en-CA", { timeZone });
+}
+
 export async function getRegistrationsOverTime(
   eventId: string,
   days = 30
 ): Promise<{ series: RegistrationsOverTimePoint[]; newThisWeek: number }> {
   if (!supabase) return { series: buildEmptySeries(days), newThisWeek: 0 };
   try {
+    const tz = ADMIN_CHART_TIMEZONE;
     const since = new Date();
     since.setDate(since.getDate() - days);
     const sinceStr = since.toISOString().slice(0, 10);
@@ -526,26 +534,25 @@ export async function getRegistrationsOverTime(
     const byDay = new Map<string, number>();
     let newThisWeek = 0;
     for (const r of rows ?? []) {
-      const d = (r.payment_date as string)?.slice(0, 10);
-      if (!d) continue;
-      byDay.set(d, (byDay.get(d) ?? 0) + 1);
+      const raw = (r.payment_date as string)?.trim();
+      if (!raw) continue;
+      const localKey = toLocalDateString(raw, tz);
+      byDay.set(localKey, (byDay.get(localKey) ?? 0) + 1);
       if (r.payment_date >= weekAgoStr) newThisWeek += 1;
     }
 
-    // Build full window oldest-first (left = oldest, right = today) using UTC so keys match payment_date (ISO slice)
+    // Build full window oldest-first (left = oldest, right = today) in same timezone so keys match
     const series: RegistrationsOverTimePoint[] = [];
     const now = new Date();
-    const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     for (let i = days - 1; i >= 0; i--) {
-      const d = new Date(todayUtc.getTime() - i * 24 * 60 * 60 * 1000);
-      const dateStr = d.toISOString().slice(0, 10);
+      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const dateStr = d.toLocaleDateString("en-CA", { timeZone: tz });
       series.push({ date: dateStr, count: byDay.get(dateStr) ?? 0 });
     }
     // Trim so left = first day with registration, right = today (max 30 days)
     const firstActiveIdx = series.findIndex((s) => s.count > 0);
     const trimmed = firstActiveIdx >= 0 ? series.slice(firstActiveIdx) : series;
     const capped = trimmed.length > days ? trimmed.slice(-days) : trimmed;
-    // Ensure ascending by date (left = day 1 of registration, right = latest)
     const sorted = [...capped].sort((a, b) => a.date.localeCompare(b.date));
     return { series: sorted, newThisWeek };
   } catch (e) {
