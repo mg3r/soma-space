@@ -515,11 +515,16 @@ export default function AdminPage() {
       }
 
       // Load registrations over time (last 30 days + new this week)
-      const overTimeRes = await fetch(`/api/admin/registrations-over-time?eventId=${eventId}&days=30`);
-      if (overTimeRes.ok) {
-        const overTimeData = await overTimeRes.json();
+      try {
+        const overTimeRes = await fetch(`/api/admin/registrations-over-time?eventId=${eventId}&days=30`);
+        const overTimeData = overTimeRes.ok ? await overTimeRes.json() : { series: [], newThisWeek: 0 };
         if (loadEventIdRef.current === eventId) {
-          setRegistrationsOverTime({ series: Array.isArray(overTimeData.series) ? overTimeData.series : [], newThisWeek: overTimeData.newThisWeek ?? 0 });
+          const series = Array.isArray(overTimeData.series) ? overTimeData.series : [];
+          setRegistrationsOverTime({ series, newThisWeek: overTimeData.newThisWeek ?? 0 });
+        }
+      } catch {
+        if (loadEventIdRef.current === eventId) {
+          setRegistrationsOverTime({ series: [], newThisWeek: 0 });
         }
       }
     } catch {
@@ -1207,9 +1212,9 @@ export default function AdminPage() {
           {registrations.length > 0 && (
             <>
               <p className="mb-4 text-xs text-white/50">
-                waiver: {registrations.filter((r) => r.waiverSigned).length}/{registrations.length} signed
+                waiver: <span className="text-white">{registrations.filter((r) => r.waiverSigned).length}/{registrations.length} signed</span>
                 {" · "}
-                last registration: {(() => {
+                last registration: <span className="text-white">{(() => {
                   const latest = new Date(Math.max(...registrations.map((r) => new Date(r.paymentDate).getTime())));
                   const now = new Date();
                   const days = Math.floor((now.getTime() - latest.getTime()) / (24 * 60 * 60 * 1000));
@@ -1217,7 +1222,7 @@ export default function AdminPage() {
                   if (days === 1) return "yesterday";
                   if (days < 7) return `${days} days ago`;
                   return latest.toLocaleDateString();
-                })()}
+                })()}</span>
               </p>
               {funnel !== null && (
                 <div className="mb-8">
@@ -1273,8 +1278,17 @@ export default function AdminPage() {
                     </div>
                   )}
                   <div className="flex items-end gap-1 h-12 w-full max-w-md">
-                    {registrationsOverTime.series.map(({ date, count }) => {
-                      const max = Math.max(1, ...registrationsOverTime.series.map((s) => s.count));
+                    {(registrationsOverTime.series.length > 0 ? registrationsOverTime.series : (() => {
+                      const fallback: { date: string; count: number }[] = [];
+                      for (let i = 6; i >= 0; i--) {
+                        const d = new Date();
+                        d.setDate(d.getDate() - i);
+                        fallback.push({ date: d.toISOString().slice(0, 10), count: 0 });
+                      }
+                      return fallback;
+                    })()).map(({ date, count }) => {
+                      const series = registrationsOverTime.series.length > 0 ? registrationsOverTime.series : [];
+                      const max = Math.max(1, ...series.map((s) => s.count), count);
                       const h = max > 0 ? (count / max) * 100 : 0;
                       return (
                         <div

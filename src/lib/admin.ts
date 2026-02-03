@@ -532,11 +532,12 @@ export async function getRegistrationsOverTime(
       if (r.payment_date >= weekAgoStr) newThisWeek += 1;
     }
 
-    // Build full window oldest-first (left = oldest, right = today)
+    // Build full window oldest-first (left = oldest, right = today) using UTC so keys match payment_date (ISO slice)
     const series: RegistrationsOverTimePoint[] = [];
+    const now = new Date();
+    const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     for (let i = days - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
+      const d = new Date(todayUtc.getTime() - i * 24 * 60 * 60 * 1000);
       const dateStr = d.toISOString().slice(0, 10);
       series.push({ date: dateStr, count: byDay.get(dateStr) ?? 0 });
     }
