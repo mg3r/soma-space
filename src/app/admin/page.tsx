@@ -1247,7 +1247,7 @@ export default function AdminPage() {
             </div>
           )}
           {registrationsOverTime !== null && (
-            <div className="mb-8 relative">
+            <div className="mb-8">
               <p className="text-xs text-white/50 mb-2">
                 registrations over time (last 30 days)
                 {registrationsOverTime.newThisWeek !== undefined && (
@@ -1256,29 +1256,34 @@ export default function AdminPage() {
                   </span>
                 )}
               </p>
-              {chartHover && (
-                <div
-                  className="absolute left-0 top-0 z-10 rounded border border-white/20 bg-black/90 px-2 py-1 text-xs text-white shadow"
-                  style={{ borderColor: adminAccent }}
-                >
-                  {new Date(chartHover.date + "Z").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-                  {" · "}
-                  {chartHover.count === 1 ? "1 registration" : `${chartHover.count} registrations`}
-                </div>
-              )}
               <div className="flex items-end gap-0.5 h-12 w-full max-w-md">
                 {registrationsOverTime.series.map(({ date, count }) => {
                   const max = Math.max(1, ...registrationsOverTime.series.map((s) => s.count));
                   const h = max > 0 ? (count / max) * 100 : 0;
+                  const isHovered = chartHover?.date === date;
                   return (
                     <div
                       key={date}
-                      className="flex-1 min-w-0 rounded-t bg-white/20 hover:bg-white/40 transition-colors"
-                      style={{ height: `${Math.max(h, 2)}%` }}
-                      title={`${date}: ${count}`}
+                      className="relative flex-1 min-w-0"
                       onMouseEnter={() => setChartHover({ date, count })}
                       onMouseLeave={() => setChartHover(null)}
-                    />
+                    >
+                      {isHovered && (
+                        <div
+                          className="absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded border border-white/20 bg-black/90 px-2 py-1 text-xs text-white shadow"
+                          style={{ borderColor: adminAccent }}
+                        >
+                          {new Date(date + "Z").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                          {" · "}
+                          {count === 1 ? "1 registration" : `${count} registrations`}
+                        </div>
+                      )}
+                      <div
+                        className="h-full min-w-0 rounded-t bg-white/20 hover:bg-white/40 transition-colors"
+                        style={{ height: `${Math.max(h, 2)}%` }}
+                        title={`${date}: ${count}`}
+                      />
+                    </div>
                   );
                 })}
               </div>

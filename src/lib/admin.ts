@@ -532,6 +532,7 @@ export async function getRegistrationsOverTime(
       if (r.payment_date >= weekAgoStr) newThisWeek += 1;
     }
 
+    // Build full window oldest-first (left = oldest, right = today)
     const series: RegistrationsOverTimePoint[] = [];
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date();
@@ -539,11 +540,13 @@ export async function getRegistrationsOverTime(
       const dateStr = d.toISOString().slice(0, 10);
       series.push({ date: dateStr, count: byDay.get(dateStr) ?? 0 });
     }
-    // Trim to first day with activity through today (max 30 days)
+    // Trim so left = first day with registration, right = today (max 30 days)
     const firstActiveIdx = series.findIndex((s) => s.count > 0);
     const trimmed = firstActiveIdx >= 0 ? series.slice(firstActiveIdx) : series;
     const capped = trimmed.length > days ? trimmed.slice(-days) : trimmed;
-    return { series: capped, newThisWeek };
+    // Ensure ascending by date (left = day 1 of registration, right = latest)
+    const sorted = [...capped].sort((a, b) => a.date.localeCompare(b.date));
+    return { series: sorted, newThisWeek };
   } catch (e) {
     console.error("getRegistrationsOverTime error:", e);
     return { series: buildEmptySeries(days), newThisWeek: 0 };
