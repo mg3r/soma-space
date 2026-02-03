@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
+import { nextEvent } from "@/config/event";
+import { capitalizeName } from "@/lib/format";
 import { getStripeClient } from "@/lib/stripe";
 import { supabase } from "@/lib/supabase";
-import { nextEvent } from "@/config/event";
 import Stripe from "stripe";
 
 /**
