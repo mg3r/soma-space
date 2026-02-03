@@ -89,6 +89,7 @@ export default function AdminPage() {
   const [funnel, setFunnel] = useState<{ started: number; abandoned: number; completed: number } | null>(null);
   const [registrationsOverTime, setRegistrationsOverTime] = useState<{ series: { date: string; count: number }[]; newThisWeek: number } | null>(null);
   const [chartHover, setChartHover] = useState<{ date: string; count: number } | null>(null);
+  const [chartTooltipPos, setChartTooltipPos] = useState<{ x: number; y: number } | null>(null);
   const [newCapacity, setNewCapacity] = useState("");
   const [isUpdatingCapacity, setIsUpdatingCapacity] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -1256,32 +1257,43 @@ export default function AdminPage() {
                       </span>
                     )}
                   </p>
-                  <div className="flex items-end gap-0.5 h-12 w-full max-w-md">
+                  {chartHover && chartTooltipPos && (
+                    <div
+                      className="fixed z-50 whitespace-nowrap rounded border border-white/20 bg-black/90 px-2 py-1 text-xs text-white shadow pointer-events-none"
+                      style={{
+                        borderColor: adminAccent,
+                        left: chartTooltipPos.x,
+                        top: chartTooltipPos.y - 36,
+                        transform: "translate(-50%, 0)",
+                      }}
+                    >
+                      {new Date(chartHover.date + "Z").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                      {" · "}
+                      {chartHover.count === 1 ? "1 registration" : `${chartHover.count} registrations`}
+                    </div>
+                  )}
+                  <div className="flex items-end gap-1 h-12 w-full max-w-md">
                     {registrationsOverTime.series.map(({ date, count }) => {
                       const max = Math.max(1, ...registrationsOverTime.series.map((s) => s.count));
                       const h = max > 0 ? (count / max) * 100 : 0;
-                      const isHovered = chartHover?.date === date;
                       return (
                         <div
                           key={date}
-                          className="relative flex-1 min-w-0"
-                          onMouseEnter={() => setChartHover({ date, count })}
-                          onMouseLeave={() => setChartHover(null)}
+                          className="relative shrink-0"
+                          style={{ width: 6 }}
+                          onMouseEnter={(e) => {
+                            setChartHover({ date, count });
+                            setChartTooltipPos({ x: e.clientX, y: e.clientY });
+                          }}
+                          onMouseMove={(e) => setChartTooltipPos({ x: e.clientX, y: e.clientY })}
+                          onMouseLeave={() => {
+                            setChartHover(null);
+                            setChartTooltipPos(null);
+                          }}
                         >
-                          {isHovered && (
-                            <div
-                              className="absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded border border-white/20 bg-black/90 px-2 py-1 text-xs text-white shadow"
-                              style={{ borderColor: adminAccent }}
-                            >
-                              {new Date(date + "Z").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-                              {" · "}
-                              {count === 1 ? "1 registration" : `${count} registrations`}
-                            </div>
-                          )}
                           <div
-                            className="h-full min-w-0 rounded-t bg-white/20 hover:bg-white/40 transition-colors"
+                            className="w-full min-w-0 rounded-t bg-white/20 hover:bg-white/40 transition-colors"
                             style={{ height: `${Math.max(h, 2)}%` }}
-                            title={`${date}: ${count}`}
                           />
                         </div>
                       );
