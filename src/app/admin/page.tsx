@@ -1203,12 +1203,12 @@ export default function AdminPage() {
               <p className="mt-1 text-2xl text-white/80">${stats.averageContribution.toFixed(2)}</p>
             </div>
           </div>
-          <p className="mb-4 text-xs text-white/50">
-            waiver: {registrations.filter((r) => r.waiverSigned).length}/{registrations.length} signed
-            {" · "}
-            last registration: {registrations.length === 0
-              ? "—"
-              : (() => {
+          {registrations.length > 0 && (
+            <>
+              <p className="mb-4 text-xs text-white/50">
+                waiver: {registrations.filter((r) => r.waiverSigned).length}/{registrations.length} signed
+                {" · "}
+                last registration: {(() => {
                   const latest = new Date(Math.max(...registrations.map((r) => new Date(r.paymentDate).getTime())));
                   const now = new Date();
                   const days = Math.floor((now.getTime() - latest.getTime()) / (24 * 60 * 60 * 1000));
@@ -1217,77 +1217,79 @@ export default function AdminPage() {
                   if (days < 7) return `${days} days ago`;
                   return latest.toLocaleDateString();
                 })()}
-          </p>
-          {funnel !== null && (
-            <div className="mb-8">
-              <p className="text-xs text-white/50 mb-2">sign-up funnel</p>
-              <div className="flex items-center gap-4 text-sm text-white/80">
-                <span>started: <strong>{funnel.started}</strong></span>
-                <span>completed: <strong style={{ color: adminAccent }}>{funnel.completed}</strong></span>
-                <span>abandoned: <strong className="text-white/60">{funnel.abandoned}</strong></span>
-              </div>
-              <div className="mt-2 h-2 w-full max-w-xs bg-white/10 rounded overflow-hidden flex">
-                {funnel.started > 0 ? (
-                  <>
-                    <div
-                      className="h-full rounded-l"
-                      style={{ width: `${(funnel.completed / funnel.started) * 100}%`, backgroundColor: adminAccent }}
-                      title={`completed: ${funnel.completed}`}
-                    />
-                    <div
-                      className="h-full rounded-r"
-                      style={{ width: `${(funnel.abandoned / funnel.started) * 100}%`, backgroundColor: "rgba(255,255,255,0.3)" }}
-                      title={`abandoned: ${funnel.abandoned}`}
-                    />
-                  </>
-                ) : (
-                  <div className="h-full w-full rounded bg-white/5" title="No sign-up activity yet" />
-                )}
-              </div>
-            </div>
-          )}
-          {registrationsOverTime !== null && (
-            <div className="mb-8">
-              <p className="text-xs text-white/50 mb-2">
-                registrations over time (last 30 days)
-                {registrationsOverTime.newThisWeek !== undefined && (
-                  <span className="ml-2" style={{ color: adminAccent }}>
-                    new this week: {registrationsOverTime.newThisWeek}
-                  </span>
-                )}
               </p>
-              <div className="flex items-end gap-0.5 h-12 w-full max-w-md">
-                {registrationsOverTime.series.map(({ date, count }) => {
-                  const max = Math.max(1, ...registrationsOverTime.series.map((s) => s.count));
-                  const h = max > 0 ? (count / max) * 100 : 0;
-                  const isHovered = chartHover?.date === date;
-                  return (
-                    <div
-                      key={date}
-                      className="relative flex-1 min-w-0"
-                      onMouseEnter={() => setChartHover({ date, count })}
-                      onMouseLeave={() => setChartHover(null)}
-                    >
-                      {isHovered && (
+              {funnel !== null && (
+                <div className="mb-8">
+                  <p className="text-xs text-white/50 mb-2">sign-up funnel</p>
+                  <div className="flex items-center gap-4 text-sm text-white/80">
+                    <span>started: <strong>{funnel.started}</strong></span>
+                    <span>completed: <strong style={{ color: adminAccent }}>{funnel.completed}</strong></span>
+                    <span>abandoned: <strong className="text-white/60">{funnel.abandoned}</strong></span>
+                  </div>
+                  <div className="mt-2 h-2 w-full max-w-xs bg-white/10 rounded overflow-hidden flex">
+                    {funnel.started > 0 ? (
+                      <>
                         <div
-                          className="absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded border border-white/20 bg-black/90 px-2 py-1 text-xs text-white shadow"
-                          style={{ borderColor: adminAccent }}
+                          className="h-full rounded-l"
+                          style={{ width: `${(funnel.completed / funnel.started) * 100}%`, backgroundColor: adminAccent }}
+                          title={`completed: ${funnel.completed}`}
+                        />
+                        <div
+                          className="h-full rounded-r"
+                          style={{ width: `${(funnel.abandoned / funnel.started) * 100}%`, backgroundColor: "rgba(255,255,255,0.3)" }}
+                          title={`abandoned: ${funnel.abandoned}`}
+                        />
+                      </>
+                    ) : (
+                      <div className="h-full w-full rounded bg-white/5" title="No sign-up activity yet" />
+                    )}
+                  </div>
+                </div>
+              )}
+              {registrationsOverTime !== null && (
+                <div className="mb-8">
+                  <p className="text-xs text-white/50 mb-2">
+                    registrations over time (last 30 days)
+                    {registrationsOverTime.newThisWeek !== undefined && (
+                      <span className="ml-2" style={{ color: adminAccent }}>
+                        new this week: {registrationsOverTime.newThisWeek}
+                      </span>
+                    )}
+                  </p>
+                  <div className="flex items-end gap-0.5 h-12 w-full max-w-md">
+                    {registrationsOverTime.series.map(({ date, count }) => {
+                      const max = Math.max(1, ...registrationsOverTime.series.map((s) => s.count));
+                      const h = max > 0 ? (count / max) * 100 : 0;
+                      const isHovered = chartHover?.date === date;
+                      return (
+                        <div
+                          key={date}
+                          className="relative flex-1 min-w-0"
+                          onMouseEnter={() => setChartHover({ date, count })}
+                          onMouseLeave={() => setChartHover(null)}
                         >
-                          {new Date(date + "Z").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-                          {" · "}
-                          {count === 1 ? "1 registration" : `${count} registrations`}
+                          {isHovered && (
+                            <div
+                              className="absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded border border-white/20 bg-black/90 px-2 py-1 text-xs text-white shadow"
+                              style={{ borderColor: adminAccent }}
+                            >
+                              {new Date(date + "Z").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                              {" · "}
+                              {count === 1 ? "1 registration" : `${count} registrations`}
+                            </div>
+                          )}
+                          <div
+                            className="h-full min-w-0 rounded-t bg-white/20 hover:bg-white/40 transition-colors"
+                            style={{ height: `${Math.max(h, 2)}%` }}
+                            title={`${date}: ${count}`}
+                          />
                         </div>
-                      )}
-                      <div
-                        className="h-full min-w-0 rounded-t bg-white/20 hover:bg-white/40 transition-colors"
-                        style={{ height: `${Math.max(h, 2)}%` }}
-                        title={`${date}: ${count}`}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </>
           )}
           </>
         )}
