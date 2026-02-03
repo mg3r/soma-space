@@ -1259,7 +1259,9 @@ export default function AdminPage() {
                 {registrationsOverTime.series.map(({ date, count }) => {
                   const max = Math.max(1, ...registrationsOverTime.series.map((s) => s.count));
                   const h = max > 0 ? (count / max) * 100 : 0;
-                  const tooltipText = `${new Date(date + "Z").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} · ${count === 1 ? "1 registration" : `${count} registrations`}`;
+                  const [y, m, d] = date.split("-").map(Number);
+                  const localDate = new Date(y, m - 1, d);
+                  const tooltipText = `${localDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} · ${count === 1 ? "1 registration" : `${count} registrations`}`;
                   return (
                     <div
                       key={date}
