@@ -612,6 +612,51 @@ export default function AdminPage() {
     return list;
   }, [allEventsPeople, peopleFilterEvent, peopleFilterMinEvents, peopleFilterMinAmount, peopleSortBy, peopleSortAsc]);
 
+  function downloadCSV(filename: string, headers: string[], rows: string[][]) {
+    const escape = (s: string) => {
+      const t = String(s ?? "");
+      if (t.includes(",") || t.includes("\n") || t.includes('"')) return `"${t.replace(/"/g, '""')}"`;
+      return t;
+    };
+    const csv = [headers.map(escape).join(","), ...rows.map((row) => row.map(escape).join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportRegistrationsCSV() {
+    const headers = ["name", "waiver", "email", "phone", "amount", "date", "excluded", "refunded", "guest"];
+    const rows = registrations.map((r) => [
+      r.customerName ?? "",
+      r.waiverSigned ? "signed" : "—",
+      r.preWaiverEmail ?? r.customerEmail ?? "",
+      r.customerPhone ?? "",
+      String(r.amountPaid ?? 0),
+      r.paymentDate ?? "",
+      r.isExcluded ? "yes" : "",
+      r.isRefunded ? "yes" : "",
+      r.isGuest ? "yes" : "",
+    ]);
+    downloadCSV(`registrations-${selectedEvent}-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+  }
+
+  function exportPeopleCSV() {
+    const headers = ["name", "email", "phone", "events attended", "# events", "total amount"];
+    const rows = filteredAndSortedPeople.map((p) => [
+      p.name ?? "",
+      p.email ?? "",
+      p.phone ?? "",
+      p.eventIds.map((eid) => allEventConfigs.find((c) => c.event_id === eid)?.event_name || eid).join("; ") || "—",
+      String(p.eventCount ?? 0),
+      String(p.totalAmount ?? 0),
+    ]);
+    downloadCSV(`people-all-events-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+  }
+
   useEffect(() => {
     if (isAuthenticated) {
       loadData();
@@ -945,13 +990,13 @@ export default function AdminPage() {
   // Show dashboard after authentication
   return (
     <main className="relative min-h-screen overflow-hidden text-white" style={{ backgroundColor }}>
-      <div className="relative mx-auto max-w-6xl px-6 py-10">
-        <div className="mb-8 flex items-center justify-between">
+      <div className="relative mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
+        <div className="mb-6 sm:mb-8 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-sm">admin dashboard</h1>
             <Link
               href="/"
-              className="mt-2 text-xs text-white/50 hover:text-white/80"
+              className="mt-2 block text-xs text-white/50 hover:text-white/80 touch-manipulation"
             >
               ← back to site
             </Link>
@@ -969,21 +1014,21 @@ export default function AdminPage() {
                 setPassword("");
               }
             }}
-            className="text-xs text-white/50 hover:text-white/80"
+            className="min-h-[44px] touch-manipulation rounded border border-white/20 px-3 py-2 text-xs text-white/50 hover:text-white/80 hover:bg-white/5"
           >
             sign out
           </button>
         </div>
 
-        {/* Event Selector */}
-        <div className="mb-8">
+        {/* Event Selector: full width on mobile, constrained on larger screens */}
+        <div className="mb-6 sm:mb-8 w-full sm:max-w-xs">
           <label className="mb-2 block text-sm text-white/70">
             select event
           </label>
           <select
             value={selectedEvent}
             onChange={(e) => setSelectedEvent(e.target.value)}
-            className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none px-3 py-2"
+            className="w-full min-h-[44px] touch-manipulation bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none px-3 py-2 rounded"
             onFocus={(e) => e.target.style.borderColor = adminAccent}
             onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
           >
@@ -1009,12 +1054,12 @@ export default function AdminPage() {
           </select>
         </div>
 
-        {/* Tabs */}
-        <div className="mb-8 border-b border-white/10">
-          <div className="flex gap-4">
+        {/* Tabs: touch-friendly, wrap on small screens */}
+        <div className="mb-6 sm:mb-8 border-b border-white/10 -mx-1 px-1">
+          <div className="flex flex-wrap gap-2 sm:gap-4">
             <button
               onClick={() => setActiveTab("overview")}
-              className={`pb-3 text-sm transition-colors ${
+              className={`min-h-[44px] min-w-[44px] px-3 pb-3 pt-1 text-sm transition-colors touch-manipulation ${
                 activeTab === "overview"
                   ? "border-b-2"
                   : "text-white/50 hover:text-white/80"
@@ -1025,7 +1070,7 @@ export default function AdminPage() {
             </button>
             <button
               onClick={() => setActiveTab("email")}
-              className={`pb-3 text-sm transition-colors ${
+              className={`min-h-[44px] min-w-[44px] px-3 pb-3 pt-1 text-sm transition-colors touch-manipulation ${
                 activeTab === "email"
                   ? "border-b-2"
                   : "text-white/50 hover:text-white/80"
@@ -1036,14 +1081,14 @@ export default function AdminPage() {
             </button>
             <button
                 onClick={() => setActiveTab("event-config")}
-                className={`pb-3 text-sm transition-colors ${
+                className={`min-h-[44px] min-w-[44px] px-2 sm:px-3 pb-3 pt-1 text-sm transition-colors touch-manipulation ${
                   activeTab === "event-config"
                     ? "border-b-2"
                     : "text-white/50 hover:text-white/80"
                 }`}
                 style={activeTab === "event-config" ? { color: adminAccent, borderColor: adminAccent } : undefined}
               >
-                event configuration
+                event config
               </button>
           </div>
         </div>
@@ -1054,35 +1099,47 @@ export default function AdminPage() {
           /* All-events view: metrics + people table */
           <div className="space-y-8">
             {allEventsMetrics && (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div className="bg-white/5 border border-white/10 p-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
+                <div className="bg-white/5 border border-white/10 p-3 sm:p-4">
                   <p className="text-xs text-white/50">total registrations</p>
-                  <p className="mt-1 text-2xl text-white">{allEventsMetrics.totalRegistrations}</p>
+                  <p className="mt-1 text-xl sm:text-2xl text-white">{allEventsMetrics.totalRegistrations}</p>
                 </div>
-                <div className="bg-white/5 border border-white/10 p-4">
+                <div className="bg-white/5 border border-white/10 p-3 sm:p-4">
                   <p className="text-xs text-white/50">total revenue</p>
-                  <p className="mt-1 text-2xl text-white">${allEventsMetrics.totalRevenue.toFixed(2)}</p>
+                  <p className="mt-1 text-xl sm:text-2xl text-white">${allEventsMetrics.totalRevenue.toFixed(2)}</p>
                 </div>
-                <div className="bg-white/5 border border-white/10 p-4">
+                <div className="bg-white/5 border border-white/10 p-3 sm:p-4 col-span-2 md:col-span-1">
                   <p className="text-xs text-white/50">total refunded</p>
-                  <p className="mt-1 text-2xl text-white/50">${allEventsMetrics.totalRefunded.toFixed(2)}</p>
+                  <p className="mt-1 text-xl sm:text-2xl text-white/50">${allEventsMetrics.totalRefunded.toFixed(2)}</p>
                 </div>
               </div>
             )}
-            <div className="bg-white/5 border border-white/10">
+            <div className="bg-white/5 border border-white/10 overflow-hidden">
               <div className="border-b border-white/10 p-4">
-                <h2 className="text-sm" style={{ color: adminAccent }}>
-                  people ({filteredAndSortedPeople.length}{allEventsPeople.length !== filteredAndSortedPeople.length ? ` of ${allEventsPeople.length}` : ""})
-                </h2>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="text-sm" style={{ color: adminAccent }}>
+                    people ({filteredAndSortedPeople.length}{allEventsPeople.length !== filteredAndSortedPeople.length ? ` of ${allEventsPeople.length}` : ""})
+                  </h2>
+                  {filteredAndSortedPeople.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={exportPeopleCSV}
+                      className="min-h-[44px] touch-manipulation rounded border border-white/20 px-4 py-2 text-xs text-white/80 hover:bg-white/10 transition-colors"
+                      style={{ borderColor: adminAccent, color: adminAccent }}
+                    >
+                      export csv
+                    </button>
+                  )}
+                </div>
                 <p className="mt-1 text-xs text-white/50">
                   one row per person (by email). events attended and total amount across all events.
                 </p>
-                <div className="mt-3 flex flex-wrap items-center gap-3">
-                  <span className="text-xs text-white/50">filter:</span>
+                <div className="mt-3 flex flex-wrap items-center gap-2 sm:gap-3">
+                  <span className="text-xs text-white/50 w-full sm:w-auto">filter:</span>
                   <select
                     value={peopleFilterEvent}
                     onChange={(e) => setPeopleFilterEvent(e.target.value)}
-                    className="bg-white/5 border border-white/20 text-white/80 text-xs focus:outline-none px-2 py-1"
+                    className="min-h-[44px] touch-manipulation bg-white/5 border border-white/20 text-white/80 text-xs focus:outline-none px-2 py-2 rounded"
                   >
                     <option value="">all events</option>
                     {allEventConfigs.filter((c) => c.event_id).map((c) => (
@@ -1092,7 +1149,7 @@ export default function AdminPage() {
                   <select
                     value={peopleFilterMinEvents}
                     onChange={(e) => setPeopleFilterMinEvents(e.target.value)}
-                    className="bg-white/5 border border-white/20 text-white/80 text-xs focus:outline-none px-2 py-1"
+                    className="min-h-[44px] touch-manipulation bg-white/5 border border-white/20 text-white/80 text-xs focus:outline-none px-2 py-2 rounded"
                   >
                     <option value="">any # events</option>
                     <option value="1">1+</option>
@@ -1102,17 +1159,17 @@ export default function AdminPage() {
                   <select
                     value={peopleFilterMinAmount}
                     onChange={(e) => setPeopleFilterMinAmount(e.target.value)}
-                    className="bg-white/5 border border-white/20 text-white/80 text-xs focus:outline-none px-2 py-1"
+                    className="min-h-[44px] touch-manipulation bg-white/5 border border-white/20 text-white/80 text-xs focus:outline-none px-2 py-2 rounded"
                   >
                     <option value="">any amount</option>
                     <option value="50">&gt; $50</option>
                     <option value="100">&gt; $100</option>
                   </select>
-                  <span className="text-xs text-white/50 ml-2">sort:</span>
+                  <span className="text-xs text-white/50 sm:ml-2">sort:</span>
                   <select
                     value={peopleSortBy}
                     onChange={(e) => setPeopleSortBy(e.target.value as "name" | "email" | "events" | "amount")}
-                    className="bg-white/5 border border-white/20 text-white/80 text-xs focus:outline-none px-2 py-1"
+                    className="min-h-[44px] touch-manipulation bg-white/5 border border-white/20 text-white/80 text-xs focus:outline-none px-2 py-2 rounded"
                   >
                     <option value="name">name</option>
                     <option value="email">email</option>
@@ -1122,7 +1179,7 @@ export default function AdminPage() {
                   <button
                     type="button"
                     onClick={() => setPeopleSortAsc((a) => !a)}
-                    className="text-xs text-white/50 hover:text-white/80"
+                    className="min-h-[44px] min-w-[44px] touch-manipulation flex items-center justify-center text-xs text-white/50 hover:text-white/80 rounded border border-white/20 hover:bg-white/5"
                   >
                     {peopleSortAsc ? "↑" : "↓"}
                   </button>
@@ -1135,29 +1192,29 @@ export default function AdminPage() {
                   {allEventsPeople.length === 0 ? "no people yet" : "no people match filters"}
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
+                <div className="overflow-x-auto -mx-4 sm:mx-0" style={{ WebkitOverflowScrolling: "touch" }}>
+                  <table className="w-full min-w-[600px]">
                     <thead>
                       <tr className="border-b border-white/10">
-                        <th className="px-4 py-3 text-left text-xs text-white/50">name</th>
-                        <th className="px-4 py-3 text-left text-xs text-white/50">email</th>
-                        <th className="px-4 py-3 text-left text-xs text-white/50">phone</th>
-                        <th className="px-4 py-3 text-left text-xs text-white/50">events attended</th>
-                        <th className="px-4 py-3 text-right text-xs text-white/50">#</th>
-                        <th className="px-4 py-3 text-right text-xs text-white/50">total amount</th>
+                        <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs text-white/50">name</th>
+                        <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs text-white/50">email</th>
+                        <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs text-white/50">phone</th>
+                        <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs text-white/50">events attended</th>
+                        <th className="px-3 sm:px-4 py-2 sm:py-3 text-right text-xs text-white/50">#</th>
+                        <th className="px-3 sm:px-4 py-2 sm:py-3 text-right text-xs text-white/50">total amount</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredAndSortedPeople.map((p) => (
                         <tr key={p.email} className="border-b border-white/5 hover:bg-white/5">
-                          <td className="px-4 py-3 text-sm text-white/80">{p.name}</td>
-                          <td className="px-4 py-3 text-sm text-white/80">{p.email}</td>
-                          <td className="px-4 py-3 text-sm text-white/80">{p.phone === "—" ? "—" : p.phone}</td>
-                          <td className="px-4 py-3 text-sm text-white/80">
+                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">{p.name}</td>
+                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">{p.email}</td>
+                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">{p.phone === "—" ? "—" : p.phone}</td>
+                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
                             {p.eventIds.map((eid) => allEventConfigs.find((c) => c.event_id === eid)?.event_name || eid).join(", ") || "—"}
                           </td>
-                          <td className="px-4 py-3 text-right text-sm text-white/80">{p.eventCount}</td>
-                          <td className="px-4 py-3 text-right text-sm text-white/80">${p.totalAmount.toFixed(2)}</td>
+                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-right text-sm text-white/80">{p.eventCount}</td>
+                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-right text-sm text-white/80">${p.totalAmount.toFixed(2)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1171,34 +1228,34 @@ export default function AdminPage() {
         {/* Stats Summary */}
         {stats && (
           <>
-          <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-7">
-            <div className="bg-white/5 border border-white/10 p-4">
+          <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-7">
+            <div className="bg-white/5 border border-white/10 p-3 sm:p-4">
               <p className="text-xs text-white/50">registered</p>
               <p className="mt-1 text-2xl text-white">{stats.registered}</p>
             </div>
-            <div className="bg-white/5 border border-white/10 p-4">
+            <div className="bg-white/5 border border-white/10 p-3 sm:p-4">
               <p className="text-xs text-white/50">excluded</p>
-              <p className="mt-1 text-2xl text-white/60">{stats.excluded}</p>
+              <p className="mt-1 text-xl sm:text-2xl text-white/60">{stats.excluded}</p>
             </div>
-            <div className="bg-white/5 border border-white/10 p-4">
+            <div className="bg-white/5 border border-white/10 p-3 sm:p-4">
               <p className="text-xs text-white/50">capacity</p>
-              <p className="mt-1 text-2xl text-white">{stats.capacity}</p>
+              <p className="mt-1 text-xl sm:text-2xl text-white">{stats.capacity}</p>
             </div>
-            <div className="bg-white/5 border border-white/10 p-4">
+            <div className="bg-white/5 border border-white/10 p-3 sm:p-4">
               <p className="text-xs text-white/50">remaining</p>
-              <p className="mt-1 text-2xl" style={{ color: adminAccent }}>{stats.remainingSpots}</p>
+              <p className="mt-1 text-xl sm:text-2xl" style={{ color: adminAccent }}>{stats.remainingSpots}</p>
             </div>
-            <div className="bg-white/5 border border-white/10 p-4">
+            <div className="bg-white/5 border border-white/10 p-3 sm:p-4">
               <p className="text-xs text-white/50">total revenue</p>
-              <p className="mt-1 text-2xl text-white">${stats.totalRevenue.toFixed(2)}</p>
+              <p className="mt-1 text-xl sm:text-2xl text-white">${stats.totalRevenue.toFixed(2)}</p>
             </div>
-            <div className="bg-white/5 border border-white/10 p-4">
+            <div className="bg-white/5 border border-white/10 p-3 sm:p-4">
               <p className="text-xs text-white/50">refunded</p>
-              <p className="mt-1 text-2xl text-white/50">${stats.refundedAmount.toFixed(2)}</p>
+              <p className="mt-1 text-xl sm:text-2xl text-white/50">${stats.refundedAmount.toFixed(2)}</p>
             </div>
-            <div className="bg-white/5 border border-white/10 p-4">
+            <div className="bg-white/5 border border-white/10 p-3 sm:p-4 col-span-2 md:col-span-1">
               <p className="text-xs text-white/50">avg contribution</p>
-              <p className="mt-1 text-2xl text-white/80">${stats.averageContribution.toFixed(2)}</p>
+              <p className="mt-1 text-xl sm:text-2xl text-white/80">${stats.averageContribution.toFixed(2)}</p>
             </div>
           </div>
           {registrations.length > 0 && (
@@ -1217,9 +1274,9 @@ export default function AdminPage() {
                 })()}</span>
               </p>
               {funnel !== null && (
-                <div className="mb-8">
+                <div className="mb-6 sm:mb-8">
                   <p className="text-xs text-white/50 mb-2">sign-up funnel</p>
-                  <div className="flex items-center gap-4 text-sm text-white/80">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/80">
                     <span>started: <strong>{funnel.started}</strong></span>
                     <span>completed: <strong style={{ color: adminAccent }}>{funnel.completed}</strong></span>
                     <span>abandoned: <strong className="text-white/60">{funnel.abandoned}</strong></span>
@@ -1239,7 +1296,7 @@ export default function AdminPage() {
                         />
                       </>
                     ) : (
-                      <div className="h-full w-full rounded bg-white/5" title="No sign-up activity yet" />
+                      <div className="h-full w-full rounded bg-white/5" title="no sign-up activity yet" />
                     )}
                   </div>
                 </div>
@@ -1255,6 +1312,9 @@ export default function AdminPage() {
                   new this week: {registrationsOverTime.newThisWeek}
                 </span>
               </p>
+              {registrationsOverTime.series.length === 0 ? (
+                <p className="text-xs text-white/50">no registrations in this range</p>
+              ) : (
               <div className="flex items-end gap-1 h-12 w-full max-w-md">
                 {registrationsOverTime.series.map(({ date, count }) => {
                   const max = Math.max(1, ...registrationsOverTime.series.map((s) => s.count));
@@ -1272,15 +1332,16 @@ export default function AdminPage() {
                   );
                 })}
               </div>
+              )}
             </div>
           )}
           </>
         )}
 
             {/* Capacity Management */}
-        <div className="mb-8 bg-white/5 border border-white/10 p-6">
+        <div className="mb-6 sm:mb-8 bg-white/5 border border-white/10 p-4 sm:p-6">
           <h2 className="mb-4 text-sm" style={{ color: adminAccent }}>capacity management</h2>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div>
               <label className="mb-2 block text-xs text-white/70">
                 current capacity
@@ -1290,7 +1351,7 @@ export default function AdminPage() {
                 value={newCapacity}
                 onChange={(e) => setNewCapacity(e.target.value)}
                 min="0"
-                className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-24 px-3 py-2"
+                className="min-h-[44px] touch-manipulation bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full min-w-0 max-w-[8rem] sm:w-24 px-3 py-2 rounded"
                 onFocus={(e) => e.target.style.borderColor = adminAccent}
                 onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
               />
@@ -1298,7 +1359,7 @@ export default function AdminPage() {
             <button
               onClick={updateCapacity}
               disabled={isUpdatingCapacity}
-              className="mt-6 rounded border bg-transparent px-4 py-2 text-sm hover:opacity-80 disabled:opacity-50"
+              className="min-h-[44px] touch-manipulation rounded border bg-transparent px-4 py-2 text-sm hover:opacity-80 disabled:opacity-50"
               style={{ borderColor: adminAccent, color: adminAccent }}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = adminAccentHoverBg}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
@@ -1314,9 +1375,21 @@ export default function AdminPage() {
         {/* Registrations Table */}
         <div className="bg-white/5 border border-white/10">
           <div className="border-b border-white/10 p-4">
-            <h2 className="text-sm" style={{ color: adminAccent }}>
-              registrations for {selectedEvent} ({registrations.length})
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm" style={{ color: adminAccent }}>
+                registrations for {selectedEvent} ({registrations.length})
+              </h2>
+              {registrations.length > 0 && (
+                <button
+                  type="button"
+                  onClick={exportRegistrationsCSV}
+                  className="min-h-[44px] touch-manipulation rounded border border-white/20 px-4 py-2 text-xs text-white/80 hover:bg-white/10 transition-colors"
+                  style={{ borderColor: adminAccent, color: adminAccent }}
+                >
+                  export csv
+                </button>
+              )}
+            </div>
             <p className="mt-1 text-xs text-white/50">
               event is selected in the dropdown above. checkout uses the <strong>active</strong> event—set your event as active before testing so new registrations appear here.
             </p>
@@ -1336,29 +1409,29 @@ export default function AdminPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="overflow-x-auto -mx-4 sm:mx-0" style={{ WebkitOverflowScrolling: "touch" }}>
+              <table className="w-full min-w-[640px]">
                 <thead>
                   <tr className="border-b border-white/10">
-                    <th className="px-4 py-3 text-left text-xs text-white/50">
+                    <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs text-white/50">
                       name
                     </th>
-                    <th className="px-4 py-3 text-left text-xs text-white/50">
+                    <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs text-white/50">
                       waiver
                     </th>
-                    <th className="px-4 py-3 text-left text-xs text-white/50">
+                    <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs text-white/50">
                       email
                     </th>
-                    <th className="px-4 py-3 text-left text-xs text-white/50">
+                    <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs text-white/50">
                       phone
                     </th>
-                    <th className="px-4 py-3 text-right text-xs text-white/50">
+                    <th className="px-3 sm:px-4 py-2 sm:py-3 text-right text-xs text-white/50">
                       amount
                     </th>
-                    <th className="px-4 py-3 text-left text-xs text-white/50">
+                    <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs text-white/50">
                       date
                     </th>
-                    <th className="px-4 py-3 text-left text-xs text-white/50">
+                    <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-xs text-white/50">
                       actions
                     </th>
                   </tr>
@@ -1371,7 +1444,7 @@ export default function AdminPage() {
                         reg.isExcluded ? "opacity-50" : ""
                       }`}
                     >
-                      <td className="px-4 py-3 text-sm text-white/80">
+                      <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
                         {reg.customerName}
                         {reg.isGuest && (
                           <span className="ml-2 text-xs text-white/50">(guest)</span>
@@ -1387,7 +1460,7 @@ export default function AdminPage() {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-white/80">
+                      <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
                         {reg.waiverSigned === true ? (
                           <span className="text-white/70" title="Waiver signed">✓</span>
                         ) : (
@@ -1419,7 +1492,7 @@ export default function AdminPage() {
                                   }
                                 }}
                                 disabled={resendingWaiverKey !== null}
-                                className="text-xs text-white/50 hover:text-white/80 disabled:opacity-50"
+                                className="min-h-[44px] touch-manipulation px-2 py-2 text-xs text-white/50 hover:text-white/80 disabled:opacity-50 rounded"
                               >
                                 {resendingWaiverKey === `${reg.sessionId}-${reg.guestIndex}` ? "sending…" : "resend waiver"}
                               </button>
@@ -1427,7 +1500,7 @@ export default function AdminPage() {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-white/80">
+                      <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
                         <div>
                           {reg.preWaiverEmail ? (
                             <>
@@ -1441,16 +1514,16 @@ export default function AdminPage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-white/80">
+                      <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
                         {reg.customerPhone}
                       </td>
                       <td className="px-4 py-3 text-right text-sm text-white/80">
                         ${reg.amountPaid.toFixed(2)}
                       </td>
-                      <td className="px-4 py-3 text-sm text-white/80">
+                      <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
                         {new Date(reg.paymentDate).toLocaleDateString()}
                       </td>
-                      <td className="px-4 py-3 text-sm">
+                      <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm">
                         {reg.isGuest && reg.guestIndex != null ? (
                           reg.isExcluded ? (
                             <button
@@ -1636,16 +1709,16 @@ export default function AdminPage() {
                         key={order.id}
                         className="border-b border-white/5 hover:bg-white/5"
                       >
-                        <td className="px-4 py-3 text-sm text-white/80">
+                        <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
                           {new Date(order.created_at).toLocaleString()}
                         </td>
-                        <td className="px-4 py-3 text-sm text-white/80">
+                        <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
                           {purchaser?.name ?? "—"}
                         </td>
-                        <td className="px-4 py-3 text-sm text-white/80">
+                        <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
                           {purchaser?.email ?? "—"}
                         </td>
-                        <td className="px-4 py-3 text-sm text-white/80">
+                        <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
                           {order.tickets?.length ?? 0} {order.tickets?.length === 1 ? "ticket" : "tickets"}
                         </td>
                         <td className="px-4 py-3 text-right text-sm text-white/80">
@@ -1705,16 +1778,16 @@ export default function AdminPage() {
                       key={entry.id}
                       className="border-b border-white/5 hover:bg-white/5"
                     >
-                      <td className="px-4 py-3 text-sm text-white/80">
+                      <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
                         {entry.name}
                       </td>
-                      <td className="px-4 py-3 text-sm text-white/80">
+                      <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
                         {entry.email}
                       </td>
-                      <td className="px-4 py-3 text-sm text-white/80">
+                      <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
                         {entry.phone || "—"}
                       </td>
-                      <td className="px-4 py-3 text-sm text-white/80">
+                      <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
                         {new Date(entry.created_at).toLocaleDateString()}
                       </td>
                     </tr>
@@ -1819,7 +1892,7 @@ export default function AdminPage() {
                               className="w-4 h-4"
                             />
                           </td>
-                          <td className="px-4 py-3 text-sm text-white/80">
+                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
                             {reg.customerName}
                             {reg.isGuest && (
                               <span className="ml-2 text-xs text-white/50">(guest)</span>
@@ -1835,7 +1908,7 @@ export default function AdminPage() {
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-sm text-white/80">
+                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
                             {reg.waiverSigned === true ? (
                               <span className="text-white/70" title="Waiver signed">✓</span>
                             ) : (
@@ -1875,7 +1948,7 @@ export default function AdminPage() {
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-sm text-white/80">
+                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
                             <div>
                               {reg.preWaiverEmail ? (
                                 <>
@@ -1889,13 +1962,13 @@ export default function AdminPage() {
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-sm text-white/80">
+                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
                             {reg.customerPhone}
                           </td>
                           <td className="px-4 py-3 text-right text-sm text-white/80">
                             ${reg.amountPaid.toFixed(2)}
                           </td>
-                          <td className="px-4 py-3 text-sm text-white/80">
+                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
                             {new Date(reg.paymentDate).toLocaleDateString()}
                           </td>
                         </tr>
@@ -2517,7 +2590,7 @@ export default function AdminPage() {
                 {!eventConfig && allEventConfigs.length === 0 && (
                   <div className="bg-white/5 border border-white/10 p-4">
                     <p className="text-sm text-white/70 mb-4">
-                      No event config found. Create one to get started.
+                      no event config found. create one to get started.
                     </p>
                     <button
                       onClick={() => {
