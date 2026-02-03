@@ -44,6 +44,13 @@ type WaitlistEntry = {
   created_at: string;
 };
 
+type AbandonedPendingOrder = {
+  id: string;
+  event_id: string;
+  tickets: Array<{ name: string; email: string; amount: number }>;
+  created_at: string;
+};
+
 export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -51,6 +58,7 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const [selectedEvent, setSelectedEvent] = useState(nextEvent.id);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [pendingOrders, setPendingOrders] = useState<AbandonedPendingOrder[]>([]);
   const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [newCapacity, setNewCapacity] = useState("");
@@ -456,6 +464,15 @@ export default function AdminPage() {
         if (loadEventIdRef.current === eventId) {
           setStats(st);
           setNewCapacity(st?.capacity?.toString() ?? "");
+        }
+      }
+
+      // Load abandoned pending orders (started sign-up but never completed)
+      const pendingRes = await fetch(`/api/admin/pending-orders?eventId=${eventId}`);
+      if (pendingRes.ok) {
+        const pendingData = await pendingRes.json();
+        if (loadEventIdRef.current === eventId) {
+          setPendingOrders(pendingData.pendingOrders || []);
         }
       }
     } catch {
@@ -1271,6 +1288,84 @@ export default function AdminPage() {
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Pending orders (abandoned) — started sign-up but never completed */}
+        <div className="mt-8 bg-white/5 border border-white/10">
+          <div className="border-b border-white/10 p-4">
+            <h2 className="text-sm" style={{ color: adminAccent }}>
+              pending orders — abandoned ({pendingOrders.length})
+            </h2>
+            <p className="mt-1 text-xs text-white/50">
+              started the sign-up flow but did not complete checkout. excludes anyone who later registered (same or different session).
+            </p>
+          </div>
+          {isLoading ? (
+            <div className="p-8 text-center text-sm text-white/50">
+              loading...
+            </div>
+          ) : pendingOrders.length === 0 ? (
+            <div className="p-8 text-center text-sm text-white/50">
+              no abandoned pending orders for {selectedEvent}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="px-4 py-3 text-left text-xs text-white/50">
+                      created
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs text-white/50">
+                      purchaser
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs text-white/50">
+                      email
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs text-white/50">
+                      tickets
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs text-white/50">
+                      amount(s)
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingOrders.map((order) => {
+                    const purchaser = order.tickets?.[0];
+                    const totalAmount = order.tickets?.reduce((sum, t) => sum + (Number(t.amount) || 0), 0) ?? 0;
+                    return (
+                      <tr
+                        key={order.id}
+                        className="border-b border-white/5 hover:bg-white/5"
+                      >
+                        <td className="px-4 py-3 text-sm text-white/80">
+                          {new Date(order.created_at).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-white/80">
+                          {purchaser?.name ?? "—"}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-white/80">
+                          {purchaser?.email ?? "—"}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-white/80">
+                          {order.tickets?.length ?? 0} {order.tickets?.length === 1 ? "ticket" : "tickets"}
+                        </td>
+                        <td className="px-4 py-3 text-right text-sm text-white/80">
+                          ${totalAmount.toFixed(2)}
+                          {order.tickets && order.tickets.length > 1 && (
+                            <span className="ml-1 text-xs text-white/50">
+                              ({order.tickets.map((t) => `$${Number(t.amount).toFixed(2)}`).join(" + ")})
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

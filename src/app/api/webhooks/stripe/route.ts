@@ -117,6 +117,13 @@ export async function POST(req: Request) {
           if (!Array.isArray(tickets) || tickets.length < 1) {
             console.warn("[webhook] pending_order_id present but order not found or tickets empty, id:", pendingOrderId);
             tickets = null;
+          } else {
+            // Mark this pending order as completed (same session) so admin "abandoned only" excludes it
+            const { error: updateErr } = await supabase
+              .from("pending_orders")
+              .update({ completed_at: new Date().toISOString(), session_id: sessionToSync.id })
+              .eq("id", pendingOrderId);
+            if (updateErr) console.warn("[webhook] Could not mark pending_order completed:", updateErr.message);
           }
         }
 

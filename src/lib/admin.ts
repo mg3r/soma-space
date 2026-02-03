@@ -545,6 +545,55 @@ export async function getWaitlistEntries(eventId: string) {
   }
 }
 
+export type AbandonedPendingOrder = {
+  id: string;
+  event_id: string;
+  tickets: Array<{ name: string; email: string; amount: number }>;
+  created_at: string;
+};
+
+/**
+ * Get pending orders that never completed (abandoned only).
+ * Excludes: same-session completion (completed_at set by webhook) and
+ * different-session completion (purchaser email found in registrations for this event).
+ */
+export async function getAbandonedPendingOrders(eventId: string): Promise<AbandonedPendingOrder[]> {
+  if (!supabase) return [];
+
+  try {
+    const { data: orders, error: ordersError } = await supabase
+      .from("pending_orders")
+      .select("id, event_id, tickets, created_at")
+      .eq("event_id", eventId)
+      .is("completed_at", null)
+      .order("created_at", { ascending: false });
+
+    if (ordersError || !orders?.length) return orders || [];
+
+    const { data: regs } = await supabase
+      .from("registrations")
+      .select("customer_email, pre_waiver_email")
+      .eq("event_id", eventId);
+
+    const registeredEmails = new Set<string>();
+    regs?.forEach((r: { customer_email?: string; pre_waiver_email?: string }) => {
+      const c = (r.customer_email || "").trim().toLowerCase();
+      const p = (r.pre_waiver_email || "").trim().toLowerCase();
+      if (c) registeredEmails.add(c);
+      if (p) registeredEmails.add(p);
+    });
+
+    return orders.filter((order) => {
+      const tickets = order.tickets as Array<{ name?: string; email?: string; amount?: number }>;
+      const purchaserEmail = (tickets?.[0]?.email || "").trim().toLowerCase();
+      return !purchaserEmail || !registeredEmails.has(purchaserEmail);
+    }) as AbandonedPendingOrder[];
+  } catch (error) {
+    console.error("Error fetching abandoned pending orders:", error);
+    return [];
+  }
+}
+
 /**
  * Check if event just reached capacity and send notification
  */
