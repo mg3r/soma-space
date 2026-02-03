@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "crypto";
+import { capitalizeName } from "./format";
 import { supabase } from "./supabase";
 
 const GUEST_TOKEN_SECRET = process.env.WAIVER_GUEST_SECRET || process.env.NEXTAUTH_SECRET || "soma-waiver-guest-fallback";
@@ -115,8 +116,8 @@ export async function recordWaiverSignature(
     const { error } = await supabase.from("waiver_signatures").upsert(
       {
         email: normalized,
-        first_name: (firstName || "").trim(),
-        last_name: (lastName || "").trim(),
+        first_name: capitalizeName((firstName || "").trim()),
+        last_name: capitalizeName((lastName || "").trim()),
         ip_address: opts?.ipAddress || null,
         user_agent: opts?.userAgent || null,
         waiver_version: opts?.waiverVersion || "1",

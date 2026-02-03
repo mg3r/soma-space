@@ -1,6 +1,7 @@
+import { sendCapacityReachedNotification } from "./email";
+import { capitalizeName } from "./format";
 import { getStripeClient } from "./stripe";
 import { supabase } from "./supabase";
-import { sendCapacityReachedNotification } from "./email";
 import { getWaiverStatusForEmails } from "./waiver";
 import Stripe from "stripe";
 
@@ -501,7 +502,7 @@ export async function addToWaitlist(
   try {
     const { error } = await supabase.from("waitlist").insert({
       event_id: eventId,
-      name: name,
+      name: capitalizeName(name),
       email: email,
       phone: phone || null,
       created_at: new Date().toISOString(),

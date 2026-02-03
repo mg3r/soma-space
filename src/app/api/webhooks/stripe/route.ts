@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { sendRegistrationConfirmationEmail, sendGuestWaiverEmail } from "@/lib/email";
 import { getEventConfigByEventId } from "@/lib/event-config";
 import { createGuestWaiverToken } from "@/lib/waiver";
+import { capitalizeName } from "@/lib/format";
 
 const stripe = getStripeClient();
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -184,7 +185,7 @@ export async function POST(req: Request) {
                 session_id: sessionToSync.id,
                 event_id: eventIdForGuests,
                 guest_index: i,
-                name: (t.name || "").trim(),
+                name: capitalizeName((t.name || "").trim()),
                 email: (t.email || "").trim().toLowerCase(),
                 amount_paid: amountPaid,
               });
@@ -278,12 +279,13 @@ async function syncRegistrationToSupabase(
   // Pre-waiver email: from metadata (chat/waiver flow), fallback so column is always set when we have an email
   const metaPreWaiver = (session.metadata?.pre_waiver_email as string)?.trim()?.toLowerCase() ?? null;
   const preWaiverEmail = metaPreWaiver || sessionContactEmail || customerEmailToWrite?.toLowerCase() || null;
-  // Prefer chat/waiver name over Stripe checkout name so we store the name they gave in our flow
-  const customerName =
+  // Prefer chat/waiver name over Stripe checkout name so we store the name they gave in our flow (capitalized for DB)
+  const rawName =
     (session.metadata?.pre_waiver_name as string)?.trim() ||
     session.customer_details?.name ||
     session.customer_details?.email ||
     "N/A";
+  const customerName = capitalizeName(rawName);
 
   const { error } = await supabase.from("registrations").upsert(
     {
@@ -362,18 +364,34 @@ async function markRegistrationRefunded(charge: Stripe.Charge): Promise<void> {
   }
 
   if (!sessionId) {
-    console.log("[webhook] charge.refunded: could not find session_id for charge", charge.id);
+    console.warn("[webhook] charge.refunded: could not find session_id for charge", charge.id, {
+      payment_intent: charge.payment_intent,
+      customer: charge.customer,
+      hint: "Ensure create-checkout sets payment_intent metadata (checkout_session_id) or session exists in Stripe.",
+    });
     return;
   }
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("registrations")
     .update({ refunded_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-    .eq("session_id", sessionId);
+    .eq("session_id", sessionId)
+    .select("session_id");
 
   if (error) {
-    console.warn("[webhook] charge.refunded: failed to set refunded_at for", sessionId, error.message);
-  } else {
-    console.log("[webhook] ✅ Marked registration", sessionId, "as refunded (not excluded from capacity)");
+    console.error("[webhook] charge.refunded: failed to set refunded_at for", sessionId, {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: "If column refunded_at does not exist, run ADD_REFUNDED_AT.sql or SYNC_REGISTRATIONS_TABLE.sql in Supabase SQL Editor.",
+    });
+    return;
   }
+  if (!updated?.length) {
+    console.warn("[webhook] charge.refunded: no row updated for session_id", sessionId, {
+      hint: "Registration may not exist in this Supabase project (e.g. different APP_MODE or table).",
+    });
+    return;
+  }
+  console.log("[webhook] ✅ Marked registration", sessionId, "as refunded (not excluded from capacity)");
 }

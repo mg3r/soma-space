@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { capitalizeName } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { getActiveEventConfig } from "@/lib/event-config";
 
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
       .insert({
         event_id: eventId,
         tickets: tickets.map((t) => ({
-          name: String(t.name).trim(),
+          name: capitalizeName(String(t.name).trim()),
           email: String(t.email).trim().toLowerCase(),
           amount: Number(t.amount),
         })),

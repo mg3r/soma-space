@@ -52,6 +52,8 @@ ALTER TABLE excluded_registrations ENABLE ROW LEVEL SECURITY;
 6. Click **Run** (or press Cmd/Ctrl + Enter)
 7. You should see "Success. No rows returned"
 
+**Refund tracking:** For refunds to show in the admin and in Supabase, the `registrations` table must have a `refunded_at` column. If your project was created from the SQL above (without it), run **ADD_REFUNDED_AT.sql** or **SYNC_REGISTRATIONS_TABLE.sql** in the SQL Editor. See **REFUND_SETUP.md** for details.
+
 ## Step 2: Set Up Stripe Webhook
 
 ### 2.1 Create Webhook Endpoint in Stripe
@@ -68,7 +70,7 @@ ALTER TABLE excluded_registrations ENABLE ROW LEVEL SECURITY;
 6. Under **Events to send**, click **Select events**
 7. Check the boxes for:
    - `checkout.session.completed` (syncs new registrations)
-   - `charge.refunded` (auto-excludes refunded registrations)
+   - `charge.refunded` (records refund on registration for admin; see REFUND_SETUP.md)
 8. Click **Add endpoint**
 
 ### 2.2 Get Webhook Signing Secret

@@ -89,14 +89,15 @@ export async function POST(req: Request) {
             (session.created || 0) * 1000
           ).toISOString();
 
+          const rawName =
+            session.customer_details?.name ||
+            session.customer_details?.email ||
+            "N/A";
           const { error } = await supabase.from("registrations").upsert(
             {
               session_id: session.id,
               event_id: session.metadata?.event_id || eventId,
-              customer_name:
-                session.customer_details?.name ||
-                session.customer_details?.email ||
-                "N/A",
+              customer_name: capitalizeName(rawName),
               customer_email: session.customer_details?.email || "N/A",
               customer_phone: session.customer_details?.phone || null,
               amount_paid: amountPaid,
