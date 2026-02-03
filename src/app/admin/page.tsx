@@ -103,9 +103,20 @@ export default function AdminPage() {
   const [customEmails, setCustomEmails] = useState("");
   const [useBcc, setUseBcc] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
-  const [emailResult, setEmailResult] = useState<{ sent: number; failed: number } | null>(null);
+  const [emailResult, setEmailResult] = useState<{ sent: number; failed: number; errors?: string[] } | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const emailEditorRef = useRef<HTMLDivElement>(null);
+
+  function showToast(message: string, type: "success" | "error") {
+    setToast({ message, type });
+  }
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(t);
+  }, [toast]);
   const [emailFontSize, setEmailFontSize] = useState<"small" | "medium" | "large">("small");
   const [activeTab, setActiveTab] = useState<"overview" | "email" | "event-config">("overview");
   const [emailTemplates, setEmailTemplates] = useState<Array<{ id: string; name: string; subject: string; body: string; attachments?: Array<{ filename: string; content: string; content_type?: string }>; updated_at: string }>>([]);
@@ -221,14 +232,14 @@ export default function AdminPage() {
         }
         // Refresh overview so capacity and stats reflect the saved config (use saved event id in case it changed)
         await loadData(data.config?.event_id);
-        alert("Event configuration saved successfully");
+        showToast("Event configuration saved successfully", "success");
       } else {
         const errorData = await res.json().catch(() => ({}));
-        alert(errorData.error || "Failed to save event configuration");
+        showToast(errorData.error || "Failed to save event configuration", "error");
       }
     } catch (error) {
       console.error("Error saving event config:", error);
-      alert("An error occurred while saving the event configuration");
+      showToast("An error occurred while saving the event configuration", "error");
     } finally {
       setIsSavingEventConfig(false);
     }
@@ -249,7 +260,7 @@ export default function AdminPage() {
     
     // Validate event ID format (alphanumeric, underscores, hyphens)
     if (!/^[A-Za-z0-9_-]+$/.test(trimmedEventId)) {
-      alert("Event ID can only contain letters, numbers, underscores, and hyphens.");
+      showToast("Event ID can only contain letters, numbers, underscores, and hyphens.", "error");
       return;
     }
 
@@ -291,15 +302,15 @@ export default function AdminPage() {
         if (data.config?.event_id) {
           setSelectedEvent(data.config.event_id);
         }
-        alert(`New event configuration "${trimmedEventId}" created successfully!`);
+        showToast(`New event configuration "${trimmedEventId}" created successfully!`, "success");
       } else {
         const errorData = await res.json().catch(() => ({}));
         const details = errorData.details ? `\n\n${errorData.details}` : "";
-        alert((errorData.error || "Failed to create new event configuration") + details);
+        showToast((errorData.error || "Failed to create new event configuration") + details, "error");
       }
     } catch (error) {
       console.error("Error saving as new event:", error);
-      alert("An error occurred while creating the new event configuration");
+      showToast("An error occurred while creating the new event configuration", "error");
     } finally {
       setIsSavingAsNewEvent(false);
     }
@@ -307,7 +318,7 @@ export default function AdminPage() {
 
   const saveEmailTemplate = async () => {
     if (!templateName.trim() || !emailSubject.trim() || !emailBody.trim()) {
-      alert("Please enter a template name, subject, and body");
+      showToast("Please enter a template name, subject, and body", "error");
       return;
     }
 
@@ -340,14 +351,14 @@ export default function AdminPage() {
         await loadEmailTemplates();
         setTemplateName("");
         setShowTemplateModal(false);
-        alert("Template saved successfully");
+        showToast("Template saved successfully", "success");
       } else {
         const errorData = await res.json().catch(() => ({}));
-        alert(errorData.error || "Failed to save template");
+        showToast(errorData.error || "Failed to save template", "error");
       }
     } catch (error) {
       console.error("Error saving template:", error);
-      alert("An error occurred while saving the template");
+      showToast("An error occurred while saving the template", "error");
     }
   };
 
@@ -397,11 +408,11 @@ export default function AdminPage() {
         alert("Template deleted successfully");
       } else {
         const errorData = await res.json().catch(() => ({}));
-        alert(errorData.error || "Failed to delete template");
+        showToast(errorData.error || "Failed to delete template", "error");
       }
     } catch (error) {
       console.error("Error deleting template:", error);
-      alert("An error occurred while deleting the template");
+      showToast("An error occurred while deleting the template", "error");
     }
   };
 
@@ -530,7 +541,7 @@ export default function AdminPage() {
 
   async function updateCapacity() {
     if (!newCapacity || isNaN(parseInt(newCapacity)) || parseInt(newCapacity) < 0) {
-      alert("Please enter a valid capacity number");
+      showToast("Please enter a valid capacity number", "error");
       return;
     }
 
@@ -547,14 +558,14 @@ export default function AdminPage() {
 
       if (res.ok) {
         const data = await res.json();
-        alert(data.message || "Capacity update noted. Remember to update environment variables in Vercel for this to take effect.");
+        showToast(data.message || "Capacity updated.", "success");
         await loadData();
       } else {
         const errorData = await res.json().catch(() => ({}));
-        alert(errorData.error || "Failed to update capacity");
+        showToast(errorData.error || "Failed to update capacity", "error");
       }
     } catch {
-      alert("An error occurred. Please try again.");
+      showToast("An error occurred. Please try again.", "error");
     } finally {
       setIsUpdatingCapacity(false);
     }
@@ -809,13 +820,13 @@ export default function AdminPage() {
 
   async function sendEmailToRegistrations() {
     if (!emailSubject.trim() || !emailBody.trim()) {
-      alert("Please enter both subject and email body");
+      showToast("Please enter both subject and email body", "error");
       return;
     }
 
     const recipients = getEmailRecipients();
     if (recipients.length === 0) {
-      alert("No recipients selected. Please select registrations or add custom email addresses.");
+      showToast("No recipients selected. Please select registrations or add custom email addresses.", "error");
       return;
     }
 
@@ -879,22 +890,20 @@ export default function AdminPage() {
 
       if (res.ok) {
         const data = await res.json();
-        setEmailResult({ sent: data.sent, failed: data.failed });
-        if (data.failed > 0 && data.errors) {
-          console.error("Email errors:", data.errors);
-          alert(`Emails sent: ${data.sent} successful, ${data.failed} failed.\n\nErrors:\n${data.errors.slice(0, 3).join('\n')}${data.errors.length > 3 ? '\n...' : ''}`);
+        setEmailResult({ sent: data.sent, failed: data.failed, errors: data.errors ?? [] });
+        if (data.failed > 0 && data.errors?.length) {
+          showToast(`${data.sent} sent, ${data.failed} failed — see list below`, "error");
         } else {
-          alert(`Emails sent: ${data.sent} successful, ${data.failed} failed`);
+          showToast(`Sent to ${data.sent} recipient${data.sent !== 1 ? "s" : ""}`, "success");
         }
       } else {
         const errorData = await res.json().catch(() => ({}));
         const errorMsg = errorData.details || errorData.error || "Failed to send emails";
-        const hint = errorData.hint ? `\n\n${errorData.hint}` : '';
-        alert(`${errorMsg}${hint}`);
+        showToast(errorMsg, "error");
         console.error("Email send error:", errorData);
       }
     } catch {
-      alert("An error occurred. Please try again.");
+      showToast("An error occurred. Please try again.", "error");
     } finally {
       setIsSendingEmail(false);
     }
@@ -1480,13 +1489,13 @@ export default function AdminPage() {
                                     });
                                     if (res.ok) {
                                       const data = await res.json();
-                                      if (data.success) alert("Waiver reminder sent.");
+                                      if (data.success) showToast("Waiver reminder sent.", "success");
                                     } else {
                                       const err = await res.json().catch(() => ({}));
-                                      alert(err?.error || "Failed to resend waiver.");
+                                      showToast(err?.error || "Failed to resend waiver.", "error");
                                     }
                                   } catch {
-                                    alert("An error occurred.");
+                                    showToast("An error occurred.", "error");
                                   } finally {
                                     setResendingWaiverKey(null);
                                   }
@@ -1537,9 +1546,9 @@ export default function AdminPage() {
                                     { method: "DELETE" }
                                   );
                                   if (res.ok) await loadData();
-                                  else alert("Failed to un-exclude guest");
+                                  else showToast("Failed to un-exclude guest", "error");
                                 } catch {
-                                  alert("An error occurred");
+                                  showToast("An error occurred", "error");
                                 } finally {
                                   setExcludingGuestKey(null);
                                 }
@@ -1566,9 +1575,9 @@ export default function AdminPage() {
                                     }),
                                   });
                                   if (res.ok) await loadData();
-                                  else alert("Failed to exclude guest");
+                                  else showToast("Failed to exclude guest", "error");
                                 } catch {
-                                  alert("An error occurred");
+                                  showToast("An error occurred", "error");
                                 } finally {
                                   setExcludingGuestKey(null);
                                 }
@@ -1597,10 +1606,10 @@ export default function AdminPage() {
                                 if (res.ok) {
                                   await loadData();
                                 } else {
-                                  alert("Failed to un-exclude registration");
+                                  showToast("Failed to un-exclude registration", "error");
                                 }
                               } catch {
-                                alert("An error occurred");
+                                showToast("An error occurred", "error");
                               } finally {
                                 setExcludingSessionId(null);
                               }
@@ -1635,10 +1644,10 @@ export default function AdminPage() {
                                 if (res.ok) {
                                   await loadData();
                                 } else {
-                                  alert("Failed to exclude registration");
+                                  showToast("Failed to exclude registration", "error");
                                 }
                               } catch {
-                                alert("An error occurred");
+                                showToast("An error occurred", "error");
                               } finally {
                                 setExcludingSessionId(null);
                               }
@@ -1928,13 +1937,13 @@ export default function AdminPage() {
                                         });
                                         if (res.ok) {
                                           const data = await res.json();
-                                          if (data.success) alert("Waiver reminder sent.");
+                                          if (data.success) showToast("Waiver reminder sent.", "success");
                                         } else {
                                           const err = await res.json().catch(() => ({}));
-                                          alert(err?.error || "Failed to resend waiver.");
+                                          showToast(err?.error || "Failed to resend waiver.", "error");
                                         }
                                       } catch {
-                                        alert("An error occurred.");
+                                        showToast("An error occurred.", "error");
                                       } finally {
                                         setResendingWaiverKey(null);
                                       }
@@ -1994,7 +2003,7 @@ export default function AdminPage() {
               <button
                 onClick={() => {
                   if (!emailSubject.trim() || !emailBody.trim()) {
-                    alert("Please enter subject and body to save as template");
+                    showToast("Please enter subject and body to save as template", "error");
                     return;
                   }
                   setShowTemplateModal(true);
@@ -2392,7 +2401,7 @@ export default function AdminPage() {
                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = adminAccentHoverBg}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
                 >
-                  {isSendingEmail ? "sending..." : `send to ${getEmailRecipients().length} recipient${getEmailRecipients().length !== 1 ? "s" : ""}`}
+                  {isSendingEmail ? `sending to ${getEmailRecipients().length} recipient${getEmailRecipients().length !== 1 ? "s" : ""}…` : `send to ${getEmailRecipients().length} recipient${getEmailRecipients().length !== 1 ? "s" : ""}`}
                 </button>
                 {selectedSessionIds.size > 0 && (
                   <button
@@ -2404,10 +2413,23 @@ export default function AdminPage() {
                 )}
               </div>
               {emailResult && (
-                <p className="mt-2 text-xs text-white/50">
-                  sent: <span style={{ color: adminAccent }}>{emailResult.sent}</span> | 
-                  failed: <span className="text-white/50">{emailResult.failed}</span>
-                </p>
+                <div className="mt-2 space-y-2">
+                  <p className="text-xs text-white/50">
+                    sent: <span style={{ color: adminAccent }}>{emailResult.sent}</span>
+                    {" | "}
+                    failed: <span className="text-white/50">{emailResult.failed}</span>
+                  </p>
+                  {emailResult.failed > 0 && emailResult.errors && emailResult.errors.length > 0 && (
+                    <div className="max-h-32 overflow-y-auto rounded border border-white/10 bg-white/5 p-2">
+                      <p className="mb-1 text-xs text-white/50">failed addresses:</p>
+                      <ul className="list-inside list-disc space-y-0.5 text-xs text-white/70">
+                        {emailResult.errors.map((err, i) => (
+                          <li key={i}>{err}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -2981,6 +3003,19 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+      {toast && (
+        <div
+          className="fixed bottom-4 right-4 z-50 max-w-sm rounded border px-4 py-3 text-sm shadow-lg"
+          style={{
+            backgroundColor: toast.type === "error" ? "rgba(120,40,40,0.95)" : "rgba(20,60,40,0.95)",
+            borderColor: toast.type === "error" ? "rgba(255,120,120,0.4)" : "rgba(120,255,140,0.4)",
+            color: "#eee",
+          }}
+          role="alert"
+        >
+          {toast.message}
+        </div>
+      )}
     </main>
   );
 }

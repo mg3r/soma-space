@@ -5,8 +5,48 @@ import { getActiveEventConfig } from "@/lib/event-config";
 
 const ALL_EVENTS_ID = "__all__";
 
+// In-memory rate limit: send-email only (10 requests per minute per IP)
+const SEND_EMAIL_LIMIT = 10;
+const SEND_EMAIL_WINDOW_MS = 60_000;
+const rateLimitMap = new Map<string, { count: number; windowStart: number }>();
+
+function getClientKey(req: Request): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  const realIp = req.headers.get("x-real-ip");
+  const ip = (forwarded?.split(",")[0]?.trim() || realIp || "unknown").slice(0, 64);
+  return `send-email:${ip}`;
+}
+
+function checkRateLimit(key: string): { allowed: boolean; retryAfterSec?: number } {
+  const now = Date.now();
+  const entry = rateLimitMap.get(key);
+  if (!entry) {
+    rateLimitMap.set(key, { count: 1, windowStart: now });
+    return { allowed: true };
+  }
+  if (now - entry.windowStart >= SEND_EMAIL_WINDOW_MS) {
+    rateLimitMap.set(key, { count: 1, windowStart: now });
+    return { allowed: true };
+  }
+  entry.count++;
+  if (entry.count > SEND_EMAIL_LIMIT) {
+    const retryAfterSec = Math.ceil((SEND_EMAIL_WINDOW_MS - (now - entry.windowStart)) / 1000);
+    return { allowed: false, retryAfterSec };
+  }
+  return { allowed: true };
+}
+
 export async function POST(req: Request) {
   try {
+    const key = getClientKey(req);
+    const { allowed, retryAfterSec } = checkRateLimit(key);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Try again in a minute.", retryAfterSec: retryAfterSec ?? 60 },
+        { status: 429, headers: retryAfterSec ? { "Retry-After": String(retryAfterSec) } : undefined }
+      );
+    }
+
     // Handle both JSON and FormData
     const contentType = req.headers.get("content-type") || "";
     let eventId: string;
