@@ -39,11 +39,14 @@ export default function CustomCursor() {
   // Only enable on pointer: fine (desktop)
   useEffect(() => {
     const mq = window.matchMedia("(pointer: fine)");
-    const ok = mq.matches;
-    setIsDesktop(ok);
     const handler = () => setIsDesktop(mq.matches);
     mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
+    // Defer initial set to avoid synchronous setState in effect (react-hooks/set-state-in-effect)
+    const id = setTimeout(() => setIsDesktop(mq.matches), 0);
+    return () => {
+      clearTimeout(id);
+      mq.removeEventListener("change", handler);
+    };
   }, []);
 
   // Hide default cursor when custom cursor is active
