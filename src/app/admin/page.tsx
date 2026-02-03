@@ -88,6 +88,7 @@ export default function AdminPage() {
   const [peopleSortAsc, setPeopleSortAsc] = useState(true);
   const [funnel, setFunnel] = useState<{ started: number; abandoned: number; completed: number } | null>(null);
   const [registrationsOverTime, setRegistrationsOverTime] = useState<{ series: { date: string; count: number }[]; newThisWeek: number } | null>(null);
+  const [chartHover, setChartHover] = useState<{ date: string; count: number } | null>(null);
   const [newCapacity, setNewCapacity] = useState("");
   const [isUpdatingCapacity, setIsUpdatingCapacity] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -1255,17 +1256,35 @@ export default function AdminPage() {
                   new this week: {registrationsOverTime.newThisWeek}
                 </span>
               </p>
-              <div className="flex items-end gap-0.5 h-12 w-full max-w-md">
+              <div className="flex items-end gap-1 h-12 w-full max-w-md">
                 {registrationsOverTime.series.map(({ date, count }) => {
                   const max = Math.max(1, ...registrationsOverTime.series.map((s) => s.count));
                   const h = max > 0 ? (count / max) * 100 : 0;
+                  const isHovered = chartHover?.date === date;
                   return (
                     <div
                       key={date}
-                      className="flex-1 min-w-0 rounded-t bg-white/20 hover:bg-white/40 transition-colors"
-                      style={{ height: `${Math.max(h, 2)}%` }}
-                      title={`${date}: ${count}`}
-                    />
+                      className="relative shrink-0"
+                      style={{ width: 6 }}
+                      onMouseEnter={() => setChartHover({ date, count })}
+                      onMouseLeave={() => setChartHover(null)}
+                    >
+                      {isHovered && (
+                        <div
+                          className="absolute top-full left-1/2 z-10 mt-1 -translate-x-1/2 whitespace-nowrap rounded border border-white/20 bg-black/90 px-2 py-1 text-xs text-white shadow pointer-events-none"
+                          style={{ borderColor: adminAccent }}
+                        >
+                          {new Date(date + "Z").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                          {" · "}
+                          {count === 1 ? "1 registration" : `${count} registrations`}
+                        </div>
+                      )}
+                      <div
+                        className="w-full min-w-0 rounded-t bg-white/20 hover:bg-white/40 transition-colors"
+                        style={{ height: `${Math.max(h, 2)}%` }}
+                        title={`${date}: ${count}`}
+                      />
+                    </div>
                   );
                 })}
               </div>
