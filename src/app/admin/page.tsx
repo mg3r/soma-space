@@ -88,7 +88,6 @@ export default function AdminPage() {
   const [peopleSortAsc, setPeopleSortAsc] = useState(true);
   const [funnel, setFunnel] = useState<{ started: number; abandoned: number; completed: number } | null>(null);
   const [registrationsOverTime, setRegistrationsOverTime] = useState<{ series: { date: string; count: number }[]; newThisWeek: number } | null>(null);
-  const [chartHover, setChartHover] = useState<{ date: string; count: number } | null>(null);
   const [newCapacity, setNewCapacity] = useState("");
   const [isUpdatingCapacity, setIsUpdatingCapacity] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -513,18 +512,12 @@ export default function AdminPage() {
         }
       }
 
-      // Load registrations over time (last 30 days + new this week)
-      try {
-        const overTimeRes = await fetch(`/api/admin/registrations-over-time?eventId=${eventId}&days=30`);
-        const overTimeData = overTimeRes.ok ? await overTimeRes.json() : { series: [], newThisWeek: 0 };
+      // Load registrations over time (last 30 days)
+      const overTimeRes = await fetch(`/api/admin/registrations-over-time?eventId=${eventId}&days=30`);
+      if (overTimeRes.ok && loadEventIdRef.current === eventId) {
+        const overTimeData = await overTimeRes.json();
         const series = Array.isArray(overTimeData.series) ? overTimeData.series : [];
-        if (loadEventIdRef.current === eventId) {
-          setRegistrationsOverTime({ series, newThisWeek: overTimeData.newThisWeek ?? 0 });
-        }
-      } catch {
-        if (loadEventIdRef.current === eventId) {
-          setRegistrationsOverTime({ series: [], newThisWeek: 0 });
-        }
+        setRegistrationsOverTime({ series, newThisWeek: overTimeData.newThisWeek ?? 0 });
       }
     } catch {
       console.error("Error loading data");
@@ -1253,59 +1246,31 @@ export default function AdminPage() {
               )}
             </>
           )}
-          {/* Chart shows when we have over-time data and either registrations list or stats say there are registrations (fixes empty list in prod) */}
-          {(registrationsOverTime !== null && (registrations.length > 0 || (stats && stats.registered > 0))) && (
-                <div className="mb-8">
-                  <p className="text-xs text-white/50 mb-2">
-                    registrations over time (last 30 days)
-                    {registrationsOverTime.newThisWeek !== undefined && (
-                      <span className="ml-2" style={{ color: adminAccent }}>
-                        new this week: {registrationsOverTime.newThisWeek}
-                      </span>
-                    )}
-                  </p>
-                  <div className="flex items-end gap-1 h-12 w-full max-w-md">
-                    {(registrationsOverTime.series.length > 0 ? registrationsOverTime.series : (() => {
-                      const fallback: { date: string; count: number }[] = [];
-                      for (let i = 6; i >= 0; i--) {
-                        const d = new Date();
-                        d.setDate(d.getDate() - i);
-                        fallback.push({ date: d.toISOString().slice(0, 10), count: 0 });
-                      }
-                      return fallback;
-                    })()).map(({ date, count }) => {
-                      const series = registrationsOverTime.series.length > 0 ? registrationsOverTime.series : [];
-                      const max = Math.max(1, ...series.map((s) => s.count), count);
-                      const h = max > 0 ? (count / max) * 100 : 0;
-                      const isHovered = chartHover?.date === date;
-                      return (
-                        <div
-                          key={date}
-                          className="relative shrink-0"
-                          style={{ width: 6 }}
-                          onMouseEnter={() => setChartHover({ date, count })}
-                          onMouseLeave={() => setChartHover(null)}
-                        >
-                          {isHovered && (
-                            <div
-                              className="absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded border border-white/20 bg-black/90 px-2 py-1 text-xs text-white shadow pointer-events-none"
-                              style={{ borderColor: adminAccent }}
-                            >
-                              {new Date(date + "Z").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-                              {" · "}
-                              {count === 1 ? "1 registration" : `${count} registrations`}
-                            </div>
-                          )}
-                          <div
-                            className="w-full min-w-0 rounded-t bg-white/20 hover:bg-white/40 transition-colors"
-                            style={{ height: `${Math.max(h, 2)}%` }}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+          {/* Registrations over time: show when we have data and (list or stats show registrations) */}
+          {registrationsOverTime !== null && (registrations.length > 0 || (stats && stats.registered > 0)) && (
+            <div className="mb-8">
+              <p className="text-xs text-white/50 mb-2">
+                registrations over time (last 30 days)
+                <span className="ml-2" style={{ color: adminAccent }}>
+                  new this week: {registrationsOverTime.newThisWeek}
+                </span>
+              </p>
+              <div className="flex items-end gap-0.5 h-12 w-full max-w-md">
+                {registrationsOverTime.series.map(({ date, count }) => {
+                  const max = Math.max(1, ...registrationsOverTime.series.map((s) => s.count));
+                  const h = max > 0 ? (count / max) * 100 : 0;
+                  return (
+                    <div
+                      key={date}
+                      className="flex-1 min-w-0 rounded-t bg-white/20 hover:bg-white/40 transition-colors"
+                      style={{ height: `${Math.max(h, 2)}%` }}
+                      title={`${date}: ${count}`}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
           </>
         )}
 
