@@ -1266,7 +1266,6 @@ export default function AdminPage() {
                       className="chart-bar-with-tooltip shrink-0 rounded-t bg-white/20 hover:bg-white/40 transition-colors"
                       style={{ width: 6, height: `${Math.max(h, 2)}%` }}
                       data-tooltip={tooltipText}
-                      title={`${date}: ${count}`}
                     />
                   );
                 })}
