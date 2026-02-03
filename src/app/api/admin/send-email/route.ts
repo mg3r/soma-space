@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { getEventRegistrations } from "@/lib/admin";
+import { getEventRegistrations, getAllEventsSummary } from "@/lib/admin";
 import { sendEmailToRegistrations } from "@/lib/email";
 import { getActiveEventConfig } from "@/lib/event-config";
+
+const ALL_EVENTS_ID = "__all__";
 
 export async function POST(req: Request) {
   try {
@@ -101,48 +103,58 @@ export async function POST(req: Request) {
     // Build list of emails to send to
     const emails: string[] = [];
 
-    // Get registrations for the event (needed for all cases)
-    const registrations = await getEventRegistrations(eventId);
-
-    // If custom emails are provided and no registrations selected, ONLY send to custom emails
-    if (customEmailList.length > 0 && (!selectedSessionIds || selectedSessionIds.length === 0)) {
-      emails.push(...customEmailList);
+    // All events: use all-people list (one email per person across events)
+    if (eventId === ALL_EVENTS_ID) {
+      const { people } = await getAllEventsSummary();
+      people.forEach((p) => {
+        const e = p.email?.trim();
+        if (e && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) emails.push(e);
+      });
+      customEmailList.forEach((email) => emails.push(email));
     } else {
-      // Add selected registrations if specified
-      // When explicitly selected, include them regardless of exclusion status
-      if (selectedSessionIds && Array.isArray(selectedSessionIds) && selectedSessionIds.length > 0) {
-        const selectedRegistrations = registrations.filter(reg => 
-          selectedSessionIds.includes(reg.sessionId)
-        );
-        selectedRegistrations.forEach(reg => {
-          const stripeEmail = reg.customerEmail?.trim();
-          const chatEmail = reg.preWaiverEmail?.trim()?.toLowerCase();
-          // Chat email is primary; checkout (Stripe) is secondary when different
-          if (chatEmail && chatEmail !== "N/A") emails.push(reg.preWaiverEmail!.trim());
-          if (stripeEmail && stripeEmail !== "N/A" && stripeEmail.toLowerCase() !== chatEmail) {
-            emails.push(stripeEmail);
-          }
-        });
-      } else if (!hasCustomEmailInput) {
-        // Only send to all registrations if no custom email input AND no selection
-        // (If user typed invalid email, don't default to all)
-        const activeRegistrations = excludeExcluded 
-          ? registrations.filter(reg => !reg.isExcluded)
-          : registrations;
-        
-        activeRegistrations.forEach(reg => {
-          const stripeEmail = reg.customerEmail?.trim();
-          const chatEmail = reg.preWaiverEmail?.trim()?.toLowerCase();
-          // Chat email is primary; checkout (Stripe) is secondary when different
-          if (chatEmail && chatEmail !== "N/A") emails.push(reg.preWaiverEmail!.trim());
-          if (stripeEmail && stripeEmail !== "N/A" && stripeEmail.toLowerCase() !== chatEmail) {
-            emails.push(stripeEmail);
-          }
-        });
-      }
+      // Single event: use registrations
+      const registrations = await getEventRegistrations(eventId);
 
-      // Add custom emails to the list (if registrations are also selected)
-      customEmailList.forEach(email => emails.push(email));
+      // If custom emails are provided and no registrations selected, ONLY send to custom emails
+      if (customEmailList.length > 0 && (!selectedSessionIds || selectedSessionIds.length === 0)) {
+        emails.push(...customEmailList);
+      } else {
+        // Add selected registrations if specified
+        // When explicitly selected, include them regardless of exclusion status
+        if (selectedSessionIds && Array.isArray(selectedSessionIds) && selectedSessionIds.length > 0) {
+          const selectedRegistrations = registrations.filter(reg =>
+            selectedSessionIds!.includes(reg.sessionId)
+          );
+          selectedRegistrations.forEach(reg => {
+            const stripeEmail = reg.customerEmail?.trim();
+            const chatEmail = reg.preWaiverEmail?.trim()?.toLowerCase();
+            // Chat email is primary; checkout (Stripe) is secondary when different
+            if (chatEmail && chatEmail !== "N/A") emails.push(reg.preWaiverEmail!.trim());
+            if (stripeEmail && stripeEmail !== "N/A" && stripeEmail.toLowerCase() !== chatEmail) {
+              emails.push(stripeEmail);
+            }
+          });
+        } else if (!hasCustomEmailInput) {
+          // Only send to all registrations if no custom email input AND no selection
+          // (If user typed invalid email, don't default to all)
+          const activeRegistrations = excludeExcluded
+            ? registrations.filter(reg => !reg.isExcluded)
+            : registrations;
+
+          activeRegistrations.forEach(reg => {
+            const stripeEmail = reg.customerEmail?.trim();
+            const chatEmail = reg.preWaiverEmail?.trim()?.toLowerCase();
+            // Chat email is primary; checkout (Stripe) is secondary when different
+            if (chatEmail && chatEmail !== "N/A") emails.push(reg.preWaiverEmail!.trim());
+            if (stripeEmail && stripeEmail !== "N/A" && stripeEmail.toLowerCase() !== chatEmail) {
+              emails.push(stripeEmail);
+            }
+          });
+        }
+
+        // Add custom emails to the list (if registrations are also selected)
+        customEmailList.forEach(email => emails.push(email));
+      }
     }
 
     // Remove duplicates
