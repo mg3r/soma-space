@@ -24,6 +24,14 @@ body {
   font-family: var(--font-montserrat), sans-serif;
 }
 
+/* Hide default cursor when custom cursor is active (desktop only) */
+body[data-custom-cursor="true"] {
+  cursor: none;
+}
+body[data-custom-cursor="true"] * {
+  cursor: none;
+}
+
 /* ContentEditable placeholder */
 [contenteditable][data-placeholder]:empty:before {
   content: attr(data-placeholder);
