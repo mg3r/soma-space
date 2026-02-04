@@ -1275,7 +1275,10 @@ export default function AdminPage() {
                 last registration: <span className="text-white">{(() => {
                   const latest = new Date(Math.max(...registrations.map((r) => new Date(r.paymentDate).getTime())));
                   const now = new Date();
-                  const days = Math.floor((now.getTime() - latest.getTime()) / (24 * 60 * 60 * 1000));
+                  // Compare calendar days in local time so "today" / "yesterday" match the table dates
+                  const nowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+                  const latestStart = new Date(latest.getFullYear(), latest.getMonth(), latest.getDate()).getTime();
+                  const days = Math.floor((nowStart - latestStart) / (24 * 60 * 60 * 1000));
                   if (days === 0) return "today";
                   if (days === 1) return "yesterday";
                   if (days < 7) return `${days} days ago`;
