@@ -518,27 +518,43 @@ export async function getRegistrationsOverTime(
     const tz = ADMIN_CHART_TIMEZONE;
     const since = new Date();
     since.setDate(since.getDate() - days);
-    const sinceStr = since.toISOString().slice(0, 10);
+    const sinceStr = since.toISOString();
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
     const weekAgoStr = weekAgo.toISOString();
 
-    const { data: rows, error } = await supabase
-      .from("registrations")
-      .select("payment_date")
-      .eq("event_id", eventId)
-      .gte("payment_date", sinceStr);
+    const [regResult, guestResult] = await Promise.all([
+      supabase
+        .from("registrations")
+        .select("payment_date")
+        .eq("event_id", eventId)
+        .gte("payment_date", sinceStr.slice(0, 10)),
+      supabase
+        .from("registration_guests")
+        .select("created_at")
+        .eq("event_id", eventId)
+        .gte("created_at", sinceStr),
+    ]);
 
-    if (error) return { series: buildEmptySeries(days), newThisWeek: 0 };
+    const rows = regResult.data ?? [];
+    const guestRows = guestResult.data ?? [];
+    if (regResult.error) return { series: buildEmptySeries(days), newThisWeek: 0 };
 
     const byDay = new Map<string, number>();
     let newThisWeek = 0;
-    for (const r of rows ?? []) {
+    for (const r of rows) {
       const raw = (r.payment_date as string)?.trim();
       if (!raw) continue;
       const localKey = toLocalDateString(raw, tz);
       byDay.set(localKey, (byDay.get(localKey) ?? 0) + 1);
       if (r.payment_date >= weekAgoStr) newThisWeek += 1;
+    }
+    for (const g of guestRows) {
+      const raw = (g.created_at as string)?.trim();
+      if (!raw) continue;
+      const localKey = toLocalDateString(raw, tz);
+      byDay.set(localKey, (byDay.get(localKey) ?? 0) + 1);
+      if (raw >= weekAgoStr) newThisWeek += 1;
     }
 
     // Build full window oldest-first (left = oldest, right = today) in same timezone so keys match
@@ -673,29 +689,37 @@ export type AbandonmentFunnel = {
   started: number;
   abandoned: number;
   completed: number;
+  guests: number;
 };
 
 /**
  * Get sign-up funnel for an event.
  * completed = registration count (source of truth); started = max(pending_orders count, completed); abandoned = pending orders that never registered.
+ * guests = count of registration_guests (additional sign-ups from multi-ticket orders).
  */
 export async function getAbandonmentFunnel(eventId: string): Promise<AbandonmentFunnel> {
-  if (!supabase) return { started: 0, abandoned: 0, completed: 0 };
+  if (!supabase) return { started: 0, abandoned: 0, completed: 0, guests: 0 };
   try {
-    const [{ count: pendingCount, error: pendingError }, { count: completedCount, error: regError }] = await Promise.all([
+    const [
+      { count: pendingCount, error: pendingError },
+      { count: completedCount, error: regError },
+      { count: guestCount, error: guestError },
+    ] = await Promise.all([
       supabase.from("pending_orders").select("id", { count: "exact", head: true }).eq("event_id", eventId),
       supabase.from("registrations").select("session_id", { count: "exact", head: true }).eq("event_id", eventId),
+      supabase.from("registration_guests").select("id", { count: "exact", head: true }).eq("event_id", eventId),
     ]);
-    if (pendingError || regError) return { started: 0, abandoned: 0, completed: 0 };
+    if (pendingError || regError) return { started: 0, abandoned: 0, completed: 0, guests: 0 };
     const completed = completedCount ?? 0;
     const startedNum = pendingCount ?? 0;
     const started = Math.max(startedNum, completed);
     const abandoned = await getAbandonedPendingOrders(eventId);
     const abandonedNum = abandoned.length;
-    return { started, abandoned: abandonedNum, completed };
+    const guests = !guestError && guestCount != null ? guestCount : 0;
+    return { started, abandoned: abandonedNum, completed, guests };
   } catch (e) {
     console.error("getAbandonmentFunnel error:", e);
-    return { started: 0, abandoned: 0, completed: 0 };
+    return { started: 0, abandoned: 0, completed: 0, guests: 0 };
   }
 }
 

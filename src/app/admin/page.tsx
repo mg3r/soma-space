@@ -86,7 +86,7 @@ export default function AdminPage() {
   const [peopleFilterMinAmount, setPeopleFilterMinAmount] = useState<string>("");
   const [peopleSortBy, setPeopleSortBy] = useState<"name" | "email" | "events" | "amount">("name");
   const [peopleSortAsc, setPeopleSortAsc] = useState(true);
-  const [funnel, setFunnel] = useState<{ started: number; abandoned: number; completed: number } | null>(null);
+  const [funnel, setFunnel] = useState<{ started: number; abandoned: number; completed: number; guests: number } | null>(null);
   const [registrationsOverTime, setRegistrationsOverTime] = useState<{ series: { date: string; count: number }[]; newThisWeek: number } | null>(null);
   const [newCapacity, setNewCapacity] = useState("");
   const [isUpdatingCapacity, setIsUpdatingCapacity] = useState(false);
@@ -519,7 +519,7 @@ export default function AdminPage() {
       if (funnelRes.ok) {
         const funnelData = await funnelRes.json();
         if (loadEventIdRef.current === eventId) {
-          setFunnel(funnelData.funnel ?? { started: 0, abandoned: 0, completed: 0 });
+          setFunnel(funnelData.funnel ?? { started: 0, abandoned: 0, completed: 0, guests: 0 });
         }
       }
 
@@ -1291,6 +1291,7 @@ export default function AdminPage() {
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/80">
                     <span>started: <strong>{funnel.started}</strong></span>
                     <span>completed: <strong style={{ color: adminAccent }}>{funnel.completed}</strong></span>
+                    <span>guests: <strong style={{ color: adminAccent }}>{funnel.guests}</strong></span>
                     <span>abandoned: <strong className="text-white/60">{funnel.abandoned}</strong></span>
                   </div>
                   <div className="mt-2 h-2 w-full max-w-xs bg-white/10 rounded overflow-hidden flex">
@@ -1319,13 +1320,13 @@ export default function AdminPage() {
           {registrationsOverTime !== null && (registrations.length > 0 || (stats && stats.registered > 0)) && (
             <div className="mb-8">
               <p className="text-xs text-white/50 mb-2">
-                registrations over time (last 30 days)
+                registrations + guests over time (last 30 days)
                 <span className="ml-2" style={{ color: adminAccent }}>
                   new this week: {registrationsOverTime.newThisWeek}
                 </span>
               </p>
               {registrationsOverTime.series.length === 0 ? (
-                <p className="text-xs text-white/50">no registrations in this range</p>
+                <p className="text-xs text-white/50">no sign-ups in this range</p>
               ) : (
               <div className="flex items-end gap-1 h-12 w-full max-w-md">
                 {registrationsOverTime.series.map(({ date, count }) => {
@@ -1333,7 +1334,7 @@ export default function AdminPage() {
                   const h = max > 0 ? (count / max) * 100 : 0;
                   const [y, m, d] = date.split("-").map(Number);
                   const localDate = new Date(y, m - 1, d);
-                  const tooltipText = `${localDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} · ${count === 1 ? "1 registration" : `${count} registrations`}`;
+                  const tooltipText = `${localDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} · ${count === 1 ? "1 sign-up" : `${count} sign-ups`}`;
                   return (
                     <div
                       key={date}
