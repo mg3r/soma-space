@@ -476,6 +476,7 @@ export async function getEventStats(eventId: string) {
   return {
     eventId,
     capacity,
+    totalParticipantsAttending: activeCount,
     registered: totalRegistered,
     activeRegistered: activeCount,
     excluded: excludedCount,

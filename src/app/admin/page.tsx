@@ -26,6 +26,7 @@ type Registration = {
 type Stats = {
   eventId: string;
   capacity: number;
+  totalParticipantsAttending: number;
   registered: number;
   activeRegistered: number;
   excluded: number;
@@ -1237,7 +1238,11 @@ export default function AdminPage() {
         {/* Stats Summary */}
         {stats && (
           <>
-          <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-7">
+          <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-8">
+            <div className="bg-white/5 border border-white/10 p-3 sm:p-4">
+              <p className="text-xs text-white/50">total participants attending</p>
+              <p className="mt-1 text-2xl text-white">{stats.totalParticipantsAttending}</p>
+            </div>
             <div className="bg-white/5 border border-white/10 p-3 sm:p-4">
               <p className="text-xs text-white/50">registered</p>
               <p className="mt-1 text-2xl text-white">{stats.registered}</p>
