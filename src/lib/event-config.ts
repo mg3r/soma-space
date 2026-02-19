@@ -55,7 +55,7 @@ const defaultEventConfig: EventConfig = {
   chat_event_announcement: "join us for RENEWAL",
   chat_event_description: "mountain views, earth home, farm setting, cacao, live dj set",
   chat_location_message: "location shared after reserving (~25 minutes west of downtown mall)",
-  chat_contribution_message: "sliding scale contribution ($22–$44, your choice). nobody turned away for lack of funds. reach out if you need support!",
+  chat_contribution_message: "sliding scale contribution ($22–$44, your choice). please reach out if you need support",
   chat_full_message: "we checked, and this gathering is currently full",
   chat_waitlist_message: "join the waitlist and we'll reach out if a spot opens. we'll also let you know about future gatherings",
   primary_color: "#05fd00",
