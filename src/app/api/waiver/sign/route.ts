@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { recordWaiverSignature } from "@/lib/waiver";
+import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { email, firstName, lastName } = body;
+    const { email, firstName, lastName, walkIn } = body;
     if (!email || !String(email).trim()) {
       return NextResponse.json(
         { error: "Email is required" },
@@ -29,12 +30,18 @@ export async function POST(req: Request) {
       req.headers.get("x-real-ip") ||
       null;
     const userAgent = req.headers.get("user-agent") || null;
+    const isWalkIn = walkIn === true || walkIn === "true";
 
     const result = await recordWaiverSignature(
       String(email).trim(),
       String(firstName).trim(),
       String(lastName).trim(),
-      { ipAddress: ip ?? undefined, userAgent: userAgent ?? undefined, waiverVersion: "1" }
+      {
+        ipAddress: ip ?? undefined,
+        userAgent: userAgent ?? undefined,
+        waiverVersion: "1",
+        source: isWalkIn ? "walk_in" : "web",
+      }
     );
 
     if (!result.success) {
@@ -42,6 +49,17 @@ export async function POST(req: Request) {
         { error: result.error || "Failed to record signature" },
         { status: 500 }
       );
+    }
+
+    if (isWalkIn && supabase) {
+      const normalized = String(email).trim().toLowerCase();
+      const { error: updateError } = await supabase
+        .from("registration_guests")
+        .update({ waiver_signed_at: new Date().toISOString() })
+        .eq("email", normalized);
+      if (updateError) {
+        console.error("[waiver/sign] update registration_guests:", updateError);
+      }
     }
 
     return NextResponse.json({ success: true });

@@ -2,7 +2,10 @@ import { sendCapacityReachedNotification } from "./email";
 import { capitalizeName } from "./format";
 import { getStripeClient } from "./stripe";
 import { supabase } from "./supabase";
-import { getWaiverStatusForEmails } from "./waiver";
+import {
+  getWaiverDetailsForEmails,
+  getWaiverDetailsByIds,
+} from "./waiver";
 import Stripe from "stripe";
 
 /**
@@ -279,23 +282,42 @@ type RegistrationData = {
   isRefunded?: boolean;
   exclusionReason?: string;
   waiverSigned?: boolean;
+  waiverSource?: string;
+  /** When set, links to a specific waiver (e.g. admin linked to QR signature) */
+  waiverSignatureId?: string;
   isGuest?: boolean;
   /** Set only for guest rows; used for resend waiver */
   guestIndex?: number;
 };
 
-/** Add waiver-signed status to each registration (batch lookup). */
+/** Add waiver-signed status and source to each registration (batch lookup). */
 async function addWaiverStatus(
   list: RegistrationData[]
 ): Promise<RegistrationData[]> {
-  const emails = list.map((r) =>
-    (r.preWaiverEmail || r.customerEmail || "").trim().toLowerCase()
-  ).filter(Boolean);
-  if (emails.length === 0) return list;
-  const statusMap = await getWaiverStatusForEmails(emails);
+  const byId = list.filter((r) => r.waiverSignatureId);
+  const byEmail = list.filter((r) => !r.waiverSignatureId);
+  const ids = byId.map((r) => r.waiverSignatureId!);
+  const emails = byEmail
+    .map((r) => (r.preWaiverEmail || r.customerEmail || "").trim().toLowerCase())
+    .filter(Boolean);
+
+  const [idDetails, emailDetails] = await Promise.all([
+    ids.length > 0 ? getWaiverDetailsByIds(ids) : Promise.resolve<Record<string, { source?: string }>>({}),
+    emails.length > 0 ? getWaiverDetailsForEmails(emails) : Promise.resolve<Record<string, { signed: boolean; source?: string }>>({}),
+  ]);
+
   return list.map((r) => {
+    if (r.waiverSignatureId && idDetails[r.waiverSignatureId]) {
+      const d = idDetails[r.waiverSignatureId];
+      return { ...r, waiverSigned: true, waiverSource: d.source };
+    }
     const primary = (r.preWaiverEmail || r.customerEmail || "").trim().toLowerCase();
-    return { ...r, waiverSigned: primary ? (statusMap[primary] ?? false) : false };
+    const d = primary ? emailDetails[primary] : undefined;
+    return {
+      ...r,
+      waiverSigned: d?.signed ?? false,
+      waiverSource: d?.source,
+    };
   });
 }
 
@@ -325,7 +347,7 @@ export async function getEventRegistrations(
           const isExcluded = row.is_excluded || excludedIds.has(row.session_id);
           const exclusionInfo = excludedWithReasons.get(row.session_id);
           const isRefunded = row.refunded_at != null || exclusionInfo?.isRefunded || false;
-          
+
           return {
             sessionId: row.session_id,
             customerName: row.customer_name,
@@ -339,16 +361,25 @@ export async function getEventRegistrations(
             isExcluded: isExcluded,
             isRefunded: isRefunded,
             exclusionReason: exclusionInfo?.reason || undefined,
+            waiverSignatureId: (row as { waiver_signature_id?: string }).waiver_signature_id || undefined,
           };
         });
-        const listWithWaiver = await addWaiverStatus(list);
-        const sessionMap = new Map(listWithWaiver.map((r) => [r.sessionId, r]));
+        const sessionMap = new Map(list.map((r) => [r.sessionId, r]));
         const { data: guests } = await supabase
           .from("registration_guests")
-          .select("session_id, guest_index, name, email, amount_paid, waiver_signed_at, is_excluded")
+          .select("session_id, guest_index, name, email, amount_paid, waiver_signed_at, waiver_signature_id, is_excluded")
           .eq("event_id", eventId);
         if (guests?.length) {
-          const guestRows: RegistrationData[] = guests.map((g: { session_id: string; guest_index: number; name: string; email: string; amount_paid: number; waiver_signed_at: string | null; is_excluded?: boolean | null }) => {
+          const guestRows: RegistrationData[] = guests.map((g: {
+            session_id: string;
+            guest_index: number;
+            name: string;
+            email: string;
+            amount_paid: number;
+            waiver_signed_at: string | null;
+            waiver_signature_id?: string | null;
+            is_excluded?: boolean | null;
+          }) => {
             const main = sessionMap.get(g.session_id);
             return {
               sessionId: g.session_id,
@@ -362,13 +393,15 @@ export async function getEventRegistrations(
               eventId,
               isExcluded: g.is_excluded === true,
               isRefunded: main?.isRefunded ?? false,
-              waiverSigned: !!g.waiver_signed_at,
+              waiverSignatureId: g.waiver_signature_id || undefined,
+              waiverSigned: !!(g.waiver_signed_at || g.waiver_signature_id),
               isGuest: true,
             };
           });
-          return [...listWithWaiver, ...guestRows];
+          const combinedWithWaiver = await addWaiverStatus([...list, ...guestRows]);
+          return combinedWithWaiver;
         }
-        return listWithWaiver;
+        return addWaiverStatus(list);
       }
     } catch (error) {
       console.log("Supabase query failed, falling back to Stripe:", error);

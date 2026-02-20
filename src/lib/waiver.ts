@@ -41,6 +41,8 @@ export function verifyGuestWaiverToken(
   }
 }
 
+export type WaiverSignatureSource = "web" | "walk_in" | "walk_in_paper" | "admin";
+
 export type WaiverSignature = {
   id: string;
   email: string;
@@ -50,6 +52,7 @@ export type WaiverSignature = {
   ip_address: string | null;
   user_agent: string | null;
   waiver_version: string;
+  source?: string | null;
   created_at: string;
 };
 
@@ -106,23 +109,32 @@ export async function recordWaiverSignature(
   email: string,
   firstName: string,
   lastName: string,
-  opts?: { ipAddress?: string; userAgent?: string; waiverVersion?: string }
+  opts?: {
+    ipAddress?: string;
+    userAgent?: string;
+    waiverVersion?: string;
+    source?: WaiverSignatureSource;
+  }
 ): Promise<{ success: boolean; error?: string }> {
   if (!supabase) {
     return { success: false, error: "Waiver storage is not configured." };
   }
   try {
     const normalized = email.trim().toLowerCase();
+    const payload: Record<string, unknown> = {
+      email: normalized,
+      first_name: capitalizeName((firstName || "").trim()),
+      last_name: capitalizeName((lastName || "").trim()),
+      ip_address: opts?.ipAddress || null,
+      user_agent: opts?.userAgent || null,
+      waiver_version: opts?.waiverVersion || "1",
+      signed_at: new Date().toISOString(),
+    };
+    if (opts?.source) {
+      payload.source = opts.source;
+    }
     const { error } = await supabase.from("waiver_signatures").upsert(
-      {
-        email: normalized,
-        first_name: capitalizeName((firstName || "").trim()),
-        last_name: capitalizeName((lastName || "").trim()),
-        ip_address: opts?.ipAddress || null,
-        user_agent: opts?.userAgent || null,
-        waiver_version: opts?.waiverVersion || "1",
-        signed_at: new Date().toISOString(),
-      },
+      payload as Record<string, string | null>,
       { onConflict: "email" }
     );
     if (error) {
@@ -134,4 +146,91 @@ export async function recordWaiverSignature(
     const msg = e instanceof Error ? e.message : "Unknown error";
     return { success: false, error: msg };
   }
+}
+
+/**
+ * List waiver signatures by source, e.g. for admin "link to QR signer" picker.
+ * Returns recent signatures (within hours) for the given source.
+ */
+export async function listWaiverSignaturesBySource(
+  source: WaiverSignatureSource,
+  hours = 168
+): Promise<WaiverSignature[]> {
+  if (!supabase) return [];
+  try {
+    const since = new Date();
+    since.setHours(since.getHours() - hours);
+    const iso = since.toISOString();
+    const { data, error } = await supabase
+      .from("waiver_signatures")
+      .select("id, email, first_name, last_name, signed_at")
+      .eq("source", source)
+      .gte("signed_at", iso)
+      .order("signed_at", { ascending: false });
+    if (error) {
+      console.error("listWaiverSignaturesBySource:", error);
+      return [];
+    }
+    return (data || []) as WaiverSignature[];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Get waiver details (source) by waiver_signature ids.
+ * Used when registration has waiver_signature_id set.
+ */
+export async function getWaiverDetailsByIds(
+  ids: string[]
+): Promise<Record<string, { source?: string }>> {
+  const result: Record<string, { source?: string }> = {};
+  if (!supabase || ids.length === 0) return result;
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (unique.length === 0) return result;
+  try {
+    const { data, error } = await supabase
+      .from("waiver_signatures")
+      .select("id, source")
+      .in("id", unique);
+    if (!error && data) {
+      data.forEach((row: { id: string; source?: string | null }) => {
+        if (row.id) result[row.id] = { source: row.source || undefined };
+      });
+    }
+  } catch {
+    // leave empty
+  }
+  return result;
+}
+
+/**
+ * Batch get waiver details (signed status + source) for emails.
+ * Used by admin to display waiver source labels.
+ */
+export async function getWaiverDetailsForEmails(
+  emails: string[]
+): Promise<Record<string, { signed: boolean; source?: string }>> {
+  const result: Record<string, { signed: boolean; source?: string }> = {};
+  if (!supabase || emails.length === 0) return result;
+  const normalized = [...new Set(emails.map((e) => e.trim().toLowerCase()).filter(Boolean))];
+  if (normalized.length === 0) return result;
+  normalized.forEach((e) => (result[e] = { signed: false }));
+  try {
+    const { data, error } = await supabase
+      .from("waiver_signatures")
+      .select("email, source")
+      .in("email", normalized);
+    if (!error && data) {
+      data.forEach((row: { email: string; source?: string | null }) => {
+        if (row.email) {
+          const k = row.email.toLowerCase();
+          result[k] = { signed: true, source: row.source || undefined };
+        }
+      });
+    }
+  } catch {
+    // leave all unsigned
+  }
+  return result;
 }

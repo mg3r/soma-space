@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { nextEvent } from "@/config/event";
 import Link from "next/link";
+import QRCode from "qrcode";
 import type { EventConfig } from "@/lib/event-config";
 
 type Registration = {
@@ -19,6 +20,7 @@ type Registration = {
   isRefunded?: boolean;
   exclusionReason?: string;
   waiverSigned?: boolean;
+  waiverSource?: string;
   isGuest?: boolean;
   guestIndex?: number;
 };
@@ -107,6 +109,14 @@ export default function AdminPage() {
   const [emailResult, setEmailResult] = useState<{ sent: number; failed: number; errors?: string[] } | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [showWalkInQR, setShowWalkInQR] = useState(false);
+  const [walkInQRDataUrl, setWalkInQRDataUrl] = useState<string | null>(null);
+  const [markAsSignedReg, setMarkAsSignedReg] = useState<Registration | null>(null);
+  const [markAsSignedSource, setMarkAsSignedSource] = useState<"walk_in" | "walk_in_paper" | "admin" | "">("");
+  const [markAsSignedWaiverId, setMarkAsSignedWaiverId] = useState<string | null>(null);
+  const [qrSignatures, setQrSignatures] = useState<Array<{ id: string; email: string; first_name: string; last_name: string; signed_at: string }>>([]);
+  const [isLoadingQrSignatures, setIsLoadingQrSignatures] = useState(false);
+  const [isMarkingAsSigned, setIsMarkingAsSigned] = useState(false);
   const emailEditorRef = useRef<HTMLDivElement>(null);
 
   function showToast(message: string, type: "success" | "error") {
@@ -118,6 +128,30 @@ export default function AdminPage() {
     const t = setTimeout(() => setToast(null), 4000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  useEffect(() => {
+    if (!showWalkInQR) return;
+    const base =
+      (typeof window !== "undefined"
+        ? window.location.origin
+        : process.env.NEXT_PUBLIC_BASE_URL) || "https://entersoma.space";
+    const url = `${base}/waiver/walk-in`;
+    QRCode.toDataURL(url, { width: 300, margin: 2 })
+      .then(setWalkInQRDataUrl)
+      .catch(() => setWalkInQRDataUrl(null));
+  }, [showWalkInQR]);
+
+  useEffect(() => {
+    if (!markAsSignedReg || markAsSignedSource !== "walk_in") return;
+    setIsLoadingQrSignatures(true);
+    fetch("/api/admin/waiver-signatures?source=walk_in&hours=168")
+      .then((r) => r.json())
+      .then((data) => {
+        setQrSignatures(data.signatures || []);
+      })
+      .catch(() => setQrSignatures([]))
+      .finally(() => setIsLoadingQrSignatures(false));
+  }, [markAsSignedReg, markAsSignedSource]);
   const [emailFontSize, setEmailFontSize] = useState<"small" | "medium" | "large">("small");
   const [activeTab, setActiveTab] = useState<"overview" | "email" | "event-config">("overview");
   const [emailTemplates, setEmailTemplates] = useState<Array<{ id: string; name: string; subject: string; body: string; attachments?: Array<{ filename: string; content: string; content_type?: string }>; updated_at: string }>>([]);
@@ -1390,6 +1424,42 @@ export default function AdminPage() {
           </p>
         </div>
 
+        {/* Walk-in Waiver QR */}
+        <div className="mb-6 sm:mb-8 bg-white/5 border border-white/10 p-4 sm:p-6">
+          <button
+            type="button"
+            onClick={() => setShowWalkInQR((v) => !v)}
+            className="flex items-center justify-between w-full text-left"
+          >
+            <h2 className="text-sm" style={{ color: adminAccent }}>walk-in waiver QR</h2>
+            <span className="text-white/50 text-xs">{showWalkInQR ? "hide" : "show"}</span>
+          </button>
+          {showWalkInQR && (
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <p className="mb-3 text-xs text-white/60">
+                display or print this QR code at the door so walk-ins can sign the waiver on their phone.
+              </p>
+              <div className="flex flex-col sm:flex-row items-start gap-4">
+                {walkInQRDataUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element -- QR data URL from qrcode package
+                  <img
+                    src={walkInQRDataUrl}
+                    alt="Walk-in waiver QR code"
+                    className="rounded border border-white/20 w-[256px] h-[256px] sm:w-[300px] sm:h-[300px] shrink-0"
+                  />
+                )}
+                <div className="text-sm text-white/80">
+                  <p className="font-medium text-white/90">URL:</p>
+                  <p className="mt-1 break-all">
+                    {(typeof window !== "undefined" ? window.location.origin : process.env.NEXT_PUBLIC_BASE_URL) || "https://entersoma.space"}
+                    /waiver/walk-in
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Registrations Table */}
         <div className="bg-white/5 border border-white/10">
           <div className="border-b border-white/10 p-4">
@@ -1480,9 +1550,11 @@ export default function AdminPage() {
                       </td>
                       <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
                         {reg.waiverSigned === true ? (
-                          <span className="text-white/70" title="Waiver signed">✓</span>
+                          <span className="text-white/70" title={reg.waiverSource ? `signed (${reg.waiverSource})` : "Waiver signed"}>
+                            ✓{reg.waiverSource ? <span className="ml-1 text-xs text-white/50">({reg.waiverSource})</span> : null}
+                          </span>
                         ) : (
-                          <span className="flex items-center gap-2">
+                          <span className="flex flex-wrap items-center gap-2">
                             <span className="text-white/40" title="Waiver not signed">—</span>
                             {reg.isGuest && reg.guestIndex != null && (
                               <button
@@ -1515,6 +1587,17 @@ export default function AdminPage() {
                                 {resendingWaiverKey === `${reg.sessionId}-${reg.guestIndex}` ? "sending…" : "resend waiver"}
                               </button>
                             )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMarkAsSignedReg(reg);
+                                setMarkAsSignedSource("");
+                                setMarkAsSignedWaiverId(null);
+                              }}
+                              className="min-h-[44px] touch-manipulation px-2 py-2 text-xs text-white/50 hover:text-white/80 rounded"
+                            >
+                              mark as signed
+                            </button>
                           </span>
                         )}
                       </td>
@@ -1928,9 +2011,11 @@ export default function AdminPage() {
                           </td>
                           <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
                             {reg.waiverSigned === true ? (
-                              <span className="text-white/70" title="Waiver signed">✓</span>
+                              <span className="text-white/70" title={reg.waiverSource ? `signed (${reg.waiverSource})` : "Waiver signed"}>
+                                ✓{reg.waiverSource ? <span className="ml-1 text-xs text-white/50">({reg.waiverSource})</span> : null}
+                              </span>
                             ) : (
-                              <span className="flex items-center gap-2">
+                              <span className="flex flex-wrap items-center gap-2">
                                 <span className="text-white/40" title="Waiver not signed">—</span>
                                 {reg.isGuest && reg.guestIndex != null && (
                                   <button
@@ -1963,6 +2048,17 @@ export default function AdminPage() {
                                     {resendingWaiverKey === `${reg.sessionId}-${reg.guestIndex}` ? "sending…" : "resend waiver"}
                                   </button>
                                 )}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setMarkAsSignedReg(reg);
+                                    setMarkAsSignedSource("");
+                                    setMarkAsSignedWaiverId(null);
+                                  }}
+                                  className="text-xs text-white/50 hover:text-white/80"
+                                >
+                                  mark as signed
+                                </button>
                               </span>
                             )}
                           </td>
@@ -3012,6 +3108,155 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+
+      {/* Mark as signed modal */}
+      {markAsSignedReg && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-[#111111] border border-white/20 rounded-lg p-6 max-w-md w-full mx-4 max-h-[85vh] overflow-y-auto">
+            <h3 className="text-sm font-medium text-white mb-2">mark waiver as signed</h3>
+            <p className="text-xs text-white/60 mb-4">
+              {markAsSignedReg.customerName}
+              {markAsSignedReg.customerEmail ? ` (${markAsSignedReg.customerEmail})` : ""}
+            </p>
+            {!markAsSignedSource ? (
+              <div className="space-y-2">
+                <p className="text-xs text-white/70 mb-2">how did they sign?</p>
+                <button
+                  type="button"
+                  onClick={() => setMarkAsSignedSource("walk_in")}
+                  className="block w-full text-left px-4 py-2 rounded border border-white/20 bg-white/5 text-white/90 hover:bg-white/10 text-sm"
+                >
+                  Walk-in (QR)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMarkAsSignedSource("walk_in_paper")}
+                  className="block w-full text-left px-4 py-2 rounded border border-white/20 bg-white/5 text-white/90 hover:bg-white/10 text-sm"
+                >
+                  Walk-in (paper)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMarkAsSignedSource("admin")}
+                  className="block w-full text-left px-4 py-2 rounded border border-white/20 bg-white/5 text-white/90 hover:bg-white/10 text-sm"
+                >
+                  Admin
+                </button>
+              </div>
+            ) : markAsSignedSource === "walk_in" ? (
+              <div className="space-y-4">
+                <p className="text-xs text-white/70">select the person who signed via QR:</p>
+                {isLoadingQrSignatures ? (
+                  <p className="text-sm text-white/50">loading…</p>
+                ) : qrSignatures.length === 0 ? (
+                  <p className="text-sm text-white/50">no QR signers in the last 7 days</p>
+                ) : (
+                  <div className="max-h-48 overflow-y-auto space-y-1">
+                    {qrSignatures.map((sig) => (
+                      <button
+                        key={sig.id}
+                        type="button"
+                        onClick={() => setMarkAsSignedWaiverId(sig.id)}
+                        className={`block w-full text-left px-3 py-2 rounded text-sm ${
+                          markAsSignedWaiverId === sig.id ? "bg-white/20 border border-white/30" : "bg-white/5 border border-white/10 hover:bg-white/10"
+                        }`}
+                      >
+                        <span className="text-white/90">
+                          {[sig.first_name, sig.last_name].filter(Boolean).join(" ")}
+                        </span>
+                        <span className="text-white/50 text-xs ml-2">({sig.email})</span>
+                        <span className="block text-xs text-white/40 mt-0.5">
+                          {new Date(sig.signed_at).toLocaleString()}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-xs text-white/70">
+                  record that they signed via {markAsSignedSource === "walk_in_paper" ? "paper" : "admin"}.
+                </p>
+                <p className="text-sm text-white/80">
+                  name: {markAsSignedReg.customerName}
+                  <br />
+                  email: {markAsSignedReg.customerEmail || "(none)"}
+                </p>
+              </div>
+            )}
+            <div className="flex gap-2 mt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setMarkAsSignedReg(null);
+                  setMarkAsSignedSource("");
+                  setMarkAsSignedWaiverId(null);
+                }}
+                className="px-4 py-2 rounded border border-white/20 text-white/80 hover:bg-white/10 text-sm"
+              >
+                cancel
+              </button>
+              {markAsSignedSource && (
+                <button
+                  type="button"
+                  disabled={
+                    isMarkingAsSigned ||
+                    (markAsSignedSource === "walk_in" && !markAsSignedWaiverId) ||
+                    ((markAsSignedSource === "walk_in_paper" || markAsSignedSource === "admin") &&
+                      (!(markAsSignedReg.customerEmail || markAsSignedReg.preWaiverEmail)?.trim() || !markAsSignedReg.customerName?.trim()))
+                  }
+                  onClick={async () => {
+                    if (markAsSignedSource === "walk_in" && !markAsSignedWaiverId) return;
+                    setIsMarkingAsSigned(true);
+                    try {
+                      const body: Record<string, unknown> = {
+                        source: markAsSignedSource,
+                        sessionId: markAsSignedReg.sessionId,
+                      };
+                      if (markAsSignedReg.isGuest && markAsSignedReg.guestIndex != null) {
+                        body.guestIndex = markAsSignedReg.guestIndex;
+                      }
+                      if (markAsSignedSource === "walk_in" && markAsSignedWaiverId) {
+                        body.waiverSignatureId = markAsSignedWaiverId;
+                      } else {
+                        const parts = (markAsSignedReg.customerName || "").trim().split(/\s+/);
+                        body.email = (markAsSignedReg.customerEmail || markAsSignedReg.preWaiverEmail || "").trim().toLowerCase();
+                        body.firstName = parts[0] || "";
+                        body.lastName = parts.slice(1).join(" ") || "";
+                      }
+                      const res = await fetch("/api/admin/mark-waiver-signed", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(body),
+                      });
+                      const data = await res.json().catch(() => ({}));
+                      if (res.ok && data.success) {
+                        showToast("Waiver marked as signed.", "success");
+                        setMarkAsSignedReg(null);
+                        setMarkAsSignedSource("");
+                        setMarkAsSignedWaiverId(null);
+                        loadData();
+                      } else {
+                        showToast((data.error as string) || "Failed to mark waiver.", "error");
+                      }
+                    } catch {
+                      showToast("An error occurred.", "error");
+                    } finally {
+                      setIsMarkingAsSigned(false);
+                    }
+                  }}
+                  className="px-4 py-2 rounded text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ backgroundColor: adminAccent, color: "#000" }}
+                >
+                  {isMarkingAsSigned ? "marking…" : "confirm"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {toast && (
         <div
           className="fixed bottom-4 right-4 z-50 max-w-sm rounded border px-4 py-3 text-sm shadow-lg"
