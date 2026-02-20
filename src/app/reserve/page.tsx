@@ -332,52 +332,62 @@ export default function Page() {
 
   // Show booking form after authentication
   return (
-    <main className="relative h-screen overflow-hidden text-white" style={{ backgroundColor }}>
-      <div className="relative mx-auto flex h-screen max-w-4xl flex-col px-6 pt-20 pb-10">
-        <div className="flex flex-1 items-center">
-          <div className="flex-1">
-            <h1 className="text-sm">join us for {event.name}</h1>
+    <main className="relative min-h-screen overflow-auto text-white" style={{ backgroundColor }}>
+      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col px-6 pt-20 pb-10 md:flex-row md:items-start md:gap-12 md:pt-24">
+        {/* Left column: event details */}
+        <div className="flex-1 md:max-w-md">
+          <h1 className="text-sm">join us for {event.name}</h1>
 
-            <p className="mt-6 text-sm text-white/70 leading-relaxed">
-              {config?.event_description || "a gathering of guided movement, music, and embodied presence — held in a quiet farm setting with mountain views. come to move freely, unwind, and connect as you are."}
+          <p className="mt-6 text-sm text-white/70 leading-relaxed">
+            {config?.event_description || "a gathering of guided movement, music, and embodied presence — held in a quiet farm setting with mountain views. come to move freely, unwind, and connect as you are."}
+          </p>
+
+          <div className="mt-8 space-y-1">
+            <p className="text-sm text-white/90">
+              {event.date} • {event.time}
             </p>
+            <p className="text-sm text-white/90">
+              {config?.event_description || event.place}
+            </p>
+          </div>
 
-            <div className="mt-8 space-y-1">
-              <p className="text-sm text-white/90">
-                {event.date} • {event.time}
-              </p>
-              <p className="text-sm text-white/90">
-                {config?.event_description || event.place}
+          <p className="mt-6 text-sm text-white/70">
+            {config?.chat_location_message || event.note || "location shared after reserving (~25 minutes west of downtown mall)"}
+          </p>
+
+          <p className="mt-6 text-sm text-white/70 leading-relaxed">
+            soma space is held as a respectful, non violent, and consensual container where all bodies are welcome.{" "}
+            <Link
+              href="/manifesto"
+              className="hover:opacity-80"
+              style={{ color: primaryColor }}
+            >
+              read our full manifesto here
+            </Link>
+            .
+          </p>
+
+          <p className="mt-6 text-sm text-white/80">
+            sliding scale contribution ($22–$44, your choice).
+          </p>
+          <p className="mt-1 text-sm text-white/70">
+            no one is ever turned away for not having enough. if you need financial support, please reach out to us directly.
+          </p>
+
+          {/* Remaining spots indicator - only show when 10 or fewer spots remain (and not full) */}
+          {remainingSpots !== null && remainingSpots <= 10 && remainingSpots > 0 && (
+            <div className="mt-8">
+              <p className="text-sm text-white/70">
+                <span style={{ color: primaryColor }}>{remainingSpots}</span> spot{remainingSpots !== 1 ? "s" : ""} remaining
               </p>
             </div>
+          )}
+        </div>
 
-            <p className="mt-6 text-sm text-white/70">
-              {config?.chat_location_message || event.note || "location shared after reserving (~25 minutes west of downtown mall)"}
-            </p>
-
-            <p className="mt-6 text-sm text-white/70 leading-relaxed">
-              soma space is held as a respectful, non violent, and consensual container where all bodies are welcome.{" "}
-              <Link
-                href="/manifesto"
-                className="hover:opacity-80"
-                style={{ color: primaryColor }}
-              >
-                read our full manifesto here
-              </Link>
-              .
-            </p>
-
-            {/* Remaining spots indicator - only show when 10 or fewer spots remain (and not full) */}
-            {remainingSpots !== null && remainingSpots <= 10 && remainingSpots > 0 && (
-              <div className="mt-8">
-                <p className="text-sm text-white/70">
-                  <span style={{ color: primaryColor }}>{remainingSpots}</span> spot{remainingSpots !== 1 ? "s" : ""} remaining
-                </p>
-              </div>
-            )}
-
-            {/* Waitlist form (shown when full or after failed booking) */}
-            {showWaitlist && (
+        {/* Right column: form */}
+        <div className="mt-10 flex-1 md:mt-0 md:max-w-md">
+          {/* Waitlist form (shown when full or after failed booking) */}
+          {showWaitlist && (
               <div className="mt-8 space-y-4 bg-white/5 border border-white/10 p-6">
                 <h2 className="text-sm" style={{ color: primaryColor }}>join the waitlist</h2>
                 {waitlistSuccess ? (
@@ -439,16 +449,10 @@ export default function Page() {
 
             {/* Booking form (shown when not full) */}
             {!isFull && !showWaitlist && (
-              <div className="mt-8 space-y-4">
-                <p className="text-sm text-white/80">
-                  sliding scale contribution ($22–$44, your choice).
-                </p>
-                <p className="text-sm text-white/70">
-                  no one is ever turned away for not having enough. if you need financial support, please reach out to us directly.
-                </p>
+              <div className="space-y-4">
+                <p className="text-sm text-white/80">how many spots do you need?</p>
                 {multiTicketEnabled && (
-                  <div>
-                    <p className="text-sm text-white/70 mb-2">how many spots?</p>
+                  <div className="mb-4">
                     <div className="flex flex-wrap gap-2">
                       {Array.from({ length: maxTickets }, (_, i) => i + 1).map((n) => (
                         <button
@@ -628,7 +632,6 @@ export default function Page() {
                 </button>
               </div>
             )}
-          </div>
         </div>
       </div>
     </main>
