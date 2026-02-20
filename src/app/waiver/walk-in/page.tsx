@@ -114,7 +114,7 @@ function WalkInWaiverContent() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-white/60">type your full name to sign:</label>
+              <label className="mb-1 block text-xs text-white/60">type your full name to sign</label>
               <input
                 type="text"
                 value={fullName}
