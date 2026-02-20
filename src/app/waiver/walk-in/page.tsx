@@ -18,25 +18,25 @@ const WAIVER_PARAGRAPHS = [
 function WalkInWaiverContent() {
   const { primaryColor, backgroundColor, isLoading } = useEventConfig();
 
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
   const [agree, setAgree] = useState(false);
-  const [typedName, setTypedName] = useState("");
   const [signed, setSigned] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState("");
 
-  const fullName = [firstName, lastName].filter(Boolean).join(" ");
+  const trimmedName = fullName.trim();
   const canSign =
     agree &&
-    firstName.trim() &&
-    lastName.trim() &&
     email.trim() &&
-    typedName.trim().toLowerCase() === fullName.trim().toLowerCase();
+    trimmedName.length > 0;
 
   const handleSign = useCallback(async () => {
-    if (!canSign || !email.trim()) return;
+    const name = fullName.trim();
+    if (!canSign || !email.trim() || !name) return;
+    const parts = name.split(/\s+/);
+    const firstName = parts[0] || "";
+    const lastName = parts.slice(1).join(" ") || "";
     setError("");
     setIsSigning(true);
     try {
@@ -45,8 +45,8 @@ function WalkInWaiverContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: email.trim(),
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
+          firstName,
+          lastName,
           walkIn: true,
         }),
       });
@@ -61,7 +61,7 @@ function WalkInWaiverContent() {
     } finally {
       setIsSigning(false);
     }
-  }, [canSign, email, firstName, lastName]);
+  }, [canSign, email, fullName]);
 
   if (isLoading) {
     return (
@@ -103,36 +103,6 @@ function WalkInWaiverContent() {
 
         {!signed ? (
           <div className="mt-8 space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-xs text-white/60">first name</label>
-                <input
-                  type="text"
-                  value={firstName}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setFirstName(v);
-                    setTypedName([v, lastName].filter(Boolean).join(" "));
-                  }}
-                  placeholder="First"
-                  className="w-full rounded border border-white/20 bg-white/5 px-3 py-2 text-white placeholder:text-white/40 focus:border-white/40 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-white/60">last name</label>
-                <input
-                  type="text"
-                  value={lastName}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setLastName(v);
-                    setTypedName([firstName, v].filter(Boolean).join(" "));
-                  }}
-                  placeholder="Last"
-                  className="w-full rounded border border-white/20 bg-white/5 px-3 py-2 text-white placeholder:text-white/40 focus:border-white/40 focus:outline-none"
-                />
-              </div>
-            </div>
             <div>
               <label className="mb-1 block text-xs text-white/60">email</label>
               <input
@@ -141,6 +111,17 @@ function WalkInWaiverContent() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 className="w-full rounded border border-white/20 bg-white/5 px-3 py-2 text-white placeholder:text-white/40 focus:border-white/40 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-white/60">type your full name to sign:</label>
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="first and last name"
+                className="w-full rounded border border-white/20 bg-white/5 px-3 py-2 text-white placeholder:text-white/40 focus:border-white/40 focus:outline-none"
+                style={{ borderColor: agree && canSign ? primaryColor : undefined }}
               />
             </div>
             <label className="flex items-start gap-3 text-sm text-white/80">
@@ -153,20 +134,6 @@ function WalkInWaiverContent() {
               />
               <span>i have read and agree to the participation agreement above.</span>
             </label>
-            <div>
-              <p className="mb-1 text-sm text-white/70">
-                type your full name to sign:{" "}
-                <strong className="text-white/90">{fullName || "(first and last name)"}</strong>
-              </p>
-              <input
-                type="text"
-                value={typedName}
-                onChange={(e) => setTypedName(e.target.value)}
-                placeholder="first last"
-                className="w-full rounded border border-white/20 bg-white/5 px-3 py-2 text-white placeholder:text-white/40 focus:border-white/40 focus:outline-none"
-                style={{ borderColor: agree && canSign ? primaryColor : undefined }}
-              />
-            </div>
             <button
               type="button"
               onClick={handleSign}
@@ -180,7 +147,7 @@ function WalkInWaiverContent() {
         ) : (
           <div className="mt-8 space-y-4">
             <p className="text-sm text-white/80">
-              thanks, {firstName}. you&apos;re signed. you&apos;re all set.
+              thanks, {trimmedName.split(/\s+/)[0] || trimmedName}. you&apos;re signed. you&apos;re all set.
             </p>
           </div>
         )}

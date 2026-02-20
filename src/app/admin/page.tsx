@@ -1132,7 +1132,7 @@ export default function AdminPage() {
                 }`}
                 style={activeTab === "event-config" ? { color: adminAccent, borderColor: adminAccent } : undefined}
               >
-                event config
+                event configuration
               </button>
           </div>
         </div>
@@ -2710,14 +2710,14 @@ export default function AdminPage() {
             )}
             
             {isLoadingEventConfig ? (
-              <p className="text-sm text-white/50">Loading event config...</p>
+              <p className="text-sm text-white/50">Loading event configuration...</p>
             ) : (
               <div className="space-y-6">
                 {/* Initialize config if none exists */}
                 {!eventConfig && allEventConfigs.length === 0 && (
                   <div className="bg-white/5 border border-white/10 p-4">
                     <p className="text-sm text-white/70 mb-4">
-                      no event config found. create one to get started.
+                      no event configuration found. create one to get started.
                     </p>
                     <button
                       onClick={() => {
