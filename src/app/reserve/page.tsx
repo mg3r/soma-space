@@ -6,7 +6,13 @@ import { useEventConfig } from "@/hooks/useEventConfig";
 
 export default function Page() {
   const { event, config, isLoading: isLoadingConfig, primaryColor, backgroundColor } = useEventConfig();
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [contributionAmount, setContributionAmount] = useState("33");
+  const [numTickets, setNumTickets] = useState(1);
+  const [multiTicketGuests, setMultiTicketGuests] = useState<Array<{ name: string; email: string; amount: number }>>([]);
   const [isCreatingCheckout, setIsCreatingCheckout] = useState(false);
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -77,27 +83,138 @@ export default function Page() {
     }
   }, [isAuthenticated, loadEventStatus]);
 
+  const maxTickets = (config?.max_guests_per_order ?? 3) + 1;
+  const multiTicketEnabled = config?.multi_ticket_enabled ?? false;
+
+  useEffect(() => {
+    if (!multiTicketEnabled) return;
+    const needed = Math.max(0, numTickets - 1);
+    setMultiTicketGuests((prev) => {
+      if (prev.length === needed) return prev;
+      if (prev.length < needed) {
+        return [...prev, ...Array(needed - prev.length).fill(null).map(() => ({ name: "", email: "", amount: 0 }))];
+      }
+      return prev.slice(0, needed);
+    });
+  }, [multiTicketEnabled, numTickets]);
+
   async function createCheckoutSession() {
     if (isCreatingCheckout) return;
-    
-    const amount = parseFloat(contributionAmount);
-    if (isNaN(amount) || amount < 22 || amount > 44) {
+
+    const trimmedFirst = firstName.trim();
+    const trimmedLast = lastName.trim();
+    const trimmedEmail = email.trim();
+
+    if (!trimmedFirst || !trimmedLast) {
+      alert("Please enter your first and last name");
+      return;
+    }
+    if (!trimmedEmail || !trimmedEmail.includes("@")) {
+      alert("Please enter a valid email address");
+      return;
+    }
+    const payerAmount = parseFloat(contributionAmount);
+    if (isNaN(payerAmount) || payerAmount < 22 || payerAmount > 44) {
       alert("Please enter an amount between $22 and $44");
       return;
     }
-    
+
+    const isMultiTicket = multiTicketEnabled && numTickets > 1;
+    let pendingOrderId: string | undefined;
+
+    if (isMultiTicket) {
+      const guests = multiTicketGuests.slice(0, numTickets - 1);
+      for (let i = 0; i < guests.length; i++) {
+        const g = guests[i];
+        if (!g.name.trim()) {
+          alert(`Please enter guest ${i + 1}'s name`);
+          return;
+        }
+        if (!g.email.trim() || !g.email.includes("@")) {
+          alert(`Please enter a valid email for guest ${i + 1}`);
+          return;
+        }
+        const amt = g.amount;
+        if (isNaN(amt) || amt < 22 || amt > 44) {
+          alert(`Guest ${i + 1}: please enter an amount between $22 and $44`);
+          return;
+        }
+      }
+
+      const tickets = [
+        {
+          name: [trimmedFirst, trimmedLast].filter(Boolean).join(" ").trim() || "Guest",
+          email: trimmedEmail,
+          amount: payerAmount,
+        },
+        ...guests.map((g) => ({
+          name: g.name.trim(),
+          email: g.email.trim(),
+          amount: g.amount,
+        })),
+      ];
+
+      setIsCreatingCheckout(true);
+      try {
+        const pendingRes = await fetch("/api/pending-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ eventId: event?.id || undefined, tickets }),
+        });
+        const pendingData = await pendingRes.json().catch(() => ({}));
+        if (!pendingRes.ok || !pendingData.id) {
+          alert(pendingData.error || "Failed to create order. Please try again.");
+          return;
+        }
+        pendingOrderId = pendingData.id;
+      } catch (err) {
+        console.error("Error creating pending order:", err);
+        alert("An error occurred. Please try again.");
+        setIsCreatingCheckout(false);
+        return;
+      }
+    }
+
     setIsCreatingCheckout(true);
     try {
+      const checkRes = await fetch(`/api/waiver/check?email=${encodeURIComponent(trimmedEmail)}`);
+      const checkData = await checkRes.json().catch(() => ({}));
+
+      if (!checkData.signed) {
+        const params = new URLSearchParams({
+          firstName: trimmedFirst,
+          lastName: trimmedLast,
+          email: trimmedEmail,
+          amount: contributionAmount,
+        });
+        if (pendingOrderId) params.set("pendingOrderId", pendingOrderId);
+        window.location.href = `/waiver?${params.toString()}`;
+        return;
+      }
+
+      const body: Record<string, unknown> = {
+        email: trimmedEmail,
+        customerName: [trimmedFirst, trimmedLast].filter(Boolean).join(" ").trim() || undefined,
+      };
+      if (pendingOrderId) {
+        body.pendingOrderId = pendingOrderId;
+      } else {
+        body.amount = contributionAmount;
+      }
+
       const res = await fetch("/api/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: contributionAmount }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
+        if (errorData.needWaiver && errorData.waiverUrl) {
+          window.location.href = errorData.waiverUrl;
+          return;
+        }
         if (errorData.isFull) {
-          // Event is full, show waitlist form
           setShowWaitlist(true);
         } else {
           alert(errorData.message || errorData.error || "Failed to create checkout session. Please try again.");
@@ -329,7 +446,143 @@ export default function Page() {
                 <p className="text-sm text-white/70">
                   no one is ever turned away for not having enough. if you need financial support, please reach out to us directly.
                 </p>
-                
+                {multiTicketEnabled && (
+                  <div>
+                    <p className="text-sm text-white/70 mb-2">how many spots?</p>
+                    <div className="flex flex-wrap gap-2">
+                      {Array.from({ length: maxTickets }, (_, i) => i + 1).map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setNumTickets(n)}
+                          className={`min-h-[44px] touch-manipulation px-4 py-2 text-sm rounded border transition-colors ${
+                            numTickets === n
+                              ? "border-current"
+                              : "border-white/20 text-white/60 hover:border-white/40 hover:text-white/80"
+                          }`}
+                          style={numTickets === n ? { borderColor: primaryColor, color: primaryColor } : undefined}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="space-y-4">
+                  <div>
+                    <input
+                      type="text"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="bg-white/5 border-b border-white/20 text-white/80 text-base focus:outline-none w-full px-2 py-1"
+                      style={{ "--focus-border-color": primaryColor } as React.CSSProperties}
+                      onFocus={(e) => (e.target.style.borderColor = primaryColor)}
+                      onBlur={(e) => (e.target.style.borderColor = "rgba(255, 255, 255, 0.2)")}
+                      placeholder="first name"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className="bg-white/5 border-b border-white/20 text-white/80 text-base focus:outline-none w-full px-2 py-1"
+                      style={{ "--focus-border-color": primaryColor } as React.CSSProperties}
+                      onFocus={(e) => (e.target.style.borderColor = primaryColor)}
+                      onBlur={(e) => (e.target.style.borderColor = "rgba(255, 255, 255, 0.2)")}
+                      placeholder="last name"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="bg-white/5 border-b border-white/20 text-white/80 text-base focus:outline-none w-full px-2 py-1"
+                      style={{ "--focus-border-color": primaryColor } as React.CSSProperties}
+                      onFocus={(e) => (e.target.style.borderColor = primaryColor)}
+                      onBlur={(e) => (e.target.style.borderColor = "rgba(255, 255, 255, 0.2)")}
+                      placeholder="email"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="bg-white/5 border-b border-white/20 text-white/80 text-base focus:outline-none w-full px-2 py-1"
+                      style={{ "--focus-border-color": primaryColor } as React.CSSProperties}
+                      onFocus={(e) => (e.target.style.borderColor = primaryColor)}
+                      onBlur={(e) => (e.target.style.borderColor = "rgba(255, 255, 255, 0.2)")}
+                      placeholder="phone (optional)"
+                    />
+                  </div>
+                </div>
+                {multiTicketEnabled && numTickets > 1 && (
+                  <div className="space-y-4 pt-2 border-t border-white/10">
+                    {multiTicketGuests.slice(0, numTickets - 1).map((guest, idx) => (
+                      <div key={idx} className="space-y-3 pl-2 border-l-2 border-white/10">
+                        <p className="text-xs text-white/50">guest {idx + 1}</p>
+                        <div>
+                          <input
+                            type="text"
+                            value={guest.name}
+                            onChange={(e) => {
+                              const next = [...multiTicketGuests];
+                              next[idx] = { ...next[idx], name: e.target.value };
+                              setMultiTicketGuests(next);
+                            }}
+                            className="bg-white/5 border-b border-white/20 text-white/80 text-base focus:outline-none w-full px-2 py-1"
+                            style={{ "--focus-border-color": primaryColor } as React.CSSProperties}
+                            onFocus={(e) => (e.target.style.borderColor = primaryColor)}
+                            onBlur={(e) => (e.target.style.borderColor = "rgba(255, 255, 255, 0.2)")}
+                            placeholder="name"
+                          />
+                        </div>
+                        <div>
+                          <input
+                            type="email"
+                            value={guest.email}
+                            onChange={(e) => {
+                              const next = [...multiTicketGuests];
+                              next[idx] = { ...next[idx], email: e.target.value };
+                              setMultiTicketGuests(next);
+                            }}
+                            className="bg-white/5 border-b border-white/20 text-white/80 text-base focus:outline-none w-full px-2 py-1"
+                            style={{ "--focus-border-color": primaryColor } as React.CSSProperties}
+                            onFocus={(e) => (e.target.style.borderColor = primaryColor)}
+                            onBlur={(e) => (e.target.style.borderColor = "rgba(255, 255, 255, 0.2)")}
+                            placeholder="email"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-white/60 text-sm">$</span>
+                          <input
+                            type="number"
+                            min="22"
+                            max="44"
+                            step="1"
+                            value={guest.amount || ""}
+                            onChange={(e) => {
+                              const v = e.target.value ? parseFloat(e.target.value) : 0;
+                              const next = [...multiTicketGuests];
+                              next[idx] = { ...next[idx], amount: v };
+                              setMultiTicketGuests(next);
+                            }}
+                            className="bg-transparent border-b border-white/20 text-white/80 text-base focus:outline-none w-20 px-2"
+                            style={{ "--focus-border-color": primaryColor } as React.CSSProperties}
+                            onFocus={(e) => (e.target.style.borderColor = primaryColor)}
+                            onBlur={(e) => (e.target.style.borderColor = "rgba(255, 255, 255, 0.2)")}
+                            placeholder="33"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="flex items-center gap-3">
                   <span className="text-white/60 text-sm">$</span>
                   <input
@@ -341,8 +594,8 @@ export default function Page() {
                     onChange={(e) => setContributionAmount(e.target.value)}
                     className="bg-transparent border-b border-white/20 text-white/80 text-base focus:outline-none w-20 px-2"
                     style={{ "--focus-border-color": primaryColor } as React.CSSProperties}
-                    onFocus={(e) => e.target.style.borderColor = primaryColor}
-                    onBlur={(e) => e.target.style.borderColor = "rgba(255, 255, 255, 0.2)"}
+                    onFocus={(e) => (e.target.style.borderColor = primaryColor)}
+                    onBlur={(e) => (e.target.style.borderColor = "rgba(255, 255, 255, 0.2)")}
                     placeholder="33"
                   />
                   <button
