@@ -370,7 +370,8 @@ export default function Page() {
           <p className="mt-6 text-sm text-white/80">
             sliding scale contribution ($22–$44, your choice).
           </p>
-          <p className="mt-1 text-sm text-white/70">
+          <hr className="my-4 border-white/10" />
+          <p className="text-sm text-white/70">
             no one is ever turned away for not having enough. if you need financial support, please reach out to us directly.
           </p>
 
