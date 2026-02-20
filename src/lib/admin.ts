@@ -754,7 +754,7 @@ export async function getAllEventsSummary(): Promise<{
   try {
     const { data: rows, error } = await supabase
       .from("registrations")
-      .select("event_id, customer_name, customer_email, customer_phone, pre_waiver_email, amount_paid, payment_date, refunded_at")
+      .select("event_id, customer_name, customer_email, customer_phone, pre_waiver_email, amount_paid, payment_date, refunded_at, is_excluded")
       .order("payment_date", { ascending: false });
 
     if (error) {
@@ -772,6 +772,7 @@ export async function getAllEventsSummary(): Promise<{
 
     for (const r of rows) {
       const refunded = !!r.refunded_at;
+      const excluded = !!(r as { is_excluded?: boolean | null }).is_excluded;
       const amount = parseFloat(r.amount_paid) ?? 0;
       if (refunded) totalRefunded += amount;
       else totalRevenue += amount;
@@ -782,7 +783,7 @@ export async function getAllEventsSummary(): Promise<{
       const existing = byEmail.get(canonicalEmail);
       const eventId = (r.event_id ?? "").trim();
       if (existing) {
-        existing.eventIds.add(eventId);
+        if (!excluded && eventId) existing.eventIds.add(eventId);
         if (!refunded) existing.totalAmount += amount;
         if ((r.payment_date ?? "") > existing.latestPayment) {
           existing.latestPayment = r.payment_date ?? "";
@@ -793,7 +794,7 @@ export async function getAllEventsSummary(): Promise<{
         byEmail.set(canonicalEmail, {
           name: (r.customer_name ?? "").trim() || "—",
           phone: (r.customer_phone ?? "").trim() || "—",
-          eventIds: new Set(eventId ? [eventId] : []),
+          eventIds: new Set(!excluded && eventId ? [eventId] : []),
           totalAmount: refunded ? 0 : amount,
           latestPayment: r.payment_date ?? "",
         });

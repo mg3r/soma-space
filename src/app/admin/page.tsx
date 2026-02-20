@@ -662,7 +662,7 @@ export default function AdminPage() {
       p.name ?? "",
       p.email ?? "",
       p.phone ?? "",
-      p.eventIds.map((eid) => allEventConfigs.find((c) => c.event_id === eid)?.event_name || eid).join("; ") || "—",
+      p.eventIds.map((eid) => allEventConfigs.find((c) => c.event_id === eid)?.event_name || eid).join("; ") || "none",
       String(p.eventCount ?? 0),
       String(p.totalAmount ?? 0),
     ]);
@@ -1221,7 +1221,7 @@ export default function AdminPage() {
                           <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">{p.email}</td>
                           <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">{p.phone === "—" ? "—" : p.phone}</td>
                           <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
-                            {p.eventIds.map((eid) => allEventConfigs.find((c) => c.event_id === eid)?.event_name || eid).join(", ") || "—"}
+                            {p.eventIds.map((eid) => allEventConfigs.find((c) => c.event_id === eid)?.event_name || eid).join(", ") || "none"}
                           </td>
                           <td className="px-3 sm:px-4 py-2 sm:py-3 text-right text-sm text-white/80">{p.eventCount}</td>
                           <td className="px-3 sm:px-4 py-2 sm:py-3 text-right text-sm text-white/80">${p.totalAmount.toFixed(2)}</td>
