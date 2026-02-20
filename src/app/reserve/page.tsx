@@ -333,9 +333,9 @@ export default function Page() {
   // Show booking form after authentication
   return (
     <main className="relative min-h-screen overflow-auto text-white" style={{ backgroundColor }}>
-      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col px-6 pt-20 pb-10 md:flex-row md:items-start md:gap-12 md:pt-24">
+      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-6 pt-20 pb-10 md:flex-row md:items-start md:justify-center md:gap-12 md:pt-24">
         {/* Left column: event details */}
-        <div className="flex-1 md:max-w-md">
+        <div className="w-full md:w-80 md:max-w-md md:flex-shrink-0">
           <h1 className="text-sm">join us for {event.name}</h1>
 
           <p className="mt-6 text-sm text-white/70 leading-relaxed">
@@ -385,7 +385,7 @@ export default function Page() {
         </div>
 
         {/* Right column: form */}
-        <div className="mt-10 flex-1 md:mt-0 md:max-w-md">
+        <div className="mt-10 w-full md:mt-0 md:w-80 md:max-w-md md:flex-shrink-0">
           {/* Waitlist form (shown when full or after failed booking) */}
           {showWaitlist && (
               <div className="mt-8 space-y-4 bg-white/5 border border-white/10 p-6">
