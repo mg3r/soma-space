@@ -239,6 +239,7 @@ type Attachment = {
   filename: string;
   content: string; // Base64 encoded
   content_type?: string;
+  contentId?: string; // For inline CID images
 };
 
 /**
@@ -276,11 +277,15 @@ export async function sendEmailToRegistrations(
   let failed = 0;
   const errors: string[] = [];
 
-  // Prepare attachments for Resend format
-  const resendAttachments = attachments?.map(att => ({
-    filename: att.filename,
-    content: Buffer.from(att.content, 'base64'),
-  })) || [];
+  // Prepare attachments for Resend format (include contentId for inline CID images)
+  const resendAttachments = attachments?.map(att => {
+    const res: { filename: string; content: Buffer; contentId?: string } = {
+      filename: att.filename,
+      content: Buffer.from(att.content, 'base64'),
+    };
+    if (att.contentId) res.contentId = att.contentId;
+    return res;
+  }) || [];
 
   if (useBcc && emails.length > 0) {
     // Send one email with all recipients in BCC

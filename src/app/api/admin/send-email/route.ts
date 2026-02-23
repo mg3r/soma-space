@@ -128,6 +128,34 @@ export async function POST(req: Request) {
       );
     }
 
+    // Extract inline data-URL images, convert to CID attachments for reliable email delivery
+    const dataUrlRegex = /src\s*=\s*["'](data:image\/([^;]+);base64,([^"']+))["']/gi;
+    const cidAttachments: Array<{ filename: string; content: string; content_type: string; contentId: string }> = [];
+    let cidIndex = 0;
+    htmlBody = htmlBody.replace(dataUrlRegex, (_, _fullDataUrl, mimeSubtype: string, base64Content: string) => {
+      const contentId = `img-${cidIndex}`;
+      let ext = (mimeSubtype || "png").toLowerCase().split(/[/+]/)[0] || "png";
+      if (ext === "jpeg") ext = "jpg";
+      cidAttachments.push({
+        filename: `image-${cidIndex}.${ext}`,
+        content: base64Content,
+        content_type: `image/${mimeSubtype || "png"}`,
+        contentId,
+      });
+      cidIndex++;
+      return `src="cid:${contentId}"`;
+    });
+
+    const allAttachments = [
+      ...attachments,
+      ...cidAttachments.map((a) => ({
+        filename: a.filename,
+        content: a.content,
+        content_type: a.content_type,
+        contentId: a.contentId,
+      })),
+    ];
+
     // Parse custom emails first
     const customEmailList: string[] = [];
     if (customEmails && Array.isArray(customEmails) && customEmails.length > 0) {
@@ -211,13 +239,13 @@ export async function POST(req: Request) {
     const eventConfig = await getActiveEventConfig();
     const primaryColor = eventConfig.primary_color || "#05fd00";
 
-    // Send emails with attachments
+    // Send emails with attachments (including CID inline images)
     const result = await sendEmailToRegistrations(
       uniqueEmails, 
       subject, 
       htmlBody, 
       useBcc,
-      attachments.length > 0 ? attachments : undefined,
+      allAttachments.length > 0 ? allAttachments : undefined,
       primaryColor
     );
 

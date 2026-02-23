@@ -118,6 +118,7 @@ export default function AdminPage() {
   const [isLoadingQrSignatures, setIsLoadingQrSignatures] = useState(false);
   const [isMarkingAsSigned, setIsMarkingAsSigned] = useState(false);
   const emailEditorRef = useRef<HTMLDivElement>(null);
+  const insertImageInputRef = useRef<HTMLInputElement | null>(null);
 
   function showToast(message: string, type: "success" | "error") {
     setToast({ message, type });
@@ -2267,6 +2268,32 @@ export default function AdminPage() {
                 >
                   🔗
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    emailEditorRef.current?.focus();
+                    const url = prompt("Enter image URL (or cancel to upload from file):", "https://");
+                    if (url !== null) {
+                      const trimmed = url?.trim() || "";
+                      if (trimmed) {
+                        const safe = trimmed.startsWith("https:") || trimmed.startsWith("data:image/");
+                        if (safe) {
+                          const imgHtml = `<img src="${trimmed}" alt="" style="max-width:100%;height:auto;" />`;
+                          document.execCommand("insertHTML", false, imgHtml);
+                          if (emailEditorRef.current) setEmailBody(emailEditorRef.current.innerHTML);
+                        } else {
+                          showToast("Only https: and data: image URLs are allowed", "error");
+                        }
+                        return;
+                      }
+                    }
+                    insertImageInputRef.current?.click();
+                  }}
+                  className="px-2 py-1 text-xs text-white/70 hover:text-white hover:bg-white/10 border border-white/10"
+                  title="Insert Image"
+                >
+                  🖼
+                </button>
                 <div className="w-px bg-white/20" />
                 <button
                   type="button"
@@ -2377,30 +2404,55 @@ export default function AdminPage() {
                 }}
                 onPaste={(e) => {
                   e.preventDefault();
-                  const html = e.clipboardData.getData("text/html");
-                  const text = e.clipboardData.getData("text/plain");
-
-                  if (html && html.trim()) {
-                    document.execCommand("insertHTML", false, html);
-                  } else {
-                    const selection = window.getSelection();
-                    if (selection && selection.rangeCount > 0) {
-                      const range = selection.getRangeAt(0);
-                      range.deleteContents();
-                      const textNode = document.createTextNode(text);
-                      range.insertNode(textNode);
-                      range.setStartAfter(textNode);
-                      range.collapse(true);
-                      selection.removeAllRanges();
-                      selection.addRange(range);
-                    } else if (emailEditorRef.current) {
-                      const textNode = document.createTextNode(text);
-                      emailEditorRef.current.appendChild(textNode);
+                  const items = e.clipboardData?.items;
+                  let hasImage = false;
+                  if (items) {
+                    for (const item of items) {
+                      if (item.type.startsWith("image/")) {
+                        hasImage = true;
+                        const file = item.getAsFile();
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            const dataUrl = reader.result as string;
+                            if (dataUrl && emailEditorRef.current) {
+                              const imgHtml = `<img src="${dataUrl}" alt="" style="max-width:100%;height:auto;" />`;
+                              document.execCommand("insertHTML", false, imgHtml);
+                              setEmailBody(emailEditorRef.current.innerHTML);
+                            }
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                        return;
+                      }
                     }
                   }
+                  if (!hasImage) {
+                    const html = e.clipboardData.getData("text/html");
+                    const text = e.clipboardData.getData("text/plain");
 
-                  if (emailEditorRef.current) {
-                    setEmailBody(emailEditorRef.current.innerHTML);
+                    if (html && html.trim()) {
+                      document.execCommand("insertHTML", false, html);
+                    } else {
+                      const selection = window.getSelection();
+                      if (selection && selection.rangeCount > 0) {
+                        const range = selection.getRangeAt(0);
+                        range.deleteContents();
+                        const textNode = document.createTextNode(text);
+                        range.insertNode(textNode);
+                        range.setStartAfter(textNode);
+                        range.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                      } else if (emailEditorRef.current) {
+                        const textNode = document.createTextNode(text);
+                        emailEditorRef.current.appendChild(textNode);
+                      }
+                    }
+
+                    if (emailEditorRef.current) {
+                      setEmailBody(emailEditorRef.current.innerHTML);
+                    }
                   }
                 }}
                 className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
@@ -2411,6 +2463,28 @@ export default function AdminPage() {
               <p className="mt-2 text-xs text-white/40">
                 tip: select text and use toolbar buttons to format. supports HTML.
               </p>
+              <input
+                ref={insertImageInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file && emailEditorRef.current) {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      const dataUrl = reader.result as string;
+                      if (dataUrl) {
+                        const imgHtml = `<img src="${dataUrl}" alt="" style="max-width:100%;height:auto;" />`;
+                        document.execCommand("insertHTML", false, imgHtml);
+                        setEmailBody(emailEditorRef.current.innerHTML);
+                      }
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                  e.target.value = "";
+                }}
+              />
             </div>
             <div>
               <label className="mb-2 block text-xs text-white/70">
