@@ -2500,7 +2500,7 @@ export default function AdminPage() {
                     const reader = new FileReader();
                     reader.onload = () => {
                       const dataUrl = reader.result as string;
-                      if (dataUrl) {
+                      if (dataUrl && emailEditorRef.current) {
                         const imgHtml = `<img src="${dataUrl}" alt="" style="max-width:100%;height:auto;" />`;
                         document.execCommand("insertHTML", false, imgHtml);
                         setEmailBody(emailEditorRef.current.innerHTML);
