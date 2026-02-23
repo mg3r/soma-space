@@ -2407,35 +2407,33 @@ export default function AdminPage() {
                 >
                   clear format
                 </button>
-                {showImageResizeBar && (
-                  <>
-                    <div className="w-px bg-white/20" />
-                    <span className="px-1 text-xs text-white/50">image:</span>
-                    {[
-                      { label: "S", width: "250px", title: "Small (250px)" },
-                      { label: "M", width: "450px", title: "Medium (450px)" },
-                      { label: "L", width: "600px", title: "Large (600px)" },
-                      { label: "Full", width: "100%", title: "Full width" },
-                    ].map(({ label, width, title }) => (
-                      <button
-                        key={label}
-                        type="button"
-                        onClick={() => {
-                          const img = selectedImageRef.current;
-                          if (img && emailEditorRef.current) {
-                            img.style.maxWidth = width;
-                            img.style.height = "auto";
-                            setEmailBody(emailEditorRef.current.innerHTML);
-                          }
-                        }}
-                        className="px-2 py-1 text-xs text-white/70 hover:text-white hover:bg-white/10 border border-white/10"
-                        title={title}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </>
-                )}
+                <div className="w-px bg-white/20" />
+                <span className="px-1 text-xs text-white/50">image size:</span>
+                {[
+                  { label: "250", width: "250px", title: "Small (250px)" },
+                  { label: "450", width: "450px", title: "Medium (450px)" },
+                  { label: "600", width: "600px", title: "Large (600px)" },
+                  { label: "Full", width: "100%", title: "Full width" },
+                ].map(({ label, width, title }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => {
+                      const img = selectedImageRef.current;
+                      if (img && emailEditorRef.current) {
+                        img.style.maxWidth = width;
+                        img.style.height = "auto";
+                        setEmailBody(emailEditorRef.current.innerHTML);
+                      } else {
+                        showToast("Click an image in the body first to select it", "error");
+                      }
+                    }}
+                    className={`px-2 py-1 text-xs border border-white/10 ${showImageResizeBar ? "text-white/70 hover:text-white hover:bg-white/10" : "text-white/40 cursor-help"}`}
+                    title={title}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
               {/* Rich Text Editor */}
               <div
@@ -2457,20 +2455,26 @@ export default function AdminPage() {
                     setEmailBody(emailEditorRef.current.innerHTML);
                   }
                 }}
-                onClick={(e) => {
+                onMouseDown={(e) => {
                   const target = e.target as HTMLElement;
-                  const img = target.tagName === "IMG" ? target as HTMLImageElement : target.closest("img") as HTMLImageElement | null;
+                  let img: HTMLImageElement | null = target.tagName === "IMG" ? target as HTMLImageElement : target.closest("img");
+                  if (!img && document.elementFromPoint) {
+                    const el = document.elementFromPoint(e.clientX, e.clientY);
+                    img = el?.tagName === "IMG" ? el as HTMLImageElement : (el as HTMLElement)?.closest?.("img") || null;
+                  }
                   if (img && emailEditorRef.current?.contains(img)) {
                     selectedImageRef.current = img;
                     setShowImageResizeBar(true);
-                    const sel = window.getSelection();
-                    if (sel) {
-                      const range = document.createRange();
-                      range.selectNode(img);
-                      sel.removeAllRanges();
-                      sel.addRange(range);
-                    }
-                  } else {
+                    requestAnimationFrame(() => {
+                      const sel = window.getSelection();
+                      if (sel) {
+                        const range = document.createRange();
+                        range.selectNode(img!);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                      }
+                    });
+                  } else if (emailEditorRef.current?.contains(target)) {
                     setShowImageResizeBar(false);
                     selectedImageRef.current = null;
                   }
@@ -2560,7 +2564,7 @@ export default function AdminPage() {
                 suppressContentEditableWarning
               />
               <p className="mt-2 text-xs text-white/40">
-                tip: select text and use toolbar buttons to format. supports HTML.
+                tip: select text and use toolbar buttons to format. click an image to select it, then use image size (250/450/600/Full) to resize.
               </p>
               <input
                 ref={insertImageInputRef}
