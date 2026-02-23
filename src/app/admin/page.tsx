@@ -812,7 +812,7 @@ export default function AdminPage() {
   // Detect when an image is selected in the email editor for resize toolbar
   useEffect(() => {
     const editor = emailEditorRef.current;
-    if (!editor) return;
+    if (!editor || activeTab !== "email") return;
 
     const handler = () => {
       const sel = window.getSelection();
@@ -836,7 +836,7 @@ export default function AdminPage() {
 
     document.addEventListener("selectionchange", handler);
     return () => document.removeEventListener("selectionchange", handler);
-  }, []);
+  }, [activeTab]);
 
   // Calculate email recipients
   const getEmailRecipients = () => {
@@ -862,7 +862,6 @@ export default function AdminPage() {
       return customEmailList;
     }
 
-    const hasCustomEmailInput = customEmails.trim().length > 0;
     const addRegEmails = (reg: Registration) => {
       const stripeEmail = reg.customerEmail?.trim();
       const chatEmail = reg.preWaiverEmail?.trim()?.toLowerCase();
@@ -874,10 +873,6 @@ export default function AdminPage() {
     if (selectedSessionIds.size > 0) {
       registrations
         .filter(reg => selectedSessionIds.has(reg.sessionId))
-        .forEach(addRegEmails);
-    } else if (!hasCustomEmailInput) {
-      registrations
-        .filter(reg => !reg.isExcluded)
         .forEach(addRegEmails);
     }
 
@@ -1975,22 +1970,22 @@ export default function AdminPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-white/10">
-                        <th className="px-4 py-3 text-left text-xs text-white/50 w-12">
-                          <input
-                            type="checkbox"
-                            checked={selectedSessionIds.size > 0 && selectedSessionIds.size === registrations.length}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                selectAllRegistrations();
-                              } else {
-                                clearSelection();
-                              }
-                            }}
-                            className="w-4 h-4"
-                          />
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs text-white/50">
-                          name
+                        <th colSpan={2} className="px-4 py-3 text-left text-xs text-white/50">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={registrations.length > 0 && selectedSessionIds.size === new Set(registrations.map(r => r.sessionId)).size}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  selectAllRegistrations();
+                                } else {
+                                  clearSelection();
+                                }
+                              }}
+                              className="w-4 h-4"
+                            />
+                            <span>name</span>
+                          </label>
                         </th>
                         <th className="px-4 py-3 text-left text-xs text-white/50">
                           waiver
@@ -2460,6 +2455,24 @@ export default function AdminPage() {
                   e.target.style.borderColor = "rgba(255, 255, 255, 0.2)";
                   if (emailEditorRef.current) {
                     setEmailBody(emailEditorRef.current.innerHTML);
+                  }
+                }}
+                onClick={(e) => {
+                  const target = e.target as HTMLElement;
+                  const img = target.tagName === "IMG" ? target as HTMLImageElement : target.closest("img") as HTMLImageElement | null;
+                  if (img && emailEditorRef.current?.contains(img)) {
+                    selectedImageRef.current = img;
+                    setShowImageResizeBar(true);
+                    const sel = window.getSelection();
+                    if (sel) {
+                      const range = document.createRange();
+                      range.selectNode(img);
+                      sel.removeAllRanges();
+                      sel.addRange(range);
+                    }
+                  } else {
+                    setShowImageResizeBar(false);
+                    selectedImageRef.current = null;
                   }
                 }}
                 onPaste={(e) => {
