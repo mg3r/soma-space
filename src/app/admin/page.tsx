@@ -119,6 +119,8 @@ export default function AdminPage() {
   const [isMarkingAsSigned, setIsMarkingAsSigned] = useState(false);
   const emailEditorRef = useRef<HTMLDivElement>(null);
   const insertImageInputRef = useRef<HTMLInputElement | null>(null);
+  const [showImageResizeBar, setShowImageResizeBar] = useState(false);
+  const selectedImageRef = useRef<HTMLImageElement | null>(null);
 
   function showToast(message: string, type: "success" | "error") {
     setToast({ message, type });
@@ -806,6 +808,35 @@ export default function AdminPage() {
       }
     }
   }, [emailBody]);
+
+  // Detect when an image is selected in the email editor for resize toolbar
+  useEffect(() => {
+    const editor = emailEditorRef.current;
+    if (!editor) return;
+
+    const handler = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) {
+        setShowImageResizeBar(false);
+        selectedImageRef.current = null;
+        return;
+      }
+      let node: Node | null = sel.anchorNode;
+      while (node && node !== editor) {
+        if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName === "IMG" && editor.contains(node)) {
+          selectedImageRef.current = node as HTMLImageElement;
+          setShowImageResizeBar(true);
+          return;
+        }
+        node = node.parentElement;
+      }
+      setShowImageResizeBar(false);
+      selectedImageRef.current = null;
+    };
+
+    document.addEventListener("selectionchange", handler);
+    return () => document.removeEventListener("selectionchange", handler);
+  }, []);
 
   // Calculate email recipients
   const getEmailRecipients = () => {
@@ -2278,7 +2309,7 @@ export default function AdminPage() {
                       if (trimmed) {
                         const safe = trimmed.startsWith("https:") || trimmed.startsWith("data:image/");
                         if (safe) {
-                          const imgHtml = `<img src="${trimmed}" alt="" style="max-width:100%;height:auto;" />`;
+                          const imgHtml = `<img src="${trimmed}" alt="" style="max-width:min(100%,450px);height:auto;" />`;
                           document.execCommand("insertHTML", false, imgHtml);
                           if (emailEditorRef.current) setEmailBody(emailEditorRef.current.innerHTML);
                         } else {
@@ -2381,6 +2412,35 @@ export default function AdminPage() {
                 >
                   clear format
                 </button>
+                {showImageResizeBar && (
+                  <>
+                    <div className="w-px bg-white/20" />
+                    <span className="px-1 text-xs text-white/50">image:</span>
+                    {[
+                      { label: "S", width: "250px", title: "Small (250px)" },
+                      { label: "M", width: "450px", title: "Medium (450px)" },
+                      { label: "L", width: "600px", title: "Large (600px)" },
+                      { label: "Full", width: "100%", title: "Full width" },
+                    ].map(({ label, width, title }) => (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => {
+                          const img = selectedImageRef.current;
+                          if (img && emailEditorRef.current) {
+                            img.style.maxWidth = width;
+                            img.style.height = "auto";
+                            setEmailBody(emailEditorRef.current.innerHTML);
+                          }
+                        }}
+                        className="px-2 py-1 text-xs text-white/70 hover:text-white hover:bg-white/10 border border-white/10"
+                        title={title}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </>
+                )}
               </div>
               {/* Rich Text Editor */}
               <div
@@ -2416,7 +2476,7 @@ export default function AdminPage() {
                           reader.onload = () => {
                             const dataUrl = reader.result as string;
                             if (dataUrl && emailEditorRef.current) {
-                              const imgHtml = `<img src="${dataUrl}" alt="" style="max-width:100%;height:auto;" />`;
+                              const imgHtml = `<img src="${dataUrl}" alt="" style="max-width:min(100%,450px);height:auto;" />`;
                               document.execCommand("insertHTML", false, imgHtml);
                               setEmailBody(emailEditorRef.current.innerHTML);
                             }
@@ -2471,7 +2531,7 @@ export default function AdminPage() {
                     reader.onload = () => {
                       const dataUrl = reader.result as string;
                       if (dataUrl && emailEditorRef.current) {
-                        const imgHtml = `<img src="${dataUrl}" alt="" style="max-width:100%;height:auto;" />`;
+                        const imgHtml = `<img src="${dataUrl}" alt="" style="max-width:min(100%,450px);height:auto;" />`;
                         document.execCommand("insertHTML", false, imgHtml);
                         setEmailBody(emailEditorRef.current.innerHTML);
                       }
@@ -2501,7 +2561,7 @@ export default function AdminPage() {
                     reader.onload = () => {
                       const dataUrl = reader.result as string;
                       if (dataUrl && emailEditorRef.current) {
-                        const imgHtml = `<img src="${dataUrl}" alt="" style="max-width:100%;height:auto;" />`;
+                        const imgHtml = `<img src="${dataUrl}" alt="" style="max-width:min(100%,450px);height:auto;" />`;
                         document.execCommand("insertHTML", false, imgHtml);
                         setEmailBody(emailEditorRef.current.innerHTML);
                       }
