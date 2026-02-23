@@ -2455,6 +2455,32 @@ export default function AdminPage() {
                     }
                   }
                 }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "copy";
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const files = e.dataTransfer.files;
+                  if (!files?.length || !emailEditorRef.current) return;
+                  let inserted = 0;
+                  for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    if (!file.type.startsWith("image/")) continue;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      const dataUrl = reader.result as string;
+                      if (dataUrl && emailEditorRef.current) {
+                        const imgHtml = `<img src="${dataUrl}" alt="" style="max-width:100%;height:auto;" />`;
+                        document.execCommand("insertHTML", false, imgHtml);
+                        setEmailBody(emailEditorRef.current.innerHTML);
+                      }
+                    };
+                    reader.readAsDataURL(file);
+                    inserted++;
+                    if (inserted >= 1) break;
+                  }
+                }}
                 className="bg-white/5 border border-white/20 text-white/80 text-sm focus:outline-none w-full px-3 py-2"
                 onFocus={(e) => e.target.style.borderColor = adminAccent}
                 data-placeholder="Email body (use toolbar above for formatting)"
