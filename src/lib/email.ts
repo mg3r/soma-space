@@ -55,9 +55,30 @@ export async function sendCapacityReachedNotification(
 }
 
 /**
+ * Ensure all <a> tags have inline color for Gmail compatibility.
+ * Gmail strips <style> blocks; inline styles are required for reliable link colors.
+ */
+function inlineLinkColors(html: string, color: string): string {
+  return html.replace(
+    /<a\s+([^>]*)>/gi,
+    (_, attrs) => {
+      const colorStyle = `color: ${color} !important; text-decoration: underline;`;
+      const styleMatch = attrs.match(/style\s*=\s*["']([^"']*)["']/i);
+      if (styleMatch) {
+        const existing = styleMatch[1].replace(/\bcolor\s*:\s*[^;]+;?/gi, "").trim();
+        const newStyle = existing ? `${colorStyle} ${existing}` : colorStyle;
+        return `<a ${attrs.replace(/style\s*=\s*["'][^"']*["']/i, `style="${newStyle}"`)}>`;
+      }
+      return `<a ${attrs} style="${colorStyle}">`;
+    }
+  );
+}
+
+/**
  * Generate branded email HTML template
  */
 function getEmailTemplate(htmlBody: string, primaryColor: string = "#05fd00"): string {
+  const processedBody = inlineLinkColors(htmlBody, primaryColor);
   return `
     <!DOCTYPE html>
     <html>
@@ -190,7 +211,7 @@ function getEmailTemplate(htmlBody: string, primaryColor: string = "#05fd00"): s
                         a { color: ${primaryColor} !important; text-decoration: underline !important; }
                         a:hover { opacity: 0.8 !important; }
                       </style>
-                      ${htmlBody}
+                      ${processedBody}
                     </div>
                   </td>
                 </tr>

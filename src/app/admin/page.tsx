@@ -2341,6 +2341,19 @@ export default function AdminPage() {
                 >
                   1.
                 </button>
+                <div className="w-px bg-white/20" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    emailEditorRef.current?.focus();
+                    document.execCommand("removeFormat", false, undefined);
+                    if (emailEditorRef.current) setEmailBody(emailEditorRef.current.innerHTML);
+                  }}
+                  className="px-2 py-1 text-xs text-white/70 hover:text-white hover:bg-white/10 border border-white/10"
+                  title="Clear formatting"
+                >
+                  clear format
+                </button>
               </div>
               {/* Rich Text Editor */}
               <div
@@ -2364,30 +2377,28 @@ export default function AdminPage() {
                 }}
                 onPaste={(e) => {
                   e.preventDefault();
-                  const text = e.clipboardData.getData('text/plain');
-                  
-                  // Insert plain text at cursor position
-                  const selection = window.getSelection();
-                  if (selection && selection.rangeCount > 0) {
-                    const range = selection.getRangeAt(0);
-                    range.deleteContents();
-                    
-                    // Create text node with plain text
-                    const textNode = document.createTextNode(text);
-                    range.insertNode(textNode);
-                    
-                    // Move cursor to end of inserted text
-                    range.setStartAfter(textNode);
-                    range.collapse(true);
-                    selection.removeAllRanges();
-                    selection.addRange(range);
-                  } else if (emailEditorRef.current) {
-                    // If no selection, append to end
-                    const textNode = document.createTextNode(text);
-                    emailEditorRef.current.appendChild(textNode);
+                  const html = e.clipboardData.getData("text/html");
+                  const text = e.clipboardData.getData("text/plain");
+
+                  if (html && html.trim()) {
+                    document.execCommand("insertHTML", false, html);
+                  } else {
+                    const selection = window.getSelection();
+                    if (selection && selection.rangeCount > 0) {
+                      const range = selection.getRangeAt(0);
+                      range.deleteContents();
+                      const textNode = document.createTextNode(text);
+                      range.insertNode(textNode);
+                      range.setStartAfter(textNode);
+                      range.collapse(true);
+                      selection.removeAllRanges();
+                      selection.addRange(range);
+                    } else if (emailEditorRef.current) {
+                      const textNode = document.createTextNode(text);
+                      emailEditorRef.current.appendChild(textNode);
+                    }
                   }
-                  
-                  // Update state
+
                   if (emailEditorRef.current) {
                     setEmailBody(emailEditorRef.current.innerHTML);
                   }
