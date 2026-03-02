@@ -5,6 +5,7 @@ import { nextEvent } from "@/config/event";
 import Link from "next/link";
 import QRCode from "qrcode";
 import type { EventConfig } from "@/lib/event-config";
+import { normalizeEmailHtml } from "@/lib/normalize-email-html";
 
 type Registration = {
   sessionId: string;
@@ -900,9 +901,13 @@ export default function AdminPage() {
     setEmailResult(null);
     
     try {
+      // Sync editor content to emailBody before sending (captures any unsaved edits/images)
+      const latestHtml = emailEditorRef.current?.innerHTML ?? emailBody;
+      const bodyToSend = latestHtml || emailBody;
+      
       // Wrap email body with font size
       const fontSize = emailFontSize === "small" ? "14px" : emailFontSize === "medium" ? "15px" : "16px";
-      const wrappedHtmlBody = `<div style="font-size: ${fontSize};">${emailBody}</div>`;
+      const wrappedHtmlBody = `<div style="font-size: ${fontSize};">${bodyToSend}</div>`;
       
       // Use FormData if there are attachments, otherwise use JSON
       let body: FormData | string;
@@ -2398,12 +2403,15 @@ export default function AdminPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    emailEditorRef.current?.focus();
+                    if (!emailEditorRef.current) return;
+                    emailEditorRef.current.focus();
                     document.execCommand("removeFormat", false, undefined);
-                    if (emailEditorRef.current) setEmailBody(emailEditorRef.current.innerHTML);
+                    const normalized = normalizeEmailHtml(emailEditorRef.current.innerHTML);
+                    emailEditorRef.current.innerHTML = normalized;
+                    setEmailBody(normalized);
                   }}
                   className="px-2 py-1 text-xs text-white/70 hover:text-white hover:bg-white/10 border border-white/10"
-                  title="Clear formatting"
+                  title="Clear formatting and fix spacing"
                 >
                   clear format
                 </button>
@@ -2505,12 +2513,10 @@ export default function AdminPage() {
                     }
                   }
                   if (!hasImage) {
-                    const html = e.clipboardData.getData("text/html");
                     const text = e.clipboardData.getData("text/plain");
-
-                    if (html && html.trim()) {
-                      document.execCommand("insertHTML", false, html);
-                    } else {
+                    // Always paste as plain text to avoid Word/Docs/web formatting and excess spacing
+                    const inserted = document.execCommand("insertText", false, text);
+                    if (!inserted) {
                       const selection = window.getSelection();
                       if (selection && selection.rangeCount > 0) {
                         const range = selection.getRangeAt(0);
@@ -2526,7 +2532,6 @@ export default function AdminPage() {
                         emailEditorRef.current.appendChild(textNode);
                       }
                     }
-
                     if (emailEditorRef.current) {
                       setEmailBody(emailEditorRef.current.innerHTML);
                     }

@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { normalizeEmailHtml } from "./normalize-email-html";
 
 /**
  * Send email notification when event reaches capacity
@@ -78,7 +79,7 @@ function inlineLinkColors(html: string, color: string): string {
  * Generate branded email HTML template
  */
 function getEmailTemplate(htmlBody: string, primaryColor: string = "#05fd00"): string {
-  const processedBody = inlineLinkColors(htmlBody, primaryColor);
+  const processedBody = inlineLinkColors(normalizeEmailHtml(htmlBody), primaryColor);
   return `
     <!DOCTYPE html>
     <html>
@@ -277,13 +278,15 @@ export async function sendEmailToRegistrations(
   let failed = 0;
   const errors: string[] = [];
 
-  // Prepare attachments for Resend format (include contentId for inline CID images)
+  // Prepare attachments for Resend format (include contentId and contentType for inline CID images)
+  // Resend API expects base64-encoded string for content, not Buffer
   const resendAttachments = attachments?.map(att => {
-    const res: { filename: string; content: Buffer; contentId?: string } = {
+    const res: { filename: string; content: string; contentId?: string; contentType?: string } = {
       filename: att.filename,
-      content: Buffer.from(att.content, 'base64'),
+      content: att.content, // already base64 from CID extraction or file upload
     };
     if (att.contentId) res.contentId = att.contentId;
+    if (att.content_type) res.contentType = att.content_type;
     return res;
   }) || [];
 
