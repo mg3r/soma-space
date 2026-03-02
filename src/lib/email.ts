@@ -168,7 +168,7 @@ function getEmailTemplate(htmlBody: string, primaryColor: string = "#05fd00"): s
             color: #111111 !important;
           }
           p {
-            margin: 0 0 6px 0 !important;
+            margin: 0 0 4px 0 !important;
           }
           p:last-child {
             margin-bottom: 0 !important;
@@ -205,9 +205,9 @@ function getEmailTemplate(htmlBody: string, primaryColor: string = "#05fd00"): s
                   <td class="email-padding" style="padding: 40px 30px; padding-left: 30px; padding-right: 30px; padding-top: 40px; padding-bottom: 40px; background: #ffffff !important; border-radius: 0;">
                     <div style="color: #111111 !important; font-size: 14px; line-height: 1.6; font-family: 'Avenir', 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;">
                       <style>
-                        p { margin: 0 0 6px 0 !important; }
+                        p { margin: 0 0 4px 0 !important; }
                         p:last-child { margin-bottom: 0 !important; }
-                        div { margin: 0 0 6px 0 !important; }
+                        div { margin: 0 0 4px 0 !important; }
                         div:last-child { margin-bottom: 0 !important; }
                         a { color: ${primaryColor} !important; text-decoration: underline !important; }
                         a:hover { opacity: 0.8 !important; }

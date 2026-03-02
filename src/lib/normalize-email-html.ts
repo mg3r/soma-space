@@ -25,7 +25,7 @@ export function normalizeEmailHtml(html: string): string {
 
   // Ensure p and div have inline margin so Gmail and other clients show paragraph spacing
   // (many email clients strip <style> blocks; inline styles are reliable)
-  const blockMargin = "margin: 0 0 6px 0";
+  const blockMargin = "margin: 0 0 4px 0";
   const ensureBlockMargin = (tag: string, match: string): string => {
     const styleMatch = match.match(/style\s*=\s*["']([^"']*)["']/i);
     if (styleMatch) {
