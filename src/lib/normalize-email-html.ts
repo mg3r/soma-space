@@ -1,7 +1,7 @@
 /**
  * Normalize email HTML to fix excessive spacing from pasted content (Word, Docs, etc.).
- * Strips inline margin/line-height (so template spacing applies); does NOT remove
- * empty block elements, which are used for intentional paragraph breaks in the editor.
+ * Strips inline margin/line-height (so template spacing applies).
+ * Replaces empty blocks with <br> to avoid excessive spacing.
  * Ensures p/div have inline margin for Gmail (many clients strip <style> blocks).
  */
 export function normalizeEmailHtml(html: string): string {
@@ -22,6 +22,12 @@ export function normalizeEmailHtml(html: string): string {
 
   // Remove empty style attributes (e.g. style="" or style='')
   result = result.replace(/\s+style\s*=\s*["']['"]/gi, "");
+
+  // Replace empty blocks with <br> to avoid excessive spacing (empty div/p take full line-height)
+  result = result.replace(/<p[^>]*>\s*<\/p>/gi, "<br>");
+  result = result.replace(/<p[^>]*><br\s*\/?>\s*<\/p>/gi, "<br>");
+  result = result.replace(/<div[^>]*>\s*<\/div>/gi, "<br>");
+  result = result.replace(/<div[^>]*><br\s*\/?>\s*<\/div>/gi, "<br>");
 
   // Ensure p and div have inline margin so Gmail and other clients show paragraph spacing
   // (many email clients strip <style> blocks; inline styles are reliable)
