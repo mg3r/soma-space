@@ -85,7 +85,7 @@ export default function TextWithLinks({ text, primaryColor, className = "" }: Pr
             target={isEmail ? undefined : "_blank"}
             rel={isEmail ? undefined : "noopener noreferrer"}
             className="hover:opacity-80"
-            style={{ color: primaryColor, textDecoration: "underline" }}
+            style={{ color: primaryColor }}
           >
             {seg.value}
           </a>
