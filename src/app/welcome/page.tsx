@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
+import TextWithLinks from "@/components/TextWithLinks";
 import { useEventConfig } from "@/hooks/useEventConfig";
 
 // Generate spiral path points (clockwise from center, starting right)
@@ -134,7 +135,10 @@ function ReserveContent() {
                 </p>
 
                 <p className="mt-6 text-sm text-white/70 leading-relaxed">
-                  {config?.event_description || "a gathering of movement, music, connection, gentle guidance, and embodied presence."}
+                  <TextWithLinks
+                    text={config?.event_description || "a gathering of movement, music, connection, gentle guidance, and embodied presence."}
+                    primaryColor={primaryColor}
+                  />
                 </p>
 
                 <div className="mt-8 space-y-1">

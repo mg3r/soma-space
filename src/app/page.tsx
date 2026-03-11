@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import TextWithLinks from "@/components/TextWithLinks";
 import { useEventConfig } from "@/hooks/useEventConfig";
 
 type Phase = "boot" | "await_password" | "checking" | "unlocked"
@@ -864,7 +865,9 @@ export default function Page() {
                   }
                   return (
                     <div key={idx} className="flex">
-                      <p className="max-w-[85%]">{l.text}</p>
+                      <p className="max-w-[85%] text-white/90">
+                        <TextWithLinks text={l.text} primaryColor={primaryColor} />
+                      </p>
                     </div>
                   );
                 })}

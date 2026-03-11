@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
+import TextWithLinks from "@/components/TextWithLinks";
 import { useEventConfig } from "@/hooks/useEventConfig";
 
 export default function Page() {
@@ -339,7 +340,10 @@ export default function Page() {
           <h1 className="text-sm">join us for {event.name}</h1>
 
           <p className="mt-6 text-sm text-white/70 leading-relaxed">
-            {config?.event_description || "a gathering of guided movement, music, and embodied presence — held in a quiet farm setting with mountain views. come to move freely, unwind, and connect as you are."}
+            <TextWithLinks
+              text={config?.event_description || "a gathering of guided movement, music, and embodied presence — held in a quiet farm setting with mountain views. come to move freely, unwind, and connect as you are."}
+              primaryColor={primaryColor}
+            />
           </p>
 
           <div className="mt-8 space-y-1">
@@ -352,7 +356,10 @@ export default function Page() {
           </div>
 
           <p className="mt-6 text-sm text-white/70">
-            {config?.chat_location_message || event.note || "location shared after reserving (~25 minutes west of downtown mall)"}
+            <TextWithLinks
+              text={config?.chat_location_message || event.note || "location shared after reserving (~25 minutes west of downtown mall)"}
+              primaryColor={primaryColor}
+            />
           </p>
 
           <p className="mt-6 text-sm text-white/70 leading-relaxed">
