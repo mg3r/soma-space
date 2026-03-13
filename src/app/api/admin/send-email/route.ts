@@ -53,6 +53,7 @@ export async function POST(req: Request) {
     let subject: string;
     let htmlBody: string;
     let selectedSessionIds: string[] | undefined;
+    let selectedEmails: string[] | undefined;
     let customEmails: string[] | undefined;
     let excludeExcluded = true;
     let useBcc = false;
@@ -66,6 +67,7 @@ export async function POST(req: Request) {
       subject = formData.get("subject") as string;
       htmlBody = formData.get("htmlBody") as string;
       const selectedIdsStr = formData.get("selectedSessionIds") as string;
+      const selectedEmailsStr = formData.get("selectedEmails") as string;
       const customEmailsStr = formData.get("customEmails") as string;
       excludeExcluded = formData.get("excludeExcluded") === "true";
       useBcc = formData.get("useBcc") === "true";
@@ -75,6 +77,14 @@ export async function POST(req: Request) {
           selectedSessionIds = JSON.parse(selectedIdsStr);
         } catch {
           selectedSessionIds = undefined;
+        }
+      }
+
+      if (selectedEmailsStr) {
+        try {
+          selectedEmails = JSON.parse(selectedEmailsStr);
+        } catch {
+          selectedEmails = undefined;
         }
       }
 
@@ -111,6 +121,7 @@ export async function POST(req: Request) {
       subject = body.subject;
       htmlBody = body.htmlBody;
       selectedSessionIds = body.selectedSessionIds;
+      selectedEmails = body.selectedEmails;
       customEmails = body.customEmails;
       excludeExcluded = body.excludeExcluded ?? true;
       useBcc = body.useBcc ?? false;
@@ -156,6 +167,10 @@ export async function POST(req: Request) {
       })),
     ];
 
+    if (cidAttachments.length > 0) {
+      console.log(`📎 Extracted ${cidAttachments.length} inline image(s) as CID attachments`);
+    }
+
     // Parse custom emails first
     const customEmailList: string[] = [];
     if (customEmails && Array.isArray(customEmails) && customEmails.length > 0) {
@@ -171,13 +186,20 @@ export async function POST(req: Request) {
     // Build list of emails to send to
     const emails: string[] = [];
 
-    // All events: use all-people list (one email per person across events)
+    // All events: use selected emails if provided, otherwise all people
     if (eventId === ALL_EVENTS_ID) {
-      const { people } = await getAllEventsSummary();
-      people.forEach((p) => {
-        const e = p.email?.trim();
-        if (e && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) emails.push(e);
-      });
+      if (selectedEmails && Array.isArray(selectedEmails)) {
+        selectedEmails.forEach((e) => {
+          const trimmed = e?.trim();
+          if (trimmed && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) emails.push(trimmed);
+        });
+      } else {
+        const { people } = await getAllEventsSummary();
+        people.forEach((p) => {
+          const e = p.email?.trim();
+          if (e && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) emails.push(e);
+        });
+      }
       customEmailList.forEach((email) => emails.push(email));
     } else {
       // Single event: use registrations

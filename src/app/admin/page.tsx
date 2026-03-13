@@ -104,6 +104,7 @@ export default function AdminPage() {
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
   const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
+  const [selectedAllEventsEmails, setSelectedAllEventsEmails] = useState<Set<string>>(new Set());
   const [customEmails, setCustomEmails] = useState("");
   const [useBcc, setUseBcc] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -772,6 +773,9 @@ export default function AdminPage() {
   // Reset email selection when event changes
   useEffect(() => {
     setSelectedSessionIds(new Set());
+    if (selectedEvent !== ALL_EVENTS_ID) {
+      setSelectedAllEventsEmails(new Set());
+    }
     setEmailSubject("");
     setEmailBody("");
     setCustomEmails("");
@@ -783,6 +787,13 @@ export default function AdminPage() {
       emailEditorRef.current.style.fontSize = "14px";
     }
   }, [selectedEvent]);
+
+  // Auto-select all people when landing on all-events
+  useEffect(() => {
+    if (selectedEvent === ALL_EVENTS_ID && allEventsPeople.length > 0 && selectedAllEventsEmails.size === 0) {
+      setSelectedAllEventsEmails(new Set(allEventsPeople.map(p => p.email)));
+    }
+  }, [selectedEvent, allEventsPeople, selectedAllEventsEmails.size]);
 
   // Apply font size to editor when font size changes
   useEffect(() => {
@@ -851,9 +862,9 @@ export default function AdminPage() {
       });
     }
 
-    // All events: send to all people + custom emails
+    // All events: send to selected people + custom emails
     if (selectedEvent === ALL_EVENTS_ID) {
-      const peopleEmails = allEventsPeople.map((p) => p.email);
+      const peopleEmails = Array.from(selectedAllEventsEmails);
       return [...new Set([...peopleEmails, ...customEmailList])];
     }
 
@@ -919,7 +930,9 @@ export default function AdminPage() {
         formData.append("eventId", selectedEvent);
         formData.append("subject", emailSubject);
         formData.append("htmlBody", wrappedHtmlBody);
-        if (selectedSessionIds.size > 0) {
+        if (selectedEvent === ALL_EVENTS_ID) {
+          formData.append("selectedEmails", JSON.stringify(Array.from(selectedAllEventsEmails)));
+        } else if (selectedSessionIds.size > 0) {
           formData.append("selectedSessionIds", JSON.stringify(Array.from(selectedSessionIds)));
         }
         if (customEmails.trim()) {
@@ -942,7 +955,8 @@ export default function AdminPage() {
           eventId: selectedEvent,
           subject: emailSubject,
           htmlBody: wrappedHtmlBody,
-          selectedSessionIds: selectedSessionIds.size > 0 ? Array.from(selectedSessionIds) : undefined,
+          selectedEmails: selectedEvent === ALL_EVENTS_ID ? Array.from(selectedAllEventsEmails) : undefined,
+          selectedSessionIds: selectedEvent !== ALL_EVENTS_ID && selectedSessionIds.size > 0 ? Array.from(selectedSessionIds) : undefined,
           customEmails: customEmails.trim() ? customEmails.split(/[,\n]/).map(e => e.trim()).filter(e => e) : undefined,
           excludeExcluded: true,
           useBcc: useBcc,
@@ -995,6 +1009,26 @@ export default function AdminPage() {
 
   const clearSelection = () => {
     setSelectedSessionIds(new Set());
+  };
+
+  const toggleAllEventsEmail = (email: string) => {
+    setSelectedAllEventsEmails(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(email)) {
+        newSet.delete(email);
+      } else {
+        newSet.add(email);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllAllEventsPeople = () => {
+    setSelectedAllEventsEmails(new Set(allEventsPeople.map(p => p.email)));
+  };
+
+  const clearAllEventsSelection = () => {
+    setSelectedAllEventsEmails(new Set());
   };
 
   const handleAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1938,14 +1972,98 @@ export default function AdminPage() {
         {activeTab === "email" && (
           <>
             {selectedEvent === ALL_EVENTS_ID ? (
-              <div className="mb-8 bg-white/5 border border-white/10 p-4">
+            /* All-events recipients table */
+            <div className="mb-8 bg-white/5 border border-white/10">
+              <div className="border-b border-white/10 p-4 flex items-center justify-between">
                 <h2 className="text-sm" style={{ color: adminAccent }}>
-                  recipients: all people ({allEventsPeople.length})
+                  recipients ({allEventsPeople.length})
                 </h2>
-                <p className="mt-1 text-xs text-white/50">
-                  this email will go to everyone who has registered for any event. add custom emails below to include additional addresses.
-                </p>
+                {allEventsPeople.length > 0 && (
+                  <button
+                    onClick={selectedAllEventsEmails.size === allEventsPeople.length ? clearAllEventsSelection : selectAllAllEventsPeople}
+                    className="text-xs text-white/50 hover:text-white/80"
+                  >
+                    {selectedAllEventsEmails.size === allEventsPeople.length ? "clear all" : "select all"}
+                  </button>
+                )}
               </div>
+              {isLoadingAllEvents ? (
+                <div className="p-8 text-center text-sm text-white/50">
+                  loading...
+                </div>
+              ) : allEventsPeople.length === 0 ? (
+                <div className="p-8 text-center text-sm text-white/50">
+                  no people yet
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-white/10">
+                        <th colSpan={2} className="px-4 py-3 text-left text-xs text-white/50">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={allEventsPeople.length > 0 && selectedAllEventsEmails.size === allEventsPeople.length}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  selectAllAllEventsPeople();
+                                } else {
+                                  clearAllEventsSelection();
+                                }
+                              }}
+                              className="w-4 h-4"
+                            />
+                            <span>name</span>
+                          </label>
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs text-white/50">
+                          email
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs text-white/50">
+                          phone
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs text-white/50">
+                          # events
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs text-white/50">
+                          total amount
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allEventsPeople.map((p) => (
+                        <tr key={p.email} className="border-b border-white/5 hover:bg-white/5">
+                          <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedAllEventsEmails.has(p.email)}
+                              onChange={() => toggleAllEventsEmail(p.email)}
+                              className="w-4 h-4"
+                            />
+                          </td>
+                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
+                            {p.name}
+                          </td>
+                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
+                            {p.email}
+                          </td>
+                          <td className="px-3 sm:px-4 py-2 sm:py-3 text-sm text-white/80">
+                            {p.phone === "—" ? "—" : p.phone}
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm text-white/80">
+                            {p.eventCount}
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm text-white/80">
+                            ${p.totalAmount.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
             ) : (
             /* Registrations Table for Email Tab */
             <div className="mb-8 bg-white/5 border border-white/10">
