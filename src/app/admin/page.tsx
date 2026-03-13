@@ -2000,19 +2000,23 @@ export default function AdminPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-white/10">
-                        <th colSpan={2} className="px-4 py-3 text-left text-xs text-white/50">
+                        <th
+                          colSpan={2}
+                          className="px-4 py-3 text-left text-xs text-white/50 cursor-pointer select-none"
+                          onClick={() => {
+                            if (selectedAllEventsEmails.size === allEventsPeople.length) {
+                              clearAllEventsSelection();
+                            } else {
+                              selectAllAllEventsPeople();
+                            }
+                          }}
+                        >
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
                               type="checkbox"
+                              readOnly
                               checked={allEventsPeople.length > 0 && selectedAllEventsEmails.size === allEventsPeople.length}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  selectAllAllEventsPeople();
-                                } else {
-                                  clearAllEventsSelection();
-                                }
-                              }}
-                              className="w-4 h-4"
+                              className="w-4 h-4 pointer-events-none"
                             />
                             <span>name</span>
                           </label>
